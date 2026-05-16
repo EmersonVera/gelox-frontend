@@ -24,6 +24,12 @@ export function AuthProvider({ children }) {
     return unsubscribe;
   }, []);
 
+  const updatePerfil = (updates) => {
+    const updated = { ...perfil, ...updates };
+    setPerfil(updated);
+    localStorage.setItem('gelox_perfil', JSON.stringify(updated));
+  };
+
   const logout = async () => {
     await signOut(auth);
     setPerfil(null);
@@ -31,7 +37,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ firebaseUser, perfil, setPerfil, loading, logout }}>
+    <AuthContext.Provider value={{ firebaseUser, perfil, setPerfil, updatePerfil, loading, logout }}>
       {!loading && children}
     </AuthContext.Provider>
   );
