@@ -347,7 +347,7 @@ export default function Ajustes() {
             </div>
             <button
               type="button"
-              className={styles.linkCrimson}
+              className={styles.btnSecondary}
               onClick={() => setModalContrasena(true)}
             >
               Cambiar Contraseña

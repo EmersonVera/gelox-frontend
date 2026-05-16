@@ -97,7 +97,7 @@ const NAV_ITEMS = (dashPath) => [
   { icon: <CartIcon />,  label: 'Ventas',          to: '/ventas' },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ open, onClose }) {
   const { perfil, logout } = useAuth();
   const navigate = useNavigate();
 
@@ -112,16 +112,35 @@ export default function Sidebar() {
   const linkClass = ({ isActive }) =>
     `${styles.navItem} ${isActive ? styles.navItemActive : ''}`;
 
+  const handleNavClick = () => {
+    if (onClose) onClose();
+  };
+
   return (
-    <aside className={styles.sidebar}>
+    <aside className={`${styles.sidebar} ${open ? styles.sidebarOpen : ''}`}>
       <div className={styles.logo}>
-        <div className={styles.logoText}>GELOX</div>
-        <div className={styles.logoSub}>Gestión Distribuidora</div>
+        <div className={styles.logoContent}>
+          <div>
+            <div className={styles.logoText}>GELOX</div>
+            <div className={styles.logoSub}>Gestión Distribuidora</div>
+          </div>
+          <button
+            type="button"
+            className={styles.closeBtn}
+            onClick={onClose}
+            aria-label="Cerrar menú"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
       </div>
 
       <nav className={styles.nav}>
         {items.map(({ icon, label, to }) => (
-          <NavLink key={to} to={to} className={linkClass} end={to === dashPath}>
+          <NavLink key={to} to={to} className={linkClass} end={to === dashPath} onClick={handleNavClick}>
             <span className={styles.navIcon}>{icon}</span>
             {label}
           </NavLink>
@@ -129,7 +148,7 @@ export default function Sidebar() {
       </nav>
 
       <div className={styles.bottom}>
-        <NavLink to="/ajustes" className={linkClass}>
+        <NavLink to="/ajustes" className={linkClass} onClick={handleNavClick}>
           <span className={styles.navIcon}><SettingsIcon /></span>
           Ajustes
         </NavLink>

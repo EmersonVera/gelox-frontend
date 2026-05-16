@@ -17,3 +17,22 @@
   padding: 2rem;
   overflow-y: auto;
 }
+
+/* Backdrop oscuro detrás del sidebar en móvil */
+.backdrop {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 39;
+  }
+
+  .main {
+    padding: 1.25rem;
+  }
+}

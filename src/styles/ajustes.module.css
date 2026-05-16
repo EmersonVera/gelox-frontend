@@ -315,6 +315,29 @@
   text-decoration: underline;
 }
 
+.btnSecondary {
+  padding: 0.6rem 1.125rem;
+  background: #f0eded;
+  color: #1b1b1c;
+  border: none;
+  border-radius: 0.75rem;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.15s, transform 0.1s;
+  flex-shrink: 0;
+}
+
+.btnSecondary:hover {
+  background: #e4e2e2;
+}
+
+.btnSecondary:active {
+  transform: scale(0.97);
+}
+
 /* ── Spinners ── */
 .spinner {
   width: 15px;
