@@ -1,19 +1,21 @@
-import { useAuth } from '../../context/AuthContext';
+import { signOut } from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';
+import { auth } from '../../auth/firebase';
+import { useAuth } from '../../context/AuthContext';
 
 export default function DashboardInventario() {
-  const { perfil, logout } = useAuth();
+  const { usuario } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
-    await logout();
-    navigate('/login');
+    await signOut(auth);
+    navigate('/login', { replace: true });
   };
 
   return (
     <div style={{ padding: '2rem' }}>
       <h1>Dashboard Inventario</h1>
-      <p>Bienvenido, {perfil?.nombre}</p>
+      <p>Bienvenido, {usuario?.displayName || usuario?.email}</p>
       <button onClick={handleLogout}>Cerrar sesión</button>
     </div>
   );

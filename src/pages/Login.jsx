@@ -6,7 +6,6 @@ import { signInWithEmailAndPassword } from 'firebase/auth';
 import { useNavigate, Link } from 'react-router-dom';
 import { auth } from '../auth/firebase';
 import api from '../api/axiosConfig';
-import { useAuth } from '../context/AuthContext';
 import styles from '../styles/login.module.css';
 
 const schema = yup.object({
@@ -62,7 +61,6 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorGeneral, setErrorGeneral] = useState('');
-  const { setPerfil } = useAuth();
   const navigate = useNavigate();
 
   const {
@@ -82,8 +80,6 @@ export default function Login() {
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      setPerfil(perfil);
-      localStorage.setItem('gelox_perfil', JSON.stringify(perfil));
       const destino = ROLE_REDIRECT[perfil.rol] ?? '/login';
       navigate(destino, { replace: true });
     } catch (err) {
