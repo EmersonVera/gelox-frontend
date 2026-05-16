@@ -1,0 +1,263 @@
+.page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: #EBEBEB;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Círculos decorativos de fondo */
+.bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.bgCircle1 {
+  position: absolute;
+  width: 520px;
+  height: 520px;
+  background: radial-gradient(circle, rgba(255,255,255,0.85) 0%, rgba(200,200,200,0.3) 55%, transparent 100%);
+  border-radius: 50%;
+  top: -120px;
+  right: -80px;
+}
+
+.bgCircle2 {
+  position: absolute;
+  width: 420px;
+  height: 420px;
+  background: radial-gradient(circle, rgba(255,255,255,0.75) 0%, rgba(200,200,200,0.25) 55%, transparent 100%);
+  border-radius: 50%;
+  bottom: -80px;
+  left: -100px;
+}
+
+.bgCircle3 {
+  position: absolute;
+  width: 280px;
+  height: 280px;
+  background: radial-gradient(circle, rgba(255,255,255,0.5) 0%, rgba(200,200,200,0.15) 55%, transparent 100%);
+  border-radius: 50%;
+  top: 45%;
+  left: 35%;
+}
+
+/* Contenedor principal */
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1rem;
+  gap: 1.25rem;
+  position: relative;
+  z-index: 1;
+}
+
+/* Logo — FUERA de la tarjeta */
+.logo {
+  text-align: center;
+}
+
+.logoIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 54px;
+  height: 54px;
+  background-color: #C0392B;
+  border-radius: 12px;
+  color: white;
+  font-size: 1.75rem;
+  margin-bottom: 0.6rem;
+}
+
+.logoTitle {
+  font-size: 2rem;
+  font-weight: 800;
+  color: #C0392B;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.15rem;
+}
+
+.logoSub {
+  font-size: 0.68rem;
+  color: #aaa;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+/* Tarjeta del formulario */
+.card {
+  background: white;
+  border-radius: 16px;
+  padding: 2rem 2.25rem;
+  width: 100%;
+  max-width: 400px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.10);
+}
+
+/* Campos */
+.field {
+  margin-bottom: 1.1rem;
+}
+
+.label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 0.4rem;
+  color: #555;
+}
+
+.inputWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.inputIcon {
+  position: absolute;
+  left: 0.85rem;
+  color: #b0b0b0;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+}
+
+.input {
+  width: 100%;
+  padding: 0.75rem 1rem 0.75rem 2.4rem;
+  border: 1.5px solid #E0E0E0;
+  border-radius: 8px;
+  font-size: 0.93rem;
+  color: #333;
+  outline: none;
+  transition: border-color 0.2s;
+  background: white;
+}
+
+.input::placeholder {
+  color: #c0c0c0;
+}
+
+.input:focus {
+  border-color: #C0392B;
+}
+
+.inputError {
+  border-color: #C0392B !important;
+}
+
+.togglePassword {
+  position: absolute;
+  right: 0.75rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #b0b0b0;
+  padding: 0;
+  display: flex;
+  align-items: center;
+}
+
+.errorMsg {
+  font-size: 0.75rem;
+  color: #C0392B;
+  margin-top: 0.3rem;
+}
+
+/* Error general */
+.errorGeneral {
+  background-color: #FADBD8;
+  border: 1px solid #C0392B;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  font-size: 0.85rem;
+  color: #C0392B;
+  margin-bottom: 1.25rem;
+  text-align: center;
+}
+
+/* Botón */
+.submitBtn {
+  width: 100%;
+  padding: 0.85rem;
+  background-color: #C0392B;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.97rem;
+  font-weight: 600;
+  transition: background-color 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.submitBtn:hover:not(:disabled) {
+  background-color: #A93226;
+}
+
+.submitBtn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* Link olvidé contraseña */
+.forgotLink {
+  display: block;
+  text-align: center;
+  font-size: 0.85rem;
+  color: #777;
+  text-decoration: none;
+  margin-top: 1.25rem;
+  transition: color 0.2s;
+}
+
+.forgotLink:hover {
+  color: #C0392B;
+}
+
+/* Spinner */
+.spinner {
+  width: 17px;
+  height: 17px;
+  border: 2.5px solid rgba(255,255,255,0.4);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Footer */
+.footer {
+  text-align: center;
+  font-size: 0.68rem;
+  color: #aaa;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 1rem;
+  position: relative;
+  z-index: 1;
+}
+
+@media (max-width: 480px) {
+  .card {
+    padding: 2rem 1.25rem;
+    border-radius: 12px;
+    box-shadow: none;
+  }
+}

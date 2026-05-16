@@ -1,0 +1,26 @@
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --color-primario: #1B4F72;
+  --color-primario-hover: #154360;
+  --color-error: #E74C3C;
+  --color-texto: #2C3E50;
+  --color-borde: #D5D8DC;
+  --color-fondo: #F8F9FA;
+  --radio-borde: 8px;
+  --sombra: 0 4px 16px rgba(0,0,0,0.08);
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+}
+
+body {
+  background-color: var(--color-fondo);
+  color: var(--color-texto);
+}
+
+button {
+  cursor: pointer;
+}
