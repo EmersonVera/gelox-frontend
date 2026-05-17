@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Login from '../pages/Login';
 import Ajustes from '../pages/Ajustes';
 import GestionUsuarios from '../pages/GestionUsuarios';
+import NuevoUsuario from '../pages/NuevoUsuario';
 import RecuperarContrasena from '../pages/RecuperarContrasena';
 import ProtectedRoute from './ProtectedRoute';
 import DashboardGerente from '../pages/placeholders/DashboardGerente';
@@ -21,6 +22,7 @@ export default function AppRouter() {
         <Route element={<ProtectedRoute rolesPermitidos={['ADMINISTRADOR']} />}>
           <Route path="/dashboard/gerente" element={<DashboardGerente />} />
           <Route path="/usuarios" element={<GestionUsuarios />} />
+          <Route path="/usuarios/nuevo" element={<NuevoUsuario />} />
         </Route>
 
         {/* Rutas privadas — Encargado Inventario */}

@@ -1,12 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useForm } from 'react-hook-form';
-import { yupResolver } from '@hookform/resolvers/yup';
-import * as yup from 'yup';
+import { useNavigate } from 'react-router-dom';
 import AppLayout from '../components/AppLayout';
 import { useAuth } from '../context/AuthContext';
 import {
   getUsuarios,
-  crearUsuario,
   deshabilitarUsuario,
 } from '../services/usuariosService';
 
@@ -16,19 +13,6 @@ const ROL_LABEL = {
   ENCARGADO_INVENTARIO: 'Encargado de Inventarios',
   ENCARGADO_VENTAS:     'Encargado de Ventas',
 };
-
-const ROL_OPTIONS = [
-  { value: 'ENCARGADO_INVENTARIO', label: 'Encargado de Inventarios' },
-  { value: 'ENCARGADO_VENTAS',     label: 'Encargado de Ventas' },
-];
-
-/* ── Validation schema ── */
-const schema = yup.object({
-  nombre:    yup.string().required('El nombre es requerido').min(2, 'Mínimo 2 caracteres'),
-  correo:    yup.string().email('Formato de correo inválido').required('El correo es requerido'),
-  contrasena: yup.string().required('La contraseña es requerida').min(6, 'Mínimo 6 caracteres'),
-  rol:       yup.string().required('Selecciona un rol').oneOf(['ENCARGADO_INVENTARIO', 'ENCARGADO_VENTAS'], 'Rol inválido'),
-});
 
 /* ── Helpers ── */
 function getInitials(nombre) {
@@ -95,140 +79,7 @@ const btnSecondary =
 const btnDanger =
   'inline-flex items-center gap-2 px-4 py-2.5 bg-danger text-white text-sm font-semibold rounded-xl hover:bg-danger-dark transition duration-300 active:scale-[0.97] disabled:opacity-60';
 
-/* ══════════════════════════════════════════════
-   Modal: Crear Usuario
-══════════════════════════════════════════════ */
-function ModalCrearUsuario({ onClose, onCreated }) {
-  const [apiError, setApiError] = useState('');
-  const [saving, setSaving] = useState(false);
 
-  const {
-    register,
-    handleSubmit,
-    setError,
-    formState: { errors },
-  } = useForm({ resolver: yupResolver(schema) });
-
-  const onSubmit = async ({ nombre, correo, contrasena, rol }) => {
-    setSaving(true);
-    setApiError('');
-    try {
-      await crearUsuario({ nombre, correo, contrasena, rol });
-      onCreated();
-    } catch (err) {
-      const status  = err?.response?.status;
-      const mensaje = err?.response?.data?.mensaje ?? '';
-      if (status === 409 || mensaje.toLowerCase().includes('correo')) {
-        setError('correo', { message: mensaje || 'Este correo ya está registrado.' });
-      } else {
-        setApiError(mensaje || 'Error al crear el usuario. Intente de nuevo.');
-      }
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/45 backdrop-blur-sm animate-fade-in"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-    >
-      <div
-        className="w-full max-w-md bg-white rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.18)] p-7 sm:p-8 animate-scale-in"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="modal-title"
-      >
-        <p className="font-display text-xl font-bold text-ink mb-1" id="modal-title">
-          Añadir Nuevo Usuario
-        </p>
-        <p className="text-sm text-muted mb-5">
-          Completa los datos para crear una cuenta de acceso al sistema GELOX.
-        </p>
-
-        {apiError && (
-          <div className="mb-4 px-4 py-3 rounded-xl bg-error-bg border border-[#ffb4a9] text-error-fg text-sm animate-slide-down">
-            {apiError}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4">
-          <div>
-            <label className={lbl} htmlFor="m-nombre">Nombre Completo</label>
-            <input
-              id="m-nombre"
-              className={`${inputBase} ${errors.nombre ? inputError : inputNormal}`}
-              placeholder="Nombre del usuario"
-              {...register('nombre')}
-            />
-            {errors.nombre && <p className={errMsg}>{errors.nombre.message}</p>}
-          </div>
-
-          <div>
-            <label className={lbl} htmlFor="m-correo">Correo Electrónico</label>
-            <input
-              id="m-correo"
-              type="email"
-              autoComplete="off"
-              className={`${inputBase} ${errors.correo ? inputError : inputNormal}`}
-              placeholder="correo@ejemplo.com"
-              {...register('correo')}
-            />
-            {errors.correo && <p className={errMsg}>{errors.correo.message}</p>}
-          </div>
-
-          <div>
-            <label className={lbl} htmlFor="m-contrasena">Contraseña Temporal</label>
-            <input
-              id="m-contrasena"
-              type="password"
-              autoComplete="new-password"
-              className={`${inputBase} ${errors.contrasena ? inputError : inputNormal}`}
-              placeholder="Mínimo 6 caracteres"
-              {...register('contrasena')}
-            />
-            {errors.contrasena && <p className={errMsg}>{errors.contrasena.message}</p>}
-          </div>
-
-          <div>
-            <label className={lbl} htmlFor="m-rol">Rol de Acceso</label>
-            <div className="relative">
-              <select
-                id="m-rol"
-                className={`${inputBase} appearance-none pr-10 ${errors.rol ? inputError : inputNormal}`}
-                defaultValue=""
-                {...register('rol')}
-              >
-                <option value="" disabled>Selecciona un rol...</option>
-                {ROL_OPTIONS.map(({ value, label: optLabel }) => (
-                  <option key={value} value={value}>{optLabel}</option>
-                ))}
-              </select>
-              <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted pointer-events-none">
-                <ChevronIcon />
-              </span>
-            </div>
-            {errors.rol && <p className={errMsg}>{errors.rol.message}</p>}
-          </div>
-
-          <div className="flex items-center justify-end gap-3 mt-2">
-            <button type="button" className={btnSecondary} onClick={onClose} disabled={saving}>
-              Cancelar
-            </button>
-            <button type="submit" className={btnPrimary} disabled={saving}>
-              {saving ? (
-                <>
-                  <span className="w-4 h-4 rounded-full border-2 border-white/40 border-t-white animate-spin" />
-                  Creando...
-                </>
-              ) : 'Crear Usuario'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
 
 /* ══════════════════════════════════════════════
    Dialog: Confirmar Deshabilitar
@@ -276,12 +127,12 @@ function ConfirmDialog({ usuario, onClose, onConfirm, loading }) {
 ══════════════════════════════════════════════ */
 export default function GestionUsuarios() {
   const { perfil } = useAuth();
+  const navigate = useNavigate();
   const esAdmin = perfil?.rol === 'ADMINISTRADOR';
 
   const [usuarios, setUsuarios]                   = useState([]);
   const [loading, setLoading]                     = useState(true);
   const [error, setError]                         = useState('');
-  const [modalCrear, setModalCrear]               = useState(false);
   const [userADeshabilitar, setUserADeshabilitar] = useState(null);
   const [deshabilitando, setDeshabilitando]       = useState(false);
 
@@ -299,11 +150,6 @@ export default function GestionUsuarios() {
   }, []);
 
   useEffect(() => { cargarUsuarios(); }, [cargarUsuarios]);
-
-  const handleCreated = () => {
-    setModalCrear(false);
-    cargarUsuarios();
-  };
 
   const handleConfirmDeshabilitar = async () => {
     if (!userADeshabilitar) return;
@@ -334,11 +180,11 @@ export default function GestionUsuarios() {
               sistema GELOX en tiempo real.
             </p>
           </div>
-          {esAdmin && (
+          { (
             <button
               type="button"
               className={`${btnPrimary} shrink-0`}
-              onClick={() => setModalCrear(true)}
+              onClick={() => navigate('/usuarios/nuevo')}
             >
               <AddUserIcon />
               Añadir Nuevo Usuario
@@ -442,13 +288,6 @@ export default function GestionUsuarios() {
           )}
         </div>
       </div>
-
-      {modalCrear && (
-        <ModalCrearUsuario
-          onClose={() => setModalCrear(false)}
-          onCreated={handleCreated}
-        />
-      )}
 
       {userADeshabilitar && (
         <ConfirmDialog
