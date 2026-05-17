@@ -2,10 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AppLayout from '../components/AppLayout';
 import { useAuth } from '../context/AuthContext';
-import {
-  getUsuarios,
-  deshabilitarUsuario,
-} from '../services/usuariosService';
+import { getUsuarios } from '../services/usuariosService';
 
 /* ── Constants ── */
 const ROL_LABEL = {
@@ -48,79 +45,18 @@ function AddUserIcon() {
   );
 }
 
-function BanIcon() {
+function PencilIcon() {
   return (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="10" />
-      <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
-    </svg>
-  );
-}
-
-function ChevronIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="6 9 12 15 18 9" />
+      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
     </svg>
   );
 }
 
 /* ── Shared class strings ── */
-const inputBase =
-  'w-full px-4 py-3 border rounded-xl text-sm outline-none transition duration-300 bg-white text-ink placeholder:text-[#c0c0c0]';
-const inputNormal = 'border-divider focus:border-primary focus:ring-2 focus:ring-primary/20';
-const inputError  = 'border-danger ring-2 ring-danger/20 bg-error-bg';
-const lbl         = 'text-xs font-semibold text-faint uppercase tracking-wider block mb-1.5';
-const errMsg      = 'text-xs text-error-fg mt-1 animate-slide-down';
-const btnPrimary  =
+const btnPrimary =
   'inline-flex items-center gap-2 px-4 py-2.5 bg-primary text-white text-sm font-semibold rounded-xl hover:bg-primary-dark transition duration-300 active:scale-[0.97] shadow-[0_2px_8px_rgba(158,32,22,0.25)] disabled:opacity-60';
-const btnSecondary =
-  'inline-flex items-center gap-2 px-4 py-2.5 bg-border text-ink text-sm font-medium rounded-xl hover:bg-divider transition duration-300 active:scale-[0.97] disabled:opacity-60';
-const btnDanger =
-  'inline-flex items-center gap-2 px-4 py-2.5 bg-danger text-white text-sm font-semibold rounded-xl hover:bg-danger-dark transition duration-300 active:scale-[0.97] disabled:opacity-60';
-
-
-
-/* ══════════════════════════════════════════════
-   Dialog: Confirmar Deshabilitar
-══════════════════════════════════════════════ */
-function ConfirmDialog({ usuario, onClose, onConfirm, loading }) {
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/45 backdrop-blur-sm animate-fade-in"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-    >
-      <div
-        className="w-full max-w-sm bg-white rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.18)] p-7 animate-scale-in"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="confirm-title"
-      >
-        <p className="font-display text-lg font-bold text-ink mb-2" id="confirm-title">
-          Deshabilitar usuario
-        </p>
-        <p className="text-sm text-muted mb-6 leading-relaxed">
-          ¿Estás seguro de que deseas deshabilitar a{' '}
-          <strong className="text-ink">{usuario.nombre}</strong>? El usuario perderá acceso al
-          sistema de inmediato. Esta acción puede revertirse editando el usuario.
-        </p>
-        <div className="flex items-center justify-end gap-3">
-          <button type="button" className={btnSecondary} onClick={onClose} disabled={loading}>
-            Cancelar
-          </button>
-          <button type="button" className={btnDanger} onClick={onConfirm} disabled={loading}>
-            {loading ? (
-              <>
-                <span className="w-4 h-4 rounded-full border-2 border-white/40 border-t-white animate-spin" />
-                Deshabilitando...
-              </>
-            ) : 'Deshabilitar'}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 /* ══════════════════════════════════════════════
    Main page
@@ -130,11 +66,9 @@ export default function GestionUsuarios() {
   const navigate = useNavigate();
   const esAdmin = perfil?.rol === 'ADMINISTRADOR';
 
-  const [usuarios, setUsuarios]                   = useState([]);
-  const [loading, setLoading]                     = useState(true);
-  const [error, setError]                         = useState('');
-  const [userADeshabilitar, setUserADeshabilitar] = useState(null);
-  const [deshabilitando, setDeshabilitando]       = useState(false);
+  const [usuarios, setUsuarios] = useState([]);
+  const [loading, setLoading]   = useState(true);
+  const [error, setError]       = useState('');
 
   const cargarUsuarios = useCallback(async () => {
     setLoading(true);
@@ -151,20 +85,6 @@ export default function GestionUsuarios() {
 
   useEffect(() => { cargarUsuarios(); }, [cargarUsuarios]);
 
-  const handleConfirmDeshabilitar = async () => {
-    if (!userADeshabilitar) return;
-    setDeshabilitando(true);
-    try {
-      await deshabilitarUsuario(userADeshabilitar.id);
-      setUserADeshabilitar(null);
-      cargarUsuarios();
-    } catch {
-      setUserADeshabilitar(null);
-    } finally {
-      setDeshabilitando(false);
-    }
-  };
-
   return (
     <AppLayout>
       <div className="max-w-5xl mx-auto flex flex-col gap-6">
@@ -180,7 +100,7 @@ export default function GestionUsuarios() {
               sistema GELOX en tiempo real.
             </p>
           </div>
-          { (
+          {esAdmin && (
             <button
               type="button"
               className={`${btnPrimary} shrink-0`}
@@ -229,7 +149,6 @@ export default function GestionUsuarios() {
                 </thead>
                 <tbody className="divide-y divide-border">
                   {usuarios.map((u) => {
-                    const esActivo   = u.estado !== 'DESHABILITADO' && u.estado !== false && u.habilitado !== false;
                     const rolLabel   = ROL_LABEL[u.rol] ?? u.rol ?? '—';
                     const esAdminRol = u.rol === 'ADMINISTRADOR';
 
@@ -265,15 +184,15 @@ export default function GestionUsuarios() {
                         </td>
 
                         <td className="px-4 py-4">
-                          {esAdmin && esActivo && !esAdminRol ? (
+                          {esAdmin && !esAdminRol ? (
                             <button
                               type="button"
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-danger-dark bg-error-bg rounded-lg hover:bg-[#ffb4a9] transition duration-300 active:scale-95"
-                              onClick={() => setUserADeshabilitar(u)}
-                              title={`Deshabilitar a ${u.nombre}`}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-ink bg-surface rounded-lg hover:bg-border transition duration-300 active:scale-95"
+                              onClick={() => navigate(`/usuarios/${u.id}/editar`, { state: u })}
+                              title={`Editar a ${u.nombre}`}
                             >
-                              <BanIcon />
-                              Deshabilitar
+                              <PencilIcon />
+                              Editar
                             </button>
                           ) : (
                             <span className="text-xs text-divider">—</span>
@@ -289,14 +208,6 @@ export default function GestionUsuarios() {
         </div>
       </div>
 
-      {userADeshabilitar && (
-        <ConfirmDialog
-          usuario={userADeshabilitar}
-          onClose={() => setUserADeshabilitar(null)}
-          onConfirm={handleConfirmDeshabilitar}
-          loading={deshabilitando}
-        />
-      )}
     </AppLayout>
   );
 }

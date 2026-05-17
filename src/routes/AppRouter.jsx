@@ -3,6 +3,7 @@ import Login from '../pages/Login';
 import Ajustes from '../pages/Ajustes';
 import GestionUsuarios from '../pages/GestionUsuarios';
 import NuevoUsuario from '../pages/NuevoUsuario';
+import EditarUsuario from '../pages/EditarUsuario';
 import RecuperarContrasena from '../pages/RecuperarContrasena';
 import ProtectedRoute from './ProtectedRoute';
 import DashboardGerente from '../pages/placeholders/DashboardGerente';
@@ -23,6 +24,7 @@ export default function AppRouter() {
           <Route path="/dashboard/gerente" element={<DashboardGerente />} />
           <Route path="/usuarios" element={<GestionUsuarios />} />
           <Route path="/usuarios/nuevo" element={<NuevoUsuario />} />
+          <Route path="/usuarios/:id/editar" element={<EditarUsuario />} />
         </Route>
 
         {/* Rutas privadas — Encargado Inventario */}
