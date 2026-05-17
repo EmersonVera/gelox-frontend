@@ -1,25 +1,31 @@
-import { useNavigate } from 'react-router-dom';
+import KpiCards from '../../components/dashboard/KpiCards';
+import GraficoInversionIngresos from '../../components/dashboard/GraficoInversionIngresos';
+import GraficoVentasPorCanal from '../../components/dashboard/GraficoVentasPorCanal';
 import { useAuth } from '../../context/AuthContext';
 
 export default function DashboardGerente() {
-  const { perfil, logout } = useAuth();
-  const navigate = useNavigate();
-
-  const handleLogout = async () => {
-    await logout();
-    navigate('/login', { replace: true });
-  };
+  const { usuario, perfil } = useAuth();
+  const nombre = (usuario?.displayName ?? perfil?.nombre ?? 'usuario').split(' ')[0];
 
   return (
-    <div className="flex flex-col gap-4">
-      <h1 className="font-display text-2xl font-extrabold text-ink tracking-tight">Dashboard Gerente</h1>
-      <p className="text-sm text-muted">Bienvenido, {perfil?.nombre}</p>
-      <button
-        onClick={handleLogout}
-        className="self-start px-4 py-2 bg-primary text-white text-sm font-semibold rounded-xl hover:bg-primary-dark transition duration-300 active:scale-[0.97]"
-      >
-        Cerrar sesión
-      </button>
+    <div className="flex flex-col gap-8">
+      <div>
+        <h1 className="font-['Manrope'] font-extrabold text-[30px] text-[#1b1b1c] tracking-[-0.75px] leading-[36px]">
+          Vista General
+        </h1>
+        <p className="font-['Inter'] font-normal text-[16px] text-[#78716c] leading-[24px]">
+          Buen día, {nombre}. Aquí está el resumen de operaciones para hoy.
+        </p>
+      </div>
+
+      {/* RF07 — KPI Cards */}
+      <KpiCards />
+
+      {/* RF08 + RF09 — Gráficos */}
+      <div className="grid grid-cols-3 gap-8">
+        <GraficoInversionIngresos />
+        <GraficoVentasPorCanal />
+      </div>
     </div>
   );
 }
