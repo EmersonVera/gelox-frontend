@@ -1,5 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Login from '../pages/Login';
+import Ajustes from '../pages/Ajustes';
+import GestionUsuarios from '../pages/GestionUsuarios';
 import RecuperarContrasena from '../pages/RecuperarContrasena';
 import ProtectedRoute from './ProtectedRoute';
 import DashboardGerente from '../pages/placeholders/DashboardGerente';
@@ -15,6 +17,48 @@ export default function AppRouter() {
         <Route path="/recuperar-contrasena" element={<RecuperarContrasena />} />
         <Route path="/" element={<Navigate to="/login" replace />} />
 
+        <Route
+          path="/dashboard/gerente"
+          element={
+            <ProtectedRoute rolesPermitidos={['ADMINISTRADOR']}>
+              <DashboardGerente />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/inventario"
+          element={
+            <ProtectedRoute rolesPermitidos={['ENCARGADO_INVENTARIO']}>
+              <DashboardInventario />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/ventas"
+          element={
+            <ProtectedRoute rolesPermitidos={['ENCARGADO_VENTAS']}>
+              <DashboardVentas />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/usuarios"
+          element={
+            <ProtectedRoute rolesPermitidos={['ADMINISTRADOR']}>
+              <GestionUsuarios />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/ajustes"
+          element={
+            <ProtectedRoute rolesPermitidos={['ADMINISTRADOR', 'ENCARGADO_INVENTARIO', 'ENCARGADO_VENTAS']}>
+              <Ajustes />
+            </ProtectedRoute>
+          }
+        />
         {/* Rutas privadas por rol */}
         <Route element={<ProtectedRoute rolesPermitidos={['ADMINISTRADOR']} />}>
           <Route path="/dashboard/gerente" element={<DashboardGerente />} />

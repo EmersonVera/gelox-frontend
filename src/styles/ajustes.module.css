@@ -1,0 +1,370 @@
+.page {
+  max-width: 900px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* ── Header ── */
+.header {
+  margin-bottom: 1.75rem;
+}
+
+.title {
+  font-family: 'Manrope', system-ui, sans-serif;
+  font-size: 1.875rem;
+  font-weight: 800;
+  color: #1b1b1c;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.subtitle {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 0.875rem;
+  color: #8d706c;
+  margin-top: 0.3rem;
+  line-height: 1.5;
+}
+
+/* ── Card ── */
+.card {
+  background: #ffffff;
+  border-radius: 1rem;
+  padding: 1.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.07), 0 1px 2px rgba(0, 0, 0, 0.04);
+  margin-bottom: 1.25rem;
+}
+
+/* ── Banners ── */
+.successBanner {
+  background: #d1fae5;
+  border: 1px solid #6ee7b7;
+  border-radius: 0.75rem;
+  padding: 0.75rem 1rem;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 0.875rem;
+  color: #065f46;
+  margin-bottom: 1.25rem;
+}
+
+.errorBanner {
+  background: #ffdad6;
+  border: 1px solid #ffb4a9;
+  border-radius: 0.75rem;
+  padding: 0.75rem 1rem;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 0.875rem;
+  color: #93000a;
+  margin-bottom: 1.25rem;
+}
+
+/* ── Photo section ── */
+.photoSection {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.25rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid #f0eded;
+  margin-bottom: 1.5rem;
+}
+
+.avatarWrapper {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.avatarImg {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+}
+
+.avatarPlaceholder {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: #ffdad5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Manrope', system-ui, sans-serif;
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #7c0202;
+}
+
+.photoLoadingOverlay {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.38);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cameraBtn {
+  position: absolute;
+  bottom: 1px;
+  right: 1px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #9e2016;
+  border: 2.5px solid #ffffff;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.15s;
+  padding: 0;
+}
+
+.cameraBtn:hover {
+  background: #7c0202;
+}
+
+.photoInfo {
+  flex: 1;
+  padding-top: 0.25rem;
+}
+
+.photoTitle {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: #1b1b1c;
+  margin-bottom: 0.3rem;
+}
+
+.photoDesc {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 0.8125rem;
+  color: #8d706c;
+  line-height: 1.55;
+}
+
+/* ── Form ── */
+.formGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem 1.5rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.label {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #8d706c;
+}
+
+.input {
+  padding: 0.75rem 1rem;
+  background: #f6f3f3;
+  border: none;
+  border-radius: 0.75rem;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 0.9375rem;
+  color: #1b1b1c;
+  outline: none;
+  transition: box-shadow 0.15s;
+  width: 100%;
+}
+
+.input:focus {
+  box-shadow: 0 0 0 2px #9e2016;
+}
+
+.inputError {
+  box-shadow: 0 0 0 2px #ba1a1a;
+}
+
+.input:disabled {
+  color: #8d706c;
+  cursor: default;
+  opacity: 1;
+}
+
+.errorMsg {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 0.75rem;
+  color: #ba1a1a;
+  line-height: 1.4;
+}
+
+/* ── Actions ── */
+.formActions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 1.5rem;
+}
+
+.btnPrimary {
+  padding: 0.6875rem 1.375rem;
+  background: #9e2016;
+  color: #ffffff;
+  border: none;
+  border-radius: 0.75rem;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: background-color 0.15s, transform 0.1s;
+  box-shadow: 0 2px 8px rgba(158, 32, 22, 0.25);
+}
+
+.btnPrimary:hover:not(:disabled) {
+  background: #7c0202;
+}
+
+.btnPrimary:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.btnPrimary:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* ── Security section ── */
+.securityHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1b1b1c;
+  margin-bottom: 0.875rem;
+}
+
+.securityHeaderIcon {
+  color: #9e2016;
+  display: flex;
+  align-items: center;
+}
+
+.securityRow {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  padding: 0.75rem 0;
+}
+
+.securityIconBox {
+  width: 2.25rem;
+  height: 2.25rem;
+  background: #f6f3f3;
+  border-radius: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #59413d;
+  flex-shrink: 0;
+}
+
+.securityLabel {
+  flex: 1;
+}
+
+.securityLabelTitle {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #1b1b1c;
+  line-height: 1.3;
+}
+
+.securityLabelSub {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 0.8125rem;
+  color: #8d706c;
+  line-height: 1.4;
+}
+
+.linkCrimson {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #9e2016;
+  text-decoration: none;
+  cursor: pointer;
+  background: none;
+  border: none;
+  white-space: nowrap;
+  transition: color 0.15s;
+  padding: 0;
+}
+
+.linkCrimson:hover {
+  color: #7c0202;
+  text-decoration: underline;
+}
+
+.btnSecondary {
+  padding: 0.6rem 1.125rem;
+  background: #f0eded;
+  color: #1b1b1c;
+  border: none;
+  border-radius: 0.75rem;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.15s, transform 0.1s;
+  flex-shrink: 0;
+}
+
+.btnSecondary:hover {
+  background: #e4e2e2;
+}
+
+.btnSecondary:active {
+  transform: scale(0.97);
+}
+
+/* ── Spinners ── */
+.spinner {
+  width: 15px;
+  height: 15px;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: spin 0.65s linear infinite;
+  flex-shrink: 0;
+}
+
+.spinnerLight {
+  width: 18px;
+  height: 18px;
+  border: 2.5px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: spin 0.65s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Responsive ── */
+@media (max-width: 640px) {
+  .formGrid {
+    grid-template-columns: 1fr;
+  }
+}
