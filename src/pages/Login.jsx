@@ -7,7 +7,6 @@ import { useNavigate, Link } from 'react-router-dom';
 import { auth } from '../auth/firebase';
 import api from '../api/axiosConfig';
 import { useAuth } from '../context/AuthContext';
-import styles from '../styles/login.module.css';
 
 const schema = yup.object({
   correo: yup.string().email('Formato de correo inválido').required('El correo es requerido'),
@@ -58,6 +57,11 @@ function EyeOffIcon() {
   );
 }
 
+const inputBase =
+  'w-full py-3 border rounded-xl text-sm outline-none transition duration-300 bg-white text-ink placeholder:text-[#c0c0c0]';
+const inputNormal = 'border-divider focus:border-primary focus:ring-2 focus:ring-primary/20';
+const inputError  = 'border-danger ring-2 ring-danger/20 bg-error-bg';
+
 export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -101,82 +105,107 @@ export default function Login() {
   };
 
   return (
-    <div className={styles.page}>
-      <div className={styles.bg}>
-        <div className={styles.bgCircle1} />
-        <div className={styles.bgCircle2} />
-        <div className={styles.bgCircle3} />
+    <div className="min-h-screen flex flex-col bg-[#EBEBEB] relative overflow-hidden">
+      {/* Decorative background circles */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute -top-24 -left-24 w-96 h-96 rounded-full bg-primary/20 blur-3xl" />
+        <div className="absolute top-1/3 -right-32 w-[480px] h-[480px] rounded-full bg-primary/15 blur-3xl" />
+        <div className="absolute -bottom-20 left-1/3 w-80 h-80 rounded-full bg-primary-tint/40 blur-3xl" />
       </div>
 
-      <main className={styles.main}>
-        {/* Logo FUERA de la tarjeta */}
-        <div className={styles.logo}>
-          <div className={styles.logoIcon}>✳</div>
-          <h1 className={styles.logoTitle}>GELOX</h1>
-          <p className={styles.logoSub}>Gestión Distribuidora</p>
+      <main className="flex flex-col items-center justify-center flex-1 px-4 py-12 relative z-10">
+        {/* Logo */}
+        <div className="flex flex-col items-center mb-8 text-center animate-fade-in-up">
+          <div className="text-4xl mb-2 leading-none">✳</div>
+          <h1 className="font-display text-3xl font-extrabold text-primary tracking-tight">GELOX</h1>
+          <p className="text-sm text-muted mt-1">Gestión Distribuidora</p>
         </div>
 
-        {/* Tarjeta solo con el formulario */}
-        <div className={styles.card}>
+        {/* Form card */}
+        <div className="w-full max-w-sm bg-white rounded-2xl shadow-[0_4px_24px_rgba(0,0,0,0.10)] p-8 animate-fade-in-up [animation-delay:80ms]">
           {errorGeneral && (
-            <div className={styles.errorGeneral}>{errorGeneral}</div>
+            <div className="mb-5 px-4 py-3 rounded-xl bg-error-bg border border-[#ffb4a9] text-error-fg text-sm animate-slide-down">
+              {errorGeneral}
+            </div>
           )}
 
-          <form onSubmit={handleSubmit(onSubmit)} noValidate>
-            <div className={styles.field}>
-              <label className={styles.label} htmlFor="correo">Correo Electrónico</label>
-              <div className={styles.inputWrapper}>
-                <span className={styles.inputIcon}><EnvelopeIcon /></span>
+          <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-5">
+            {/* Correo */}
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="correo" className="text-xs font-semibold text-faint uppercase tracking-wider">
+                Correo Electrónico
+              </label>
+              <div className="relative">
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted pointer-events-none">
+                  <EnvelopeIcon />
+                </span>
                 <input
                   id="correo"
                   type="email"
                   autoComplete="email"
                   placeholder="ejemplo@gelox.com"
-                  className={`${styles.input} ${errors.correo ? styles.inputError : ''}`}
+                  className={`${inputBase} pl-10 pr-4 ${errors.correo ? inputError : inputNormal}`}
                   {...register('correo')}
                 />
               </div>
-              {errors.correo && <p className={styles.errorMsg}>{errors.correo.message}</p>}
+              {errors.correo && (
+                <p className="text-xs text-error-fg animate-slide-down">{errors.correo.message}</p>
+              )}
             </div>
 
-            <div className={styles.field}>
-              <label className={styles.label} htmlFor="contrasena">Contraseña</label>
-              <div className={styles.inputWrapper}>
-                <span className={styles.inputIcon}><LockIcon /></span>
+            {/* Contraseña */}
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="contrasena" className="text-xs font-semibold text-faint uppercase tracking-wider">
+                Contraseña
+              </label>
+              <div className="relative">
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted pointer-events-none">
+                  <LockIcon />
+                </span>
                 <input
                   id="contrasena"
                   type={showPassword ? 'text' : 'password'}
                   autoComplete="current-password"
                   placeholder="••••••••"
-                  className={`${styles.input} ${errors.contrasena ? styles.inputError : ''}`}
-                  style={{ paddingRight: '2.75rem' }}
+                  className={`${inputBase} pl-10 pr-12 ${errors.contrasena ? inputError : inputNormal}`}
                   {...register('contrasena')}
                 />
                 <button
                   type="button"
-                  className={styles.togglePassword}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted hover:text-ink hover:scale-110 transition duration-300"
                   onClick={() => setShowPassword((v) => !v)}
                   aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
                 >
                   {showPassword ? <EyeOffIcon /> : <EyeIcon />}
                 </button>
               </div>
-              {errors.contrasena && <p className={styles.errorMsg}>{errors.contrasena.message}</p>}
+              {errors.contrasena && (
+                <p className="text-xs text-error-fg animate-slide-down">{errors.contrasena.message}</p>
+              )}
             </div>
 
-            <button type="submit" className={styles.submitBtn} disabled={loading}>
-              {loading && <span className={styles.spinner} />}
+            <button
+              type="submit"
+              disabled={loading}
+              className="flex items-center justify-center gap-2 w-full py-3 bg-primary text-white text-sm font-semibold rounded-xl hover:bg-primary-dark transition duration-300 active:scale-[0.97] disabled:opacity-60 shadow-[0_2px_8px_rgba(158,32,22,0.25)]"
+            >
+              {loading && (
+                <span className="w-4 h-4 rounded-full border-2 border-white/40 border-t-white animate-spin" />
+              )}
               {loading ? 'Iniciando sesión...' : 'Iniciar sesión →'}
             </button>
           </form>
 
-          <Link to="/recuperar-contrasena" className={styles.forgotLink}>
+          <Link
+            to="/recuperar-contrasena"
+            className="block text-center text-sm text-muted hover:text-primary mt-5 transition duration-300"
+          >
             Olvidé mi contraseña
           </Link>
         </div>
       </main>
 
-      <footer className={styles.footer}>
+      <footer className="relative z-10 text-center text-xs text-muted py-4 animate-fade-in [animation-delay:200ms]">
         © 2026 GELOX Logistics Group • Todos los derechos reservados
       </footer>
     </div>

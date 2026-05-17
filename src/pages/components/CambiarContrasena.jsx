@@ -4,7 +4,6 @@ import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import { useAuth } from '../../context/AuthContext';
 import { cambiarContrasena } from '../../services/perfilService';
-import styles from '../../styles/cambiar-contrasena.module.css';
 
 /* ── Icons ── */
 function KeyIcon() {
@@ -48,9 +47,7 @@ function CheckCircleIcon() {
 
 /* ── Schema ── */
 const schema = yup.object({
-  contrasenaActual: yup
-    .string()
-    .required('La contraseña actual es requerida'),
+  contrasenaActual: yup.string().required('La contraseña actual es requerida'),
   nuevaContrasena: yup
     .string()
     .required('La nueva contraseña es requerida')
@@ -60,6 +57,11 @@ const schema = yup.object({
     .required('Confirme la nueva contraseña')
     .oneOf([yup.ref('nuevaContrasena')], 'Las contraseñas no coinciden'),
 });
+
+const inputBase =
+  'w-full px-4 pr-12 py-3 border rounded-xl text-sm outline-none transition duration-300 bg-white text-ink placeholder:text-[#c0c0c0]';
+const inputNormal = 'border-divider focus:border-primary focus:ring-2 focus:ring-primary/20';
+const inputErr    = 'border-danger ring-2 ring-danger/20 bg-error-bg';
 
 /* ── Component ── */
 export default function CambiarContrasena({ open, onClose }) {
@@ -90,29 +92,20 @@ export default function CambiarContrasena({ open, onClose }) {
   const onSubmit = async ({ contrasenaActual, nuevaContrasena, confirmacionContrasena }) => {
     setSaving(true);
     setErrorGeneral('');
-
     try {
-      await cambiarContrasena(perfil.id, {
-        contrasenaActual,
-        nuevaContrasena,
-        confirmacionContrasena,
-      });
-
+      await cambiarContrasena(perfil.id, { contrasenaActual, nuevaContrasena, confirmacionContrasena });
       reset();
       handleClose();
     } catch (err) {
       const status  = err?.response?.status;
       const mensaje = err?.response?.data?.mensaje ?? '';
-
       if (
         status === 400 &&
         (mensaje.toLowerCase().includes('actual') ||
           mensaje.toLowerCase().includes('incorrecta') ||
           mensaje.toLowerCase().includes('current'))
       ) {
-        setError('contrasenaActual', {
-          message: mensaje || 'La contraseña actual es incorrecta',
-        });
+        setError('contrasenaActual', { message: mensaje || 'La contraseña actual es incorrecta' });
       } else if (mensaje) {
         setErrorGeneral(mensaje);
       } else {
@@ -123,123 +116,97 @@ export default function CambiarContrasena({ open, onClose }) {
     }
   };
 
-  /* ── Render ── */
-  return (
-    <div className={styles.overlay} onClick={handleClose}>
-      <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+  const PasswordField = ({ id, label, show, setShow, fieldName, autoComplete }) => (
+    <div className="flex flex-col gap-1.5">
+      <label htmlFor={id} className="text-xs font-semibold text-faint uppercase tracking-wider">
+        {label}
+      </label>
+      <div className="relative">
+        <input
+          id={id}
+          type={show ? 'text' : 'password'}
+          autoComplete={autoComplete}
+          placeholder="••••••••"
+          className={`${inputBase} ${errors[fieldName] ? inputErr : inputNormal}`}
+          {...register(fieldName)}
+        />
+        <button
+          type="button"
+          className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted hover:text-ink hover:scale-110 transition duration-300"
+          onClick={() => setShow((v) => !v)}
+          aria-label={show ? 'Ocultar' : 'Mostrar'}
+        >
+          {show ? <EyeOffIcon /> : <EyeIcon />}
+        </button>
+      </div>
+      {errors[fieldName] && (
+        <p className="text-xs text-error-fg animate-slide-down">{errors[fieldName].message}</p>
+      )}
+    </div>
+  );
 
-        {/* Icon */}
-        <div className={styles.iconBadge}>
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/45 backdrop-blur-sm animate-fade-in"
+      onClick={handleClose}
+    >
+      <div
+        className="w-full max-w-md bg-white rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.18)] p-7 sm:p-8 animate-scale-in"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Icon badge */}
+        <div className="w-12 h-12 rounded-2xl bg-primary-tint text-primary flex items-center justify-center mx-auto mb-4">
           <KeyIcon />
         </div>
 
-        {/* Heading */}
-        <h2 className={styles.title}>Cambiar Contraseña</h2>
-        <p className={styles.subtitle}>
+        <h2 className="font-display text-xl font-bold text-ink text-center mb-1">
+          Cambiar Contraseña
+        </h2>
+        <p className="text-sm text-muted text-center mb-5 leading-relaxed">
           Por seguridad, te recomendamos usar una combinación de letras,
           números y símbolos.
         </p>
 
-        {/* Error banner */}
         {errorGeneral && (
-          <div className={styles.errorBanner}>{errorGeneral}</div>
+          <div className="mb-4 px-4 py-3 rounded-xl bg-error-bg border border-[#ffb4a9] text-error-fg text-sm animate-slide-down">
+            {errorGeneral}
+          </div>
         )}
 
-        {/* Form */}
-        <form onSubmit={handleSubmit(onSubmit)} noValidate>
-          <div className={styles.fields}>
+        <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4">
+          <PasswordField
+            id="contrasenaActual"
+            label="Contraseña Actual"
+            show={showActual}
+            setShow={setShowActual}
+            fieldName="contrasenaActual"
+            autoComplete="current-password"
+          />
+          <PasswordField
+            id="nuevaContrasena"
+            label="Nueva Contraseña"
+            show={showNueva}
+            setShow={setShowNueva}
+            fieldName="nuevaContrasena"
+            autoComplete="new-password"
+          />
+          <PasswordField
+            id="confirmacionContrasena"
+            label="Confirmar Nueva Contraseña"
+            show={showConfirmacion}
+            setShow={setShowConfirmacion}
+            fieldName="confirmacionContrasena"
+            autoComplete="new-password"
+          />
 
-            {/* Contraseña actual */}
-            <div className={styles.field}>
-              <label className={styles.label} htmlFor="contrasenaActual">
-                Contraseña Actual
-              </label>
-              <div className={styles.inputWrapper}>
-                <input
-                  id="contrasenaActual"
-                  type={showActual ? 'text' : 'password'}
-                  autoComplete="current-password"
-                  placeholder="••••••••"
-                  className={`${styles.input} ${errors.contrasenaActual ? styles.inputError : ''}`}
-                  {...register('contrasenaActual')}
-                />
-                <button
-                  type="button"
-                  className={styles.eyeBtn}
-                  onClick={() => setShowActual((v) => !v)}
-                  aria-label={showActual ? 'Ocultar' : 'Mostrar'}
-                >
-                  {showActual ? <EyeOffIcon /> : <EyeIcon />}
-                </button>
-              </div>
-              {errors.contrasenaActual && (
-                <p className={styles.errorMsg}>{errors.contrasenaActual.message}</p>
-              )}
-            </div>
-
-            {/* Nueva contraseña */}
-            <div className={styles.field}>
-              <label className={styles.label} htmlFor="nuevaContrasena">
-                Nueva Contraseña
-              </label>
-              <div className={styles.inputWrapper}>
-                <input
-                  id="nuevaContrasena"
-                  type={showNueva ? 'text' : 'password'}
-                  autoComplete="new-password"
-                  placeholder="••••••••"
-                  className={`${styles.input} ${errors.nuevaContrasena ? styles.inputError : ''}`}
-                  {...register('nuevaContrasena')}
-                />
-                <button
-                  type="button"
-                  className={styles.eyeBtn}
-                  onClick={() => setShowNueva((v) => !v)}
-                  aria-label={showNueva ? 'Ocultar' : 'Mostrar'}
-                >
-                  {showNueva ? <EyeOffIcon /> : <EyeIcon />}
-                </button>
-              </div>
-              {errors.nuevaContrasena && (
-                <p className={styles.errorMsg}>{errors.nuevaContrasena.message}</p>
-              )}
-            </div>
-
-            {/* Confirmar nueva contraseña */}
-            <div className={styles.field}>
-              <label className={styles.label} htmlFor="confirmacionContrasena">
-                Confirmar Nueva Contraseña
-              </label>
-              <div className={styles.inputWrapper}>
-                <input
-                  id="confirmacionContrasena"
-                  type={showConfirmacion ? 'text' : 'password'}
-                  autoComplete="new-password"
-                  placeholder="••••••••"
-                  className={`${styles.input} ${errors.confirmacionContrasena ? styles.inputError : ''}`}
-                  {...register('confirmacionContrasena')}
-                />
-                <button
-                  type="button"
-                  className={styles.eyeBtn}
-                  onClick={() => setShowConfirmacion((v) => !v)}
-                  aria-label={showConfirmacion ? 'Ocultar' : 'Mostrar'}
-                >
-                  {showConfirmacion ? <EyeOffIcon /> : <EyeIcon />}
-                </button>
-              </div>
-              {errors.confirmacionContrasena && (
-                <p className={styles.errorMsg}>{errors.confirmacionContrasena.message}</p>
-              )}
-            </div>
-
-          </div>
-
-          {/* Submit */}
-          <button type="submit" className={styles.btnSubmit} disabled={saving}>
+          <button
+            type="submit"
+            disabled={saving}
+            className="flex items-center justify-center gap-2 w-full py-3 bg-primary text-white text-sm font-semibold rounded-xl hover:bg-primary-dark transition duration-300 active:scale-[0.97] disabled:opacity-60 shadow-[0_2px_8px_rgba(158,32,22,0.25)] mt-1"
+          >
             {saving ? (
               <>
-                <span className={styles.spinner} />
+                <span className="w-4 h-4 rounded-full border-2 border-white/40 border-t-white animate-spin" />
                 Actualizando...
               </>
             ) : (
@@ -250,12 +217,14 @@ export default function CambiarContrasena({ open, onClose }) {
             )}
           </button>
 
-          {/* Cancel */}
-          <button type="button" className={styles.btnCancelar} onClick={handleClose}>
+          <button
+            type="button"
+            className="w-full py-2.5 bg-border text-ink text-sm font-medium rounded-xl hover:bg-divider transition duration-300 active:scale-[0.97]"
+            onClick={handleClose}
+          >
             Cancelar
           </button>
         </form>
-
       </div>
     </div>
   );

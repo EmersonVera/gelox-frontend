@@ -9,7 +9,6 @@ import {
   crearUsuario,
   deshabilitarUsuario,
 } from '../services/usuariosService';
-import styles from '../styles/gestionUsuarios.module.css';
 
 /* ── Constants ── */
 const ROL_LABEL = {
@@ -82,6 +81,20 @@ function ChevronIcon() {
   );
 }
 
+/* ── Shared class strings ── */
+const inputBase =
+  'w-full px-4 py-3 border rounded-xl text-sm outline-none transition duration-300 bg-white text-ink placeholder:text-[#c0c0c0]';
+const inputNormal = 'border-divider focus:border-primary focus:ring-2 focus:ring-primary/20';
+const inputError  = 'border-danger ring-2 ring-danger/20 bg-error-bg';
+const lbl         = 'text-xs font-semibold text-faint uppercase tracking-wider block mb-1.5';
+const errMsg      = 'text-xs text-error-fg mt-1 animate-slide-down';
+const btnPrimary  =
+  'inline-flex items-center gap-2 px-4 py-2.5 bg-primary text-white text-sm font-semibold rounded-xl hover:bg-primary-dark transition duration-300 active:scale-[0.97] shadow-[0_2px_8px_rgba(158,32,22,0.25)] disabled:opacity-60';
+const btnSecondary =
+  'inline-flex items-center gap-2 px-4 py-2.5 bg-border text-ink text-sm font-medium rounded-xl hover:bg-divider transition duration-300 active:scale-[0.97] disabled:opacity-60';
+const btnDanger =
+  'inline-flex items-center gap-2 px-4 py-2.5 bg-danger text-white text-sm font-semibold rounded-xl hover:bg-danger-dark transition duration-300 active:scale-[0.97] disabled:opacity-60';
+
 /* ══════════════════════════════════════════════
    Modal: Crear Usuario
 ══════════════════════════════════════════════ */
@@ -116,86 +129,99 @@ function ModalCrearUsuario({ onClose, onCreated }) {
   };
 
   return (
-    <div className={styles.overlay} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className={styles.modal} role="dialog" aria-modal="true" aria-labelledby="modal-title">
-        <p className={styles.modalTitle} id="modal-title">Añadir Nuevo Usuario</p>
-        <p className={styles.modalSubtitle}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/45 backdrop-blur-sm animate-fade-in"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div
+        className="w-full max-w-md bg-white rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.18)] p-7 sm:p-8 animate-scale-in"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modal-title"
+      >
+        <p className="font-display text-xl font-bold text-ink mb-1" id="modal-title">
+          Añadir Nuevo Usuario
+        </p>
+        <p className="text-sm text-muted mb-5">
           Completa los datos para crear una cuenta de acceso al sistema GELOX.
         </p>
 
-        {apiError && <div className={styles.errorBanner}>{apiError}</div>}
+        {apiError && (
+          <div className="mb-4 px-4 py-3 rounded-xl bg-error-bg border border-[#ffb4a9] text-error-fg text-sm animate-slide-down">
+            {apiError}
+          </div>
+        )}
 
-        <form onSubmit={handleSubmit(onSubmit)} noValidate>
-          <div className={styles.formStack}>
-
-            {/* Nombre */}
-            <div className={styles.field}>
-              <label className={styles.label} htmlFor="m-nombre">Nombre Completo</label>
-              <input
-                id="m-nombre"
-                className={`${styles.input} ${errors.nombre ? styles.inputError : ''}`}
-                placeholder="Nombre del usuario"
-                {...register('nombre')}
-              />
-              {errors.nombre && <p className={styles.errorMsg}>{errors.nombre.message}</p>}
-            </div>
-
-            {/* Correo */}
-            <div className={styles.field}>
-              <label className={styles.label} htmlFor="m-correo">Correo Electrónico</label>
-              <input
-                id="m-correo"
-                type="email"
-                autoComplete="off"
-                className={`${styles.input} ${errors.correo ? styles.inputError : ''}`}
-                placeholder="correo@ejemplo.com"
-                {...register('correo')}
-              />
-              {errors.correo && <p className={styles.errorMsg}>{errors.correo.message}</p>}
-            </div>
-
-            {/* Contraseña temporal */}
-            <div className={styles.field}>
-              <label className={styles.label} htmlFor="m-contrasena">Contraseña Temporal</label>
-              <input
-                id="m-contrasena"
-                type="password"
-                autoComplete="new-password"
-                className={`${styles.input} ${errors.contrasena ? styles.inputError : ''}`}
-                placeholder="Mínimo 6 caracteres"
-                {...register('contrasena')}
-              />
-              {errors.contrasena && <p className={styles.errorMsg}>{errors.contrasena.message}</p>}
-            </div>
-
-            {/* Rol */}
-            <div className={styles.field}>
-              <label className={styles.label} htmlFor="m-rol">Rol de Acceso</label>
-              <div className={styles.selectWrapper}>
-                <select
-                  id="m-rol"
-                  className={`${styles.select} ${errors.rol ? styles.inputError : ''}`}
-                  defaultValue=""
-                  {...register('rol')}
-                >
-                  <option value="" disabled>Selecciona un rol...</option>
-                  {ROL_OPTIONS.map(({ value, label }) => (
-                    <option key={value} value={value}>{label}</option>
-                  ))}
-                </select>
-                <span className={styles.selectArrow}><ChevronIcon /></span>
-              </div>
-              {errors.rol && <p className={styles.errorMsg}>{errors.rol.message}</p>}
-            </div>
-
+        <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4">
+          <div>
+            <label className={lbl} htmlFor="m-nombre">Nombre Completo</label>
+            <input
+              id="m-nombre"
+              className={`${inputBase} ${errors.nombre ? inputError : inputNormal}`}
+              placeholder="Nombre del usuario"
+              {...register('nombre')}
+            />
+            {errors.nombre && <p className={errMsg}>{errors.nombre.message}</p>}
           </div>
 
-          <div className={styles.modalActions}>
-            <button type="button" className={styles.btnSecondary} onClick={onClose} disabled={saving}>
+          <div>
+            <label className={lbl} htmlFor="m-correo">Correo Electrónico</label>
+            <input
+              id="m-correo"
+              type="email"
+              autoComplete="off"
+              className={`${inputBase} ${errors.correo ? inputError : inputNormal}`}
+              placeholder="correo@ejemplo.com"
+              {...register('correo')}
+            />
+            {errors.correo && <p className={errMsg}>{errors.correo.message}</p>}
+          </div>
+
+          <div>
+            <label className={lbl} htmlFor="m-contrasena">Contraseña Temporal</label>
+            <input
+              id="m-contrasena"
+              type="password"
+              autoComplete="new-password"
+              className={`${inputBase} ${errors.contrasena ? inputError : inputNormal}`}
+              placeholder="Mínimo 6 caracteres"
+              {...register('contrasena')}
+            />
+            {errors.contrasena && <p className={errMsg}>{errors.contrasena.message}</p>}
+          </div>
+
+          <div>
+            <label className={lbl} htmlFor="m-rol">Rol de Acceso</label>
+            <div className="relative">
+              <select
+                id="m-rol"
+                className={`${inputBase} appearance-none pr-10 ${errors.rol ? inputError : inputNormal}`}
+                defaultValue=""
+                {...register('rol')}
+              >
+                <option value="" disabled>Selecciona un rol...</option>
+                {ROL_OPTIONS.map(({ value, label: optLabel }) => (
+                  <option key={value} value={value}>{optLabel}</option>
+                ))}
+              </select>
+              <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted pointer-events-none">
+                <ChevronIcon />
+              </span>
+            </div>
+            {errors.rol && <p className={errMsg}>{errors.rol.message}</p>}
+          </div>
+
+          <div className="flex items-center justify-end gap-3 mt-2">
+            <button type="button" className={btnSecondary} onClick={onClose} disabled={saving}>
               Cancelar
             </button>
-            <button type="submit" className={styles.btnPrimary} disabled={saving}>
-              {saving ? <><span className={styles.spinnerSm} /> Creando...</> : 'Crear Usuario'}
+            <button type="submit" className={btnPrimary} disabled={saving}>
+              {saving ? (
+                <>
+                  <span className="w-4 h-4 rounded-full border-2 border-white/40 border-t-white animate-spin" />
+                  Creando...
+                </>
+              ) : 'Crear Usuario'}
             </button>
           </div>
         </form>
@@ -209,20 +235,35 @@ function ModalCrearUsuario({ onClose, onCreated }) {
 ══════════════════════════════════════════════ */
 function ConfirmDialog({ usuario, onClose, onConfirm, loading }) {
   return (
-    <div className={styles.overlay} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className={styles.confirmModal} role="dialog" aria-modal="true" aria-labelledby="confirm-title">
-        <p className={styles.confirmTitle} id="confirm-title">Deshabilitar usuario</p>
-        <p className={styles.confirmText}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/45 backdrop-blur-sm animate-fade-in"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div
+        className="w-full max-w-sm bg-white rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.18)] p-7 animate-scale-in"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="confirm-title"
+      >
+        <p className="font-display text-lg font-bold text-ink mb-2" id="confirm-title">
+          Deshabilitar usuario
+        </p>
+        <p className="text-sm text-muted mb-6 leading-relaxed">
           ¿Estás seguro de que deseas deshabilitar a{' '}
-          <strong>{usuario.nombre}</strong>? El usuario perderá acceso al
+          <strong className="text-ink">{usuario.nombre}</strong>? El usuario perderá acceso al
           sistema de inmediato. Esta acción puede revertirse editando el usuario.
         </p>
-        <div className={styles.modalActions}>
-          <button type="button" className={styles.btnSecondary} onClick={onClose} disabled={loading}>
+        <div className="flex items-center justify-end gap-3">
+          <button type="button" className={btnSecondary} onClick={onClose} disabled={loading}>
             Cancelar
           </button>
-          <button type="button" className={styles.btnDanger} onClick={onConfirm} disabled={loading}>
-            {loading ? <><span className={styles.spinnerSm} /> Deshabilitando...</> : 'Deshabilitar'}
+          <button type="button" className={btnDanger} onClick={onConfirm} disabled={loading}>
+            {loading ? (
+              <>
+                <span className="w-4 h-4 rounded-full border-2 border-white/40 border-t-white animate-spin" />
+                Deshabilitando...
+              </>
+            ) : 'Deshabilitar'}
           </button>
         </div>
       </div>
@@ -237,10 +278,10 @@ export default function GestionUsuarios() {
   const { perfil } = useAuth();
   const esAdmin = perfil?.rol === 'ADMINISTRADOR';
 
-  const [usuarios, setUsuarios]           = useState([]);
-  const [loading, setLoading]             = useState(true);
-  const [error, setError]                 = useState('');
-  const [modalCrear, setModalCrear]       = useState(false);
+  const [usuarios, setUsuarios]                   = useState([]);
+  const [loading, setLoading]                     = useState(true);
+  const [error, setError]                         = useState('');
+  const [modalCrear, setModalCrear]               = useState(false);
   const [userADeshabilitar, setUserADeshabilitar] = useState(null);
   const [deshabilitando, setDeshabilitando]       = useState(false);
 
@@ -280,13 +321,15 @@ export default function GestionUsuarios() {
 
   return (
     <AppLayout>
-      <div className={styles.page}>
+      <div className="max-w-5xl mx-auto flex flex-col gap-6">
 
-        {/* ── Header ── */}
-        <div className={styles.header}>
-          <div className={styles.headerText}>
-            <h1 className={styles.title}>Seguridad y Gestión de Usuarios</h1>
-            <p className={styles.subtitle}>
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 animate-fade-in-up">
+          <div>
+            <h1 className="font-display text-2xl font-extrabold text-ink tracking-tight">
+              Seguridad y Gestión de Usuarios
+            </h1>
+            <p className="text-sm text-muted mt-1 max-w-xl">
               Administra los accesos del personal, define roles y supervisa la actividad del
               sistema GELOX en tiempo real.
             </p>
@@ -294,7 +337,7 @@ export default function GestionUsuarios() {
           {esAdmin && (
             <button
               type="button"
-              className={styles.btnPrimary}
+              className={`${btnPrimary} shrink-0`}
               onClick={() => setModalCrear(true)}
             >
               <AddUserIcon />
@@ -303,90 +346,93 @@ export default function GestionUsuarios() {
           )}
         </div>
 
-        {/* ── Table card ── */}
-        <div className={styles.card}>
-          <div className={styles.cardHeader}>
-            <span className={styles.cardHeaderIcon}><UsersIcon /></span>
+        {/* Table card */}
+        <div className="bg-white rounded-2xl border border-border shadow-[0_1px_3px_rgba(0,0,0,0.07),0_1px_2px_rgba(0,0,0,0.04)] overflow-hidden animate-fade-in-up [animation-delay:80ms]">
+          <div className="flex items-center gap-2.5 px-6 py-4 border-b border-border text-sm font-semibold text-ink">
+            <span className="text-faint"><UsersIcon /></span>
             Directorio de Personal
           </div>
 
           {error && (
-            <div style={{ padding: '1rem 1.5rem' }}>
-              <div className={styles.errorBanner}>{error}</div>
+            <div className="px-6 py-4">
+              <div className="px-4 py-3 rounded-xl bg-error-bg border border-[#ffb4a9] text-error-fg text-sm animate-slide-down">
+                {error}
+              </div>
             </div>
           )}
 
           {loading ? (
-            <div className={styles.stateBox}>
-              <span className={styles.spinner} />
+            <div className="flex items-center justify-center gap-3 py-16 text-muted text-sm">
+              <span className="w-5 h-5 rounded-full border-2 border-muted/30 border-t-muted animate-spin" />
               Cargando usuarios...
             </div>
           ) : !error && usuarios.length === 0 ? (
-            <div className={styles.stateBox}>
+            <div className="flex items-center justify-center py-16 text-muted text-sm">
               No hay usuarios registrados.
             </div>
           ) : (
-            <div className={styles.tableWrapper}>
-              <table className={styles.table}>
+            <div className="overflow-x-auto">
+              <table className="w-full">
                 <thead>
-                  <tr>
-                    <th>Nombre</th>
-                    <th>Rol de Acceso</th>
-                    <th>Último Acceso</th>
-                    <th>Acciones</th>
+                  <tr className="bg-surface text-left">
+                    <th className="px-6 py-3 text-xs font-semibold text-muted uppercase tracking-wider">Nombre</th>
+                    <th className="px-4 py-3 text-xs font-semibold text-muted uppercase tracking-wider">Rol de Acceso</th>
+                    <th className="px-4 py-3 text-xs font-semibold text-muted uppercase tracking-wider">Último Acceso</th>
+                    <th className="px-4 py-3 text-xs font-semibold text-muted uppercase tracking-wider">Acciones</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-border">
                   {usuarios.map((u) => {
-                    const esActivo = u.estado !== 'DESHABILITADO' && u.estado !== false && u.habilitado !== false;
-                    const rolLabel = ROL_LABEL[u.rol] ?? u.rol ?? '—';
+                    const esActivo   = u.estado !== 'DESHABILITADO' && u.estado !== false && u.habilitado !== false;
+                    const rolLabel   = ROL_LABEL[u.rol] ?? u.rol ?? '—';
                     const esAdminRol = u.rol === 'ADMINISTRADOR';
+
                     return (
-                      <tr key={u.id ?? u.correo}>
-                        {/* Nombre + correo */}
-                        <td>
-                          <div className={styles.userCell}>
-                            <div className={styles.avatar}>
+                      <tr key={u.id ?? u.correo} className="hover:bg-surface/50 transition duration-150">
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-full bg-primary-tint text-primary text-xs font-bold flex items-center justify-center shrink-0 overflow-hidden">
                               {u.foto_url
-                                ? <img src={u.foto_url} alt={u.nombre} />
+                                ? <img src={u.foto_url} alt={u.nombre} className="w-full h-full object-cover" />
                                 : getInitials(u.nombre)
                               }
                             </div>
                             <div>
-                              <div className={styles.userName}>{u.nombre}</div>
-                              <div className={styles.userEmail}>{u.correo}</div>
+                              <div className="text-sm font-medium text-ink">{u.nombre}</div>
+                              <div className="text-xs text-muted">{u.correo}</div>
                             </div>
                           </div>
                         </td>
 
-                        {/* Rol */}
-                        <td>
-                          <span className={`${styles.badgeRol} ${esAdminRol ? styles.badgeAdmin : styles.badgeOther}`}>
+                        <td className="px-4 py-4">
+                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
+                            esAdminRol
+                              ? 'bg-primary-tint text-primary'
+                              : 'bg-border text-faint'
+                          }`}>
                             {rolLabel}
                           </span>
                         </td>
 
-                        {/* Último acceso */}
-                        <td className={styles.lastAccess}>
+                        <td className="px-4 py-4 text-sm text-muted">
                           {u.ultimo_acceso ?? u.ultimoAcceso ?? '—'}
                         </td>
 
-                        {/* Acciones */}
-                        <td className={styles.actionsCell}>
+                        <td className="px-4 py-4">
                           {esAdmin && esActivo && !esAdminRol ? (
                             <button
                               type="button"
-                              className={styles.btnDisable}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-danger-dark bg-error-bg rounded-lg hover:bg-[#ffb4a9] transition duration-300 active:scale-95"
                               onClick={() => setUserADeshabilitar(u)}
                               title={`Deshabilitar a ${u.nombre}`}
-                              >
-                                <BanIcon />
-                                Deshabilitar
-                              </button>
-                            ) : (
-                              <span style={{ color: '#e4e2e2', fontSize: '0.75rem' }}>—</span>
-                            )}
-                          </td>
+                            >
+                              <BanIcon />
+                              Deshabilitar
+                            </button>
+                          ) : (
+                            <span className="text-xs text-divider">—</span>
+                          )}
+                        </td>
                       </tr>
                     );
                   })}
@@ -397,7 +443,6 @@ export default function GestionUsuarios() {
         </div>
       </div>
 
-      {/* ── Modals ── */}
       {modalCrear && (
         <ModalCrearUsuario
           onClose={() => setModalCrear(false)}

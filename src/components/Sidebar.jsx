@@ -1,6 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import styles from '../styles/sidebar.module.css';
 
 /* ── Icons ── */
 function GridIcon() {
@@ -82,6 +81,15 @@ function LogoutIcon() {
   );
 }
 
+function CloseIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="18" y1="6" x2="6" y2="18" />
+      <line x1="6" y1="6" x2="18" y2="18" />
+    </svg>
+  );
+}
+
 const DASHBOARD_PATH = {
   ADMINISTRADOR: '/dashboard/gerente',
   ENCARGADO_INVENTARIO: '/dashboard/inventario',
@@ -97,6 +105,9 @@ const NAV_ITEMS = (dashPath) => [
   { icon: <CartIcon />,  label: 'Ventas',          to: '/ventas' },
 ];
 
+const navItemBase =
+  'flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition duration-300 active:scale-[0.97] w-full text-left';
+
 export default function Sidebar({ open, onClose }) {
   const { perfil, logout } = useAuth();
   const navigate = useNavigate();
@@ -110,50 +121,66 @@ export default function Sidebar({ open, onClose }) {
   };
 
   const linkClass = ({ isActive }) =>
-    `${styles.navItem} ${isActive ? styles.navItemActive : ''}`;
+    `${navItemBase} ${isActive ? 'bg-white text-primary shadow-sm' : 'text-faint hover:bg-surface hover:text-ink'}`;
 
   const handleNavClick = () => {
     if (onClose) onClose();
   };
 
   return (
-    <aside className={`${styles.sidebar} ${open ? styles.sidebarOpen : ''}`}>
-      <div className={styles.logo}>
-        <div className={styles.logoContent}>
+    <aside
+      className={`fixed left-0 top-0 h-full w-60 shrink-0
+        md:sticky md:top-0 md:h-screen md:translate-x-0
+        bg-white border-r border-border flex flex-col z-30
+        transition-transform duration-300 ease-in-out
+        ${open ? 'translate-x-0' : '-translate-x-full'}`}
+    >
+      {/* Logo */}
+      <div className="px-4 pt-5 pb-3 border-b border-border">
+        <div className="flex items-center justify-between">
           <div>
-            <div className={styles.logoText}>GELOX</div>
-            <div className={styles.logoSub}>Gestión Distribuidora</div>
+            <div className="font-display text-lg font-extrabold text-primary tracking-tight">GELOX</div>
+            <div className="text-xs text-muted mt-0.5">Gestión Distribuidora</div>
           </div>
           <button
             type="button"
-            className={styles.closeBtn}
+            className="md:hidden p-1.5 rounded-lg text-muted hover:bg-surface transition duration-300 active:scale-90"
             onClick={onClose}
             aria-label="Cerrar menú"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
+            <CloseIcon />
           </button>
         </div>
       </div>
 
-      <nav className={styles.nav}>
+      {/* Navigation */}
+      <nav className="flex-1 px-3 py-3 flex flex-col gap-0.5 overflow-y-auto">
         {items.map(({ icon, label, to }) => (
-          <NavLink key={to} to={to} className={linkClass} end={to === dashPath} onClick={handleNavClick}>
-            <span className={styles.navIcon}>{icon}</span>
+          <NavLink
+            key={to}
+            to={to}
+            className={linkClass}
+            end={to === dashPath}
+            onClick={handleNavClick}
+          >
+            <span className="shrink-0">{icon}</span>
             {label}
           </NavLink>
         ))}
       </nav>
 
-      <div className={styles.bottom}>
+      {/* Bottom section */}
+      <div className="px-3 py-3 border-t border-border flex flex-col gap-0.5">
         <NavLink to="/ajustes" className={linkClass} onClick={handleNavClick}>
-          <span className={styles.navIcon}><SettingsIcon /></span>
+          <span className="shrink-0"><SettingsIcon /></span>
           Ajustes
         </NavLink>
-        <button className={styles.navItem} onClick={handleLogout} type="button">
-          <span className={styles.navIcon}><LogoutIcon /></span>
+        <button
+          className={`${navItemBase} text-faint hover:bg-surface hover:text-ink`}
+          onClick={handleLogout}
+          type="button"
+        >
+          <span className="shrink-0"><LogoutIcon /></span>
           Cerrar Sesión
         </button>
       </div>
