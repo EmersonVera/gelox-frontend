@@ -6,15 +6,8 @@ export default function ProtectedRoute({ rolesPermitidos }) {
 
   if (cargando) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-        <div style={{
-          width: 32, height: 32,
-          border: '3px solid #f6f3f3',
-          borderTop: '3px solid #9e2016',
-          borderRadius: '50%',
-          animation: 'spin 0.8s linear infinite',
-        }} />
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      <div className="flex items-center justify-center h-screen bg-canvas">
+        <span className="w-8 h-8 rounded-full border-[3px] border-surface border-t-primary animate-spin" />
       </div>
     );
   }

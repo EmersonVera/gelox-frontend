@@ -1,14 +1,12 @@
-import { signOut } from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';
-import { auth } from '../../auth/firebase';
 import { useAuth } from '../../context/AuthContext';
 
 export default function DashboardInventario() {
-  const { usuario } = useAuth();
+  const { perfil, logout } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
-    await signOut(auth);
+    await logout();
     navigate('/login', { replace: true });
   };
 
@@ -18,7 +16,7 @@ export default function DashboardInventario() {
       <p className="text-sm text-muted">Bienvenido, {perfil?.nombre}</p>
       <button
         onClick={handleLogout}
-        className="self-start px-4 py-2 bg-primary text-white text-sm font-semibold rounded-xl hover:bg-primary-dark transition-colors"
+        className="self-start px-4 py-2 bg-primary text-white text-sm font-semibold rounded-xl hover:bg-primary-dark transition duration-300 active:scale-[0.97]"
       >
         Cerrar sesión
       </button>
