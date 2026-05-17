@@ -42,7 +42,7 @@ export default function AppRouter() {
           <Route path="/ajustes" element={<Ajustes />} />
         </Route>
 
-        <Route path="/no-autorizado" element={<div className="p-8 text-sm text-muted">No tienes permiso para acceder a esta sección.</div>} />
+<Route path="/no-autorizado" element={<div className="p-8 text-sm text-muted">No tienes permiso para acceder a esta sección.</div>} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </BrowserRouter>
