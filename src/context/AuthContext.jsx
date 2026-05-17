@@ -1,48 +1,55 @@
 import { createContext, useContext, useEffect, useState } from 'react';
-import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { onAuthStateChanged, getIdTokenResult, signOut } from 'firebase/auth';
 import { auth } from '../auth/firebase';
+import api from '../api/axiosConfig';
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [firebaseUser, setFirebaseUser] = useState(null);
+  const [usuario, setUsuario] = useState(null);
   const [perfil, setPerfil] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [token, setToken] = useState(null);
+  const [cargando, setCargando] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setFirebaseUser(user);
-      if (!user) {
+    const unsub = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        const result = await getIdTokenResult(user);
+        setUsuario(user);
+        setToken(result.token);
+        try {
+          const { data } = await api.post('/api/auth/verificar', {});
+          setPerfil(data);
+        } catch {
+          setPerfil(null);
+        }
+      } else {
+        setUsuario(null);
         setPerfil(null);
+        setToken(null);
       }
-      const perfilGuardado = localStorage.getItem('gelox_perfil');
-      if (user && perfilGuardado) {
-        setPerfil(JSON.parse(perfilGuardado));
-      }
-      setLoading(false);
+      setCargando(false);
     });
-    return unsubscribe;
+    return unsub;
   }, []);
 
   const updatePerfil = (updates) => {
-    const updated = { ...perfil, ...updates };
-    setPerfil(updated);
-    localStorage.setItem('gelox_perfil', JSON.stringify(updated));
+    setPerfil((prev) => ({ ...prev, ...updates }));
   };
 
   const logout = async () => {
     await signOut(auth);
-    setPerfil(null);
-    localStorage.removeItem('gelox_perfil');
   };
 
   return (
-    <AuthContext.Provider value={{ firebaseUser, perfil, setPerfil, updatePerfil, loading, logout }}>
-      {!loading && children}
+    <AuthContext.Provider value={{ usuario, perfil, updatePerfil, token, cargando, rol: perfil?.rol ?? null, logout }}>
+      {!cargando && children}
     </AuthContext.Provider>
   );
 }
 
 export function useAuth() {
-  return useContext(AuthContext);
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error('useAuth debe usarse dentro de AuthProvider');
+  return ctx;
 }

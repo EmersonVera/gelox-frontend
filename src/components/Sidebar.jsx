@@ -109,15 +109,25 @@ const navItemBase =
   'flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition duration-300 active:scale-[0.97] w-full text-left';
 
 export default function Sidebar({ open, onClose }) {
-  const { perfil, logout } = useAuth();
+  const { perfil, logout, token } = useAuth();
   const navigate = useNavigate();
 
   const dashPath = DASHBOARD_PATH[perfil?.rol] ?? '/dashboard/gerente';
   const items = NAV_ITEMS(dashPath);
 
   const handleLogout = async () => {
-    await logout();
-    navigate('/login', { replace: true });
+    fetch('/api/auth/cerrar-sesion', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    }).catch(() => {});
+    try {
+      await logout();
+    } finally {
+      navigate('/login', { replace: true });
+    }
   };
 
   const linkClass = ({ isActive }) =>

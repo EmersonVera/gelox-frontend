@@ -66,7 +66,6 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorGeneral, setErrorGeneral] = useState('');
-  const { setPerfil } = useAuth();
   const navigate = useNavigate();
 
   const {
@@ -86,8 +85,6 @@ export default function Login() {
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      setPerfil(perfil);
-      localStorage.setItem('gelox_perfil', JSON.stringify(perfil));
       const destino = ROLE_REDIRECT[perfil.rol] ?? '/login';
       navigate(destino, { replace: true });
     } catch (err) {
