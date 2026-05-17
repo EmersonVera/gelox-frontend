@@ -1,5 +1,4 @@
 import { useAuth } from '../context/AuthContext';
-import styles from '../styles/navbar.module.css';
 
 /* ── Icons ── */
 function BellIcon() {
@@ -51,10 +50,10 @@ export default function Navbar({ onToggle, sidebarOpen }) {
   const cargo = CARGO_LABEL[perfil?.rol] ?? '';
 
   return (
-    <header className={styles.navbar}>
-      {/* Botón hamburguesa — solo visible en móvil */}
+    <header className="sticky top-0 z-10 flex items-center gap-3 px-4 h-[60px] bg-white/85 backdrop-blur-md border-b border-border">
+      {/* Hamburger — mobile only */}
       <button
-        className={styles.hamburger}
+        className="md:hidden flex items-center justify-center w-8 h-8 rounded-lg text-ink hover:bg-surface transition duration-300 active:scale-90"
         type="button"
         onClick={onToggle}
         aria-label={sidebarOpen ? 'Cerrar menú' : 'Abrir menú'}
@@ -63,28 +62,35 @@ export default function Navbar({ onToggle, sidebarOpen }) {
         {sidebarOpen ? <CloseIcon /> : <HamburgerIcon />}
       </button>
 
-      {/* Spacer para empujar el resto a la derecha */}
-      <div className={styles.spacer} />
+      {/* Spacer */}
+      <div className="flex-1" />
 
-      <button className={styles.bellBtn} type="button" aria-label="Notificaciones">
+      {/* Bell */}
+      <button
+        className="flex items-center justify-center w-8 h-8 rounded-lg text-muted hover:bg-surface hover:text-ink hover:scale-110 transition duration-300 active:scale-95"
+        type="button"
+        aria-label="Notificaciones"
+      >
         <BellIcon />
       </button>
 
-      <div className={styles.divider} />
+      {/* Divider */}
+      <div className="w-px h-6 bg-divider" />
 
-      <div className={styles.userInfo}>
-        <div className={styles.userTexts}>
-          <div className={styles.userName}>{perfil?.nombre ?? '—'}</div>
-          <div className={styles.userRole}>{cargo}</div>
+      {/* User info */}
+      <div className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl hover:bg-surface transition duration-300 cursor-pointer">
+        <div className="text-right hidden sm:block">
+          <div className="text-sm font-semibold text-ink leading-tight">{perfil?.nombre ?? '—'}</div>
+          <div className="text-xs text-muted leading-tight">{cargo}</div>
         </div>
         {perfil?.foto_url ? (
           <img
             src={perfil.foto_url}
             alt={perfil.nombre}
-            className={styles.avatarImg}
+            className="w-8 h-8 rounded-full object-cover hover:scale-105 transition duration-300"
           />
         ) : (
-          <div className={styles.avatarPlaceholder}>
+          <div className="w-8 h-8 rounded-full bg-primary-tint text-primary text-xs font-bold flex items-center justify-center shrink-0 hover:scale-105 transition duration-300">
             {getInitials(perfil?.nombre)}
           </div>
         )}

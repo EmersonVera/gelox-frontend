@@ -13,10 +13,15 @@ export default function DashboardInventario() {
   };
 
   return (
-    <div style={{ padding: '2rem' }}>
-      <h1>Dashboard Inventario</h1>
-      <p>Bienvenido, {usuario?.displayName || usuario?.email}</p>
-      <button onClick={handleLogout}>Cerrar sesión</button>
+    <div className="flex flex-col gap-4">
+      <h1 className="font-display text-2xl font-extrabold text-ink tracking-tight">Dashboard Inventario</h1>
+      <p className="text-sm text-muted">Bienvenido, {perfil?.nombre}</p>
+      <button
+        onClick={handleLogout}
+        className="self-start px-4 py-2 bg-primary text-white text-sm font-semibold rounded-xl hover:bg-primary-dark transition-colors"
+      >
+        Cerrar sesión
+      </button>
     </div>
   );
 }
