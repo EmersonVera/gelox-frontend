@@ -137,7 +137,7 @@ export default function NuevoUsuario() {
         const fd = new FormData();
         fd.append('nombre', data.nombre);
         fd.append('correo', data.correo);
-        fd.append('contrasenaTemp', data.contrasena);
+        fd.append('contrasenaTemporal', data.contrasena);
         fd.append('rol', rolSeleccionado);
         fd.append('foto', foto);
         await api.post('/api/usuarios', fd, {
@@ -147,7 +147,7 @@ export default function NuevoUsuario() {
         await crearUsuario({
           nombre: data.nombre,
           correo: data.correo,
-          contrasenaTemp: data.contrasena,
+          contrasenaTemporal: data.contrasena,
           rol: rolSeleccionado,
         });
       }

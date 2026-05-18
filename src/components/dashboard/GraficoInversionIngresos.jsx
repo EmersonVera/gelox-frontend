@@ -55,6 +55,7 @@ export default function GraficoInversionIngresos() {
       {cargando ? (
         <div className="flex-1 bg-[#fafaf9] rounded-[8px] animate-pulse" />
       ) : (
+        <div className="flex-1 min-h-0">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} barGap={4} barCategoryGap="30%">
             <CartesianGrid strokeDasharray="0" stroke="#fafaf9" vertical={false} />
@@ -79,6 +80,7 @@ export default function GraficoInversionIngresos() {
             <Bar dataKey="inversion" fill="#a1a1aa" radius={[4, 4, 0, 0]} name="Inversión" />
           </BarChart>
         </ResponsiveContainer>
+        </div>
       )}
     </div>
   );
