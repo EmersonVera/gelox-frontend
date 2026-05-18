@@ -6,7 +6,7 @@ import NuevoUsuario from '../pages/NuevoUsuario';
 import EditarUsuario from '../pages/EditarUsuario';
 import RecuperarContrasena from '../pages/RecuperarContrasena';
 import ProtectedRoute from './ProtectedRoute';
-import DashboardGerente from '../pages/placeholders/DashboardGerente';
+import DashboardGerente from '../pages/DashboardGerente';
 import DashboardInventario from '../pages/placeholders/DashboardInventario';
 import DashboardVentas from '../pages/placeholders/DashboardVentas';
 import LandingPage from '../pages/LandingPage';
