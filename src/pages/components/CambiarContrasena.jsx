@@ -65,7 +65,7 @@ const inputErr    = 'border-danger ring-2 ring-danger/20 bg-error-bg';
 
 /* ── Component ── */
 export default function CambiarContrasena({ open, onClose }) {
-  const { perfil } = useAuth();
+  const { perfil, usuario } = useAuth();
 
   const [showActual,       setShowActual]       = useState(false);
   const [showNueva,        setShowNueva]        = useState(false);
@@ -93,7 +93,7 @@ export default function CambiarContrasena({ open, onClose }) {
     setSaving(true);
     setErrorGeneral('');
     try {
-      await cambiarContrasena(perfil.id, { contrasenaActual, nuevaContrasena, confirmacionContrasena });
+      await cambiarContrasena(usuario.uid, { contrasenaActual, nuevaContrasena, confirmacion: confirmacionContrasena });
       reset();
       handleClose();
     } catch (err) {
