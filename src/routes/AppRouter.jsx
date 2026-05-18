@@ -9,6 +9,7 @@ import ProtectedRoute from './ProtectedRoute';
 import DashboardGerente from '../pages/placeholders/DashboardGerente';
 import DashboardInventario from '../pages/placeholders/DashboardInventario';
 import DashboardVentas from '../pages/placeholders/DashboardVentas';
+import LandingPage from '../pages/LandingPage';
 
 export default function AppRouter() {
   return (
@@ -17,6 +18,7 @@ export default function AppRouter() {
         {/* Rutas públicas */}
         <Route path="/login" element={<Login />} />
         <Route path="/recuperar-contrasena" element={<RecuperarContrasena />} />
+        <Route path="/landing" element={<LandingPage />} />
         <Route path="/" element={<Navigate to="/login" replace />} />
 
         {/* Rutas privadas — Administrador */}
