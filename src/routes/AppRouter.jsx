@@ -6,9 +6,12 @@ import NuevoUsuario from '../pages/NuevoUsuario';
 import EditarUsuario from '../pages/EditarUsuario';
 import RecuperarContrasena from '../pages/RecuperarContrasena';
 import ProtectedRoute from './ProtectedRoute';
-import DashboardGerente from '../pages/placeholders/DashboardGerente';
+import DashboardGerente from '../pages/DashboardGerente';
 import DashboardInventario from '../pages/placeholders/DashboardInventario';
 import DashboardVentas from '../pages/placeholders/DashboardVentas';
+import LandingPage from '../pages/LandingPage';
+import Reportes from '../pages/Reportes';
+
 
 export default function AppRouter() {
   return (
@@ -17,6 +20,7 @@ export default function AppRouter() {
         {/* Rutas públicas */}
         <Route path="/login" element={<Login />} />
         <Route path="/recuperar-contrasena" element={<RecuperarContrasena />} />
+        <Route path="/landing" element={<LandingPage />} />
         <Route path="/" element={<Navigate to="/login" replace />} />
 
         {/* Rutas privadas — Administrador */}
@@ -25,6 +29,7 @@ export default function AppRouter() {
           <Route path="/usuarios" element={<GestionUsuarios />} />
           <Route path="/usuarios/nuevo" element={<NuevoUsuario />} />
           <Route path="/usuarios/:id/editar" element={<EditarUsuario />} />
+          <Route path="/reportes" element={<Reportes />} />
         </Route>
 
         {/* Rutas privadas — Encargado Inventario */}
@@ -42,7 +47,7 @@ export default function AppRouter() {
           <Route path="/ajustes" element={<Ajustes />} />
         </Route>
 
-<Route path="/no-autorizado" element={<div className="p-8 text-sm text-muted">No tienes permiso para acceder a esta sección.</div>} />
+        <Route path="/no-autorizado" element={<div className="p-8 text-sm text-muted">No tienes permiso para acceder a esta sección.</div>} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </BrowserRouter>

@@ -12,4 +12,4 @@ export const updateFotoPerfil = (id, file) => {
 };
 
 export const cambiarContrasena = (id, dto) =>
-  api.post(`/api/perfil/${id}/cambiar-contrasena`, dto);
+  api.put(`/api/perfil/${id}/contrasena`, dto);
