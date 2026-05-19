@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import api from '../../api/axiosConfig';
 
 const MOCK = [
   { posicion: 1, nombre: 'Carlos Julio Ruiz',     ingreso: 320000 },
@@ -14,28 +14,25 @@ function formatCOP(n) {
 }
 
 export default function Top5Comerciantes() {
-  const { token } = useAuth();
   const [data, setData] = useState(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (!token) {
-      setData(MOCK);
-      setCargando(false);
-      return;
-    }
-    fetch('/api/dashboard/top5-comerciantes', {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((r) => r.json())
-      .then(setData)
+    api.get('/api/dashboard/top5-comerciantes')
+      .then((r) => setData(
+        (r.data?.comerciantes ?? []).map((c) => ({
+          posicion: c.posicion,
+          nombre: c.nombre,
+          ingreso: Number(c.totalIngreso),
+        }))
+      ))
       .catch(() => {
         setData(MOCK);
         setError('No se pudo conectar al servidor. Mostrando datos de ejemplo.');
       })
       .finally(() => setCargando(false));
-  }, [token]);
+  }, []);
 
   const maxIngreso = data ? Math.max(...data.map((c) => c.ingreso)) : 1;
 
