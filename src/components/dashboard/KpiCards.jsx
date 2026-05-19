@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import api from '../../api/axiosConfig';
 
 function DollarIcon() {
   return (
@@ -64,25 +64,16 @@ const MOCK_KPIS = {
 };
 
 export default function KpiCards() {
-  const { token } = useAuth();
   const [data, setData] = useState(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (!token) {
-      setData(MOCK_KPIS);
-      setCargando(false);
-      return;
-    }
-    fetch('/api/dashboard/kpis', {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((r) => r.json())
-      .then(setData)
+    api.get('/api/dashboard/kpis')
+      .then((r) => setData(r.data))
       .catch(() => setError('No se pudo cargar los indicadores.'))
       .finally(() => setCargando(false));
-  }, [token]);
+  }, []);
 
   if (cargando) return (
     <div className="grid grid-cols-3 gap-6">
@@ -96,26 +87,31 @@ export default function KpiCards() {
     <p className="text-sm text-[#78716c]">{error || 'Sin datos'}</p>
   );
 
+  const pctActivos = data.totalComerciantes > 0
+    ? (data.comerciantesActivos / data.totalComerciantes) * 100
+    : 0;
+  const estadoActivos = pctActivos > 80 ? 'Alto' : pctActivos > 50 ? 'Medio' : 'Bajo';
+
   const cards = [
     {
       label: 'Ingresos del día',
-      valor: formatCOP(data.ingresosDia.valor),
+      valor: formatCOP(Number(data.ingresosDia)),
       sufijo: 'COP',
-      badge: <Badge valor={data.ingresosDia.variacion} tipo="porcentaje" />,
+      badge: <Badge valor={data.variacionIngresos != null ? Number(data.variacionIngresos) : 0} tipo="porcentaje" />,
       icono: <DollarIcon />,
     },
     {
       label: 'Ganancia neta Diaria',
-      valor: formatCOP(data.gananciaNeta.valor),
+      valor: formatCOP(Number(data.gananciaNeta)),
       sufijo: 'COP',
-      badge: <Badge valor={data.gananciaNeta.variacion} tipo="porcentaje" />,
+      badge: <Badge valor={data.variacionGanancia != null ? Number(data.variacionGanancia) : 0} tipo="porcentaje" />,
       icono: <TrendingUpIcon />,
     },
     {
       label: 'Comerciantes activos',
-      valor: String(data.comerciantes.activos),
-      sufijo: `/ ${data.comerciantes.total}`,
-      badge: <Badge valor={data.comerciantes.estado} tipo="cualitativo" />,
+      valor: String(data.comerciantesActivos),
+      sufijo: `/ ${data.totalComerciantes}`,
+      badge: <Badge valor={estadoActivos} tipo="cualitativo" />,
       icono: <UsersIcon />,
     },
   ];

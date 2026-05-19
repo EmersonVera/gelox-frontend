@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { useAuth } from '../../context/AuthContext';
+import api from '../../api/axiosConfig';
 
 const MOCK_INVERSION = [
   { semana: 'Semana 1', ingresos: 1250000, inversion: 650000 },
@@ -10,24 +10,21 @@ const MOCK_INVERSION = [
 ];
 
 export default function GraficoInversionIngresos() {
-  const { token } = useAuth();
   const [data, setData] = useState([]);
   const [cargando, setCargando] = useState(true);
 
   useEffect(() => {
-    if (!token) {
-      setData(MOCK_INVERSION);
-      setCargando(false);
-      return;
-    }
-    fetch('/api/dashboard/inversion-ingresos', {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((r) => r.json())
-      .then(setData)
+    api.get('/api/dashboard/inversion-ingresos')
+      .then((r) => setData(
+        r.data.map((d) => ({
+          semana: d.semana,
+          ingresos: Number(d.totalIngresos),
+          inversion: Number(d.totalInversion),
+        }))
+      ))
       .catch(() => {})
       .finally(() => setCargando(false));
-  }, [token]);
+  }, []);
 
   return (
     <div className="bg-white border border-[rgba(245,245,244,0.5)] rounded-[12px] drop-shadow-[0px_1px_1px_rgba(0,0,0,0.05)] p-[33px] col-span-2 h-[477px] flex flex-col">
@@ -55,8 +52,8 @@ export default function GraficoInversionIngresos() {
       {cargando ? (
         <div className="flex-1 bg-[#fafaf9] rounded-[8px] animate-pulse" />
       ) : (
-        <div className="flex-1 min-h-0">
-        <ResponsiveContainer width="100%" height="100%">
+        <div className="flex-1">
+        <ResponsiveContainer width="100%" height={300}>
           <BarChart data={data} barGap={4} barCategoryGap="30%">
             <CartesianGrid strokeDasharray="0" stroke="#fafaf9" vertical={false} />
             <XAxis
@@ -76,8 +73,8 @@ export default function GraficoInversionIngresos() {
               }}
               formatter={(v) => ['$' + v.toLocaleString('es-CO'), undefined]}
             />
-            <Bar dataKey="ingresos"  fill="#9e2016" radius={[4, 4, 0, 0]} name="Ingresos" />
-            <Bar dataKey="inversion" fill="#a1a1aa" radius={[4, 4, 0, 0]} name="Inversión" />
+            <Bar dataKey="ingresos"  name="Ingresos"  fill="#9e2016" style={{ fill: '#9e2016' }} isAnimationActive={false} radius={[4, 4, 0, 0]} />
+            <Bar dataKey="inversion" name="Inversión" fill="#a1a1aa" style={{ fill: '#a1a1aa' }} isAnimationActive={false} radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
         </div>

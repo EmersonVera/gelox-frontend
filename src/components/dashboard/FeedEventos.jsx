@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import api from '../../api/axiosConfig';
 
 const MOCK = [
   { tipo: 'DESPACHO',       descripcion: 'Juan Pérez registró despacho de 45 unidades.',          timestamp: new Date(Date.now() - 15 * 60 * 1000).toISOString() },
@@ -67,23 +67,19 @@ const TIPO_CONFIG = {
 };
 
 export default function FeedEventos() {
-  const { token } = useAuth();
   const [eventos, setEventos] = useState(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (!token) {
-      setEventos(MOCK);
-      setCargando(false);
-      return;
-    }
-    fetch('/api/dashboard/eventos', {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((r) => r.json())
-      .then((raw) => {
-        const ordenados = [...raw].sort(
+    api.get('/api/dashboard/eventos')
+      .then((r) => {
+        const items = (r.data?.content ?? []).map((ev) => ({
+          tipo: ev.tipo,
+          descripcion: ev.descripcion,
+          timestamp: ev.fecha,
+        }));
+        const ordenados = [...items].sort(
           (a, b) => new Date(b.timestamp) - new Date(a.timestamp)
         );
         setEventos(ordenados.slice(0, 10));
@@ -93,7 +89,7 @@ export default function FeedEventos() {
         setError('No se pudo conectar al servidor. Mostrando datos de ejemplo.');
       })
       .finally(() => setCargando(false));
-  }, [token]);
+  }, []);
 
   return (
     <div className="bg-white border border-[rgba(245,245,244,0.5)] rounded-[12px] drop-shadow-[0px_1px_1px_rgba(0,0,0,0.05)] p-[33px] flex flex-col gap-6">

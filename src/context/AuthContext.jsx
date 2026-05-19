@@ -12,25 +12,35 @@ export function AuthProvider({ children }) {
   const [cargando, setCargando] = useState(true);
 
   useEffect(() => {
+    let cancelled = false;
+
     const unsub = onAuthStateChanged(auth, async (user) => {
       if (user) {
         const result = await getIdTokenResult(user);
+        if (cancelled) return;
         setUsuario(user);
         setToken(result.token);
         try {
           const { data } = await api.post('/api/auth/verificar', {});
+          if (cancelled) return;
           setPerfil(data);
         } catch {
+          if (cancelled) return;
           setPerfil(null);
         }
       } else {
+        if (cancelled) return;
         setUsuario(null);
         setPerfil(null);
         setToken(null);
       }
-      setCargando(false);
+      if (!cancelled) setCargando(false);
     });
-    return unsub;
+
+    return () => {
+      cancelled = true;
+      unsub();
+    };
   }, []);
 
   const updatePerfil = (updates) => {
