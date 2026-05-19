@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { PieChart, Pie, Cell, Tooltip } from 'recharts';
-import { useAuth } from '../../context/AuthContext';
+import api from '../../api/axiosConfig';
 
 const COLORES = ['#9e2016', '#1b1b1c', '#e7e5e4'];
 
@@ -11,24 +11,22 @@ const MOCK_CANALES = [
 ];
 
 export default function GraficoVentasPorCanal() {
-  const { token } = useAuth();
   const [data, setData] = useState([]);
   const [cargando, setCargando] = useState(true);
 
   useEffect(() => {
-    if (!token) {
-      setData(MOCK_CANALES);
-      setCargando(false);
-      return;
-    }
-    fetch('/api/dashboard/ventas-por-canal', {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((r) => r.json())
-      .then(setData)
-      .catch(() => {})
+    api.get('/api/dashboard/ventas-por-canal')
+      .then((r) => {
+        const raw = r.data;
+        setData([
+          { canal: 'Comerciantes', porcentaje: Number(raw.porcentajeComerciantes ?? 0) },
+          { canal: 'Ventanilla',   porcentaje: Number(raw.porcentajeVentanilla   ?? 0) },
+          { canal: 'Rural',        porcentaje: Number(raw.porcentajeRural         ?? 0) },
+        ]);
+      })
+      .catch(() => setData([]))
       .finally(() => setCargando(false));
-  }, [token]);
+  }, []);
 
   const total = data.reduce((acc, d) => acc + d.porcentaje, 0);
 

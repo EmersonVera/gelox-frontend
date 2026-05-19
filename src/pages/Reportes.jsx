@@ -144,7 +144,7 @@ export default function Reportes() {
                 />
                 <KpiCard
                     label="Margen de Ganancia"
-                    value={loading ? '…' : reporte ? `${reporte.margenGanancia.toFixed(0)}%` : '—'}
+                    value={loading ? '…' : reporte ? `${(reporte.margenGanancia ?? 0).toFixed(0)}%` : '—'}
                 />
             </div>
 
@@ -167,11 +167,11 @@ export default function Reportes() {
                             Sin datos para el período seleccionado
                         </div>
                     ) : (
-                        <div className="h-48">
-                            <ResponsiveContainer width="100%" height="100%">
+                        <div>
+                            <ResponsiveContainer width="100%" height={192}>
                                 <BarChart data={grafica} barGap={4} barCategoryGap="30%">
                                     <XAxis
-                                        dataKey="label"
+                                        dataKey="etiqueta"
                                         tick={{ fontSize: 11, fill: '#8d706c' }}
                                         axisLine={false}
                                         tickLine={false}
@@ -184,8 +184,8 @@ export default function Reportes() {
                                         wrapperStyle={{ fontSize: 12 }}
                                         formatter={(v) => <span className="text-muted">{v}</span>}
                                     />
-                                    <Bar dataKey="ingresos"  name="Ingresos"  fill="#9e2016" radius={[4, 4, 0, 0]} />
-                                    <Bar dataKey="inversion" name="Inversión" fill="#d6d3d1" radius={[4, 4, 0, 0]} />
+                                    <Bar dataKey="ingresos"  name="Ingresos"  fill="#9e2016" style={{ fill: '#9e2016' }} isAnimationActive={false} radius={[4, 4, 0, 0]} />
+                                    <Bar dataKey="inversion" name="Inversión" fill="#d6d3d1" style={{ fill: '#d6d3d1' }} isAnimationActive={false} radius={[4, 4, 0, 0]} />
                                 </BarChart>
                             </ResponsiveContainer>
                         </div>
