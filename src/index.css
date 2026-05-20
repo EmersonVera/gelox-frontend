@@ -80,7 +80,14 @@ button {
 }
 
 /* Recharts bar fill fix: inherit CSS fill from Bar's style prop,
-   overriding any SVG-attribute reset that Tailwind v4 layers apply */
-.recharts-rectangle {
+   overriding any SVG-attribute reset that Tailwind v4 layers apply.
+   Scope to .recharts-bar only so the tooltip cursor rectangle
+   (also a .recharts-rectangle) no longer inherits SVG's default black fill. */
+.recharts-bar .recharts-rectangle {
   fill: inherit;
+}
+
+/* Tooltip hover cursor — light warm tint, visually neutral over gray bars */
+.recharts-tooltip-cursor {
+  fill: rgba(0, 0, 0, 0.04) !important;
 }

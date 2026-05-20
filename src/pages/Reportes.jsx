@@ -59,7 +59,10 @@ function KpiCard({ label, value, sub, positive }) {
 function CustomTooltip({ active, payload, label }) {
     if (!active || !payload?.length) return null;
     return (
-        <div className="bg-white border border-border rounded-xl p-3 shadow-md text-sm">
+        <div
+            className="border border-border rounded-xl p-3 shadow-md text-sm"
+            style={{ backgroundColor: '#fff' }}
+        >
             <p className="font-semibold text-ink mb-1">{label}</p>
             {payload.map((p) => (
                 <p key={p.name} style={{ color: p.color }}>
@@ -69,6 +72,15 @@ function CustomTooltip({ active, payload, label }) {
         </div>
     );
 }
+
+/* ── Subtítulos dinámicos de la gráfica ── */
+const SUBTITULOS_GRAFICA = {
+    dia:    'Ingresos vs inversión del día',
+    semana: 'Ingresos vs inversión por día (semana actual)',
+    mes:    'Ingresos vs inversión por semana (mes actual)',
+    anio:   'Ingresos vs inversión por mes (año actual)',
+    rango:  'Ingresos vs inversión por semana (rango personalizado)',
+};
 
 /* ── Componente principal ── */
 export default function Reportes() {
@@ -86,7 +98,7 @@ export default function Reportes() {
             const { fechaInicio, fechaFin } = rangoFromFiltro(filtro);
             const [rep, graf, can] = await Promise.all([
                 getReporteFinanciero(fechaInicio, fechaFin),
-                getGraficaInversionIngresos(fechaInicio, fechaFin),
+                getGraficaInversionIngresos(fechaInicio, fechaFin, filtro.tipo.toUpperCase()),
                 getReportePorCanal(fechaInicio, fechaFin),
             ]);
             setReporte(rep);
@@ -152,23 +164,25 @@ export default function Reportes() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
 
                 {/* Comparativa de Rendimiento — RF13 */}
-                <div className="lg:col-span-2 bg-white rounded-2xl border border-border shadow-sm p-6">
+                <div className="lg:col-span-2 bg-white rounded-2xl border border-border shadow-sm p-6 flex flex-col">
                     <h2 className="font-display font-bold text-lg text-ink leading-6 mb-0.5">
                         Comparativa de Rendimiento
                     </h2>
-                    <p className="text-xs text-muted mb-4">Ingresos vs inversión por semana</p>
+                    <p className="text-xs text-muted mb-4">
+                        {SUBTITULOS_GRAFICA[filtro.tipo] ?? 'Ingresos vs inversión'}
+                    </p>
 
                     {loading ? (
-                        <div className="h-48 flex items-center justify-center text-sm text-muted">
+                        <div className="flex-1 flex items-center justify-center text-sm text-muted">
                             Cargando gráfica…
                         </div>
                     ) : grafica.length === 0 ? (
-                        <div className="h-48 flex items-center justify-center text-sm text-muted">
+                        <div className="flex-1 flex items-center justify-center text-sm text-muted">
                             Sin datos para el período seleccionado
                         </div>
                     ) : (
-                        <div>
-                            <ResponsiveContainer width="100%" height={192}>
+                        <div className="flex-1 min-h-0">
+                            <ResponsiveContainer width="100%" height="100%">
                                 <BarChart data={grafica} barGap={4} barCategoryGap="30%">
                                     <XAxis
                                         dataKey="etiqueta"
@@ -177,7 +191,10 @@ export default function Reportes() {
                                         tickLine={false}
                                     />
                                     <YAxis hide />
-                                    <Tooltip content={<CustomTooltip />} />
+                                    <Tooltip
+                                        content={<CustomTooltip />}
+                                        cursor={{ fill: 'rgba(0, 0, 0, 0.04)' }}
+                                    />
                                     <Legend
                                         iconType="circle"
                                         iconSize={8}
