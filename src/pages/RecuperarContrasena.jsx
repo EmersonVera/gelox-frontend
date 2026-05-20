@@ -1,7 +1,5 @@
 import { useState } from 'react';
-import { sendPasswordResetEmail } from 'firebase/auth';
 import { Link } from 'react-router-dom';
-import { auth } from '../auth/firebase';
 
 function EnvelopeIcon() {
   return (
@@ -30,15 +28,16 @@ export default function RecuperarContrasena() {
 
     setCargando(true);
     try {
-      await sendPasswordResetEmail(auth, correo);
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/auth/recuperar-contrasena`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ correo }),
+      });
+      if (!res.ok) throw new Error('error');
       setMensaje(`Te hemos enviado un enlace a ${correo}. Revisa tu bandeja de entrada.`);
       setCorreo('');
-    } catch (err) {
-      if (err.code === 'auth/user-not-found') {
-        setError('El correo ingresado no está registrado en el sistema.');
-      } else {
-        setError('Ocurrió un error. Intenta nuevamente.');
-      }
+    } catch {
+      setError('Ocurrió un error. Intenta nuevamente.');
     } finally {
       setCargando(false);
     }
