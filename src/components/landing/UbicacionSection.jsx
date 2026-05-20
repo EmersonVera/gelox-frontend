@@ -1,12 +1,6 @@
 import { useEffect, useState } from 'react';
+import api from '../../api/axiosConfig';
 
-const MOCK_INFO = {
-  direccion: 'Carrera X # Y - Z',
-  barrio: 'Barrio Pueblo Nuevo',
-  ciudad: 'Cúcuta, Norte de Santander',
-  horario: 'Lunes a Domingo: 6:00 AM - 8:00 PM',
-  maps_url: 'https://maps.google.com',
-};
 
 function PinIcon() {
   return (
@@ -31,14 +25,13 @@ export default function UbicacionSection() {
   const [cargando, setCargando] = useState(true);
 
   useEffect(() => {
-    fetch('/api/landing/info-negocio')
-      .then((r) => r.json())
-      .then(setInfo)
-      .catch(() => setInfo(MOCK_INFO))
+    api.get('/api/landing/info-negocio')
+      .then((r) => setInfo(r.data))
+      .catch(() => setInfo(null))
       .finally(() => setCargando(false));
   }, []);
 
-  const datos = info ?? MOCK_INFO;
+  const datos = info;
 
   return (
     <section className="overflow-hidden">
@@ -50,7 +43,7 @@ export default function UbicacionSection() {
               Encuéntranos en el corazón de Cúcuta
             </h2>
 
-            {cargando ? (
+            {cargando || !datos ? (
               <div className="flex flex-col gap-3">
                 <div className="h-4 bg-red-600 rounded animate-pulse w-3/4" />
                 <div className="h-4 bg-red-600 rounded animate-pulse w-1/2" />
@@ -73,7 +66,7 @@ export default function UbicacionSection() {
             )}
 
             <a
-              href={datos.maps_url || MOCK_INFO.maps_url}
+              href={datos?.mapsUrl || '#'}
               target="_blank"
               rel="noopener noreferrer"
               className="self-start mt-2 bg-white text-red-700 font-['Inter'] font-bold text-[14px] px-6 py-3 rounded-xl hover:bg-red-50 transition-all duration-200 active:scale-95"

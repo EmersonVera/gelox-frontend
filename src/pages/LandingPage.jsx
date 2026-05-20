@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import api from '../api/axiosConfig';
 import LandingNav from '../components/landing/LandingNav';
 import HeroSection from '../components/landing/HeroSection';
 import BeneficiosSection from '../components/landing/BeneficiosSection';
@@ -14,9 +15,8 @@ export default function LandingPage() {
   const [waUrl, setWaUrl] = useState('');
 
   useEffect(() => {
-    fetch('/api/landing/whatsapp')
-      .then((r) => r.json())
-      .then((data) => setWaUrl(data.url || FALLBACK_WA))
+    api.get('/api/landing/whatsapp')
+      .then((r) => setWaUrl(r.data.url || FALLBACK_WA))
       .catch(() => setWaUrl(FALLBACK_WA));
   }, []);
 

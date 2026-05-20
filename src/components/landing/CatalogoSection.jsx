@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import api from '../../api/axiosConfig';
 
 const CATEGORIAS = ['Todas', 'Paletas', 'Conos', 'Familiares'];
 
@@ -85,10 +86,9 @@ export default function CatalogoSection({ waUrl }) {
   const [filtro, setFiltro] = useState('Todas');
 
   useEffect(() => {
-    fetch(`${import.meta.env.VITE_API_URL}/api/landing/productos`)
-      .then((r) => r.json())
-      .then((data) => {
-        const plano = Object.entries(data).flatMap(([cat, items]) =>
+    api.get('/api/landing/productos')
+      .then((r) => {
+        const plano = Object.entries(r.data).flatMap(([cat, items]) =>
           items.map((p, i) => ({
             id: `${cat}-${i}`,
             nombre: p.nombre,
