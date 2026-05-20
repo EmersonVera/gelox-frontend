@@ -85,7 +85,7 @@ export default function CatalogoSection({ waUrl }) {
   const [filtro, setFiltro] = useState('Todas');
 
   useEffect(() => {
-    fetch('/api/landing/productos')
+    fetch(`${import.meta.env.VITE_API_URL}/api/landing/productos`)
       .then((r) => r.json())
       .then((data) => {
         const plano = Object.entries(data).flatMap(([cat, items]) =>
