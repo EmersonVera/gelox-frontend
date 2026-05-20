@@ -1,12 +1,10 @@
 import heroImg from '../../assets/hero.png';
 
-const waUrl = `https://wa.me/${import.meta.env.VITE_WHATSAPP_NUMBER}`;
-
 function scrollToCatalogo() {
   document.getElementById('catalogo')?.scrollIntoView({ behavior: 'smooth' });
 }
 
-export default function HeroSection() {
+export default function HeroSection({ waUrl }) {
   return (
     <section
       id="inicio"
@@ -33,10 +31,13 @@ export default function HeroSection() {
 
           <div className="flex flex-wrap gap-3 mt-2">
             <a
-              href={waUrl}
+              href={waUrl || undefined}
               target="_blank"
               rel="noopener noreferrer"
-              className="bg-red-700 hover:bg-red-800 text-white font-['Inter'] font-semibold text-[15px] px-6 py-3 rounded-xl transition-all duration-200 active:scale-95 shadow-lg shadow-red-700/20"
+              aria-disabled={!waUrl}
+              className={`bg-red-700 text-white font-['Inter'] font-semibold text-[15px] px-6 py-3 rounded-xl transition-all duration-200 active:scale-95 shadow-lg shadow-red-700/20 ${
+                waUrl ? 'hover:bg-red-800' : 'opacity-50 pointer-events-none'
+              }`}
             >
               Pedir por WhatsApp →
             </a>

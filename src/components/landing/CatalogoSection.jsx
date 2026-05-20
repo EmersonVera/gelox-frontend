@@ -1,15 +1,5 @@
 import { useEffect, useState } from 'react';
 
-const waUrl = `https://wa.me/${import.meta.env.VITE_WHATSAPP_NUMBER}`;
-
-const MOCK_PRODUCTOS = [
-  { id: 1, nombre: 'Chococono',       descripcion: 'El clásico con cobertura de chocolate crujiente y galleta.',  precio: 3000, categoria: 'PALETAS', imagen_url: null, badge: 'FAVORITO'   },
-  { id: 2, nombre: 'Heladino',        descripcion: 'Refrescante paleta de agua con sabores frutales intensos.',   precio: 2500, categoria: 'PALETAS', imagen_url: null, badge: 'POPULAR'    },
-  { id: 3, nombre: 'Drácula',         descripcion: 'El sabor místico de chocolate con centro líquido de fresa.',  precio: 3500, categoria: 'PALETAS', imagen_url: null, badge: 'DISPONIBLE' },
-  { id: 4, nombre: 'Cornetto Clásico',descripcion: 'Crema suave con tope de maní.',                               precio: 4500, categoria: 'CONOS',   imagen_url: null, badge: null         },
-  { id: 5, nombre: 'Bocatto',         descripcion: 'Crema suave con tope de maní.',                               precio: 5700, categoria: 'CONOS',   imagen_url: null, badge: null         },
-];
-
 const CATEGORIAS = ['Todas', 'Paletas', 'Conos', 'Familiares'];
 
 const BADGE_STYLES = {
@@ -39,7 +29,7 @@ function IceCreamPlaceholder() {
   );
 }
 
-function ProductCard({ producto }) {
+function ProductCard({ producto, waUrl }) {
   return (
     <div className="bg-white border border-zinc-200 rounded-2xl shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden flex flex-col">
       <div className="relative h-44 bg-zinc-50 overflow-hidden">
@@ -68,16 +58,17 @@ function ProductCard({ producto }) {
             {producto.descripcion}
           </p>
         </div>
-        <div className="flex items-center justify-between mt-auto">
-          <span className="font-['Manrope'] font-extrabold text-[20px] text-zinc-900">
-            {formatPrecio(producto.precio)}
-          </span>
-        </div>
+        <span className="font-['Manrope'] font-extrabold text-[20px] text-zinc-900">
+          {formatPrecio(producto.precio)}
+        </span>
         <a
-          href={waUrl}
+          href={waUrl || undefined}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center justify-center gap-2 w-full bg-emerald-500 hover:bg-emerald-600 text-white font-['Inter'] font-semibold text-[14px] py-2.5 rounded-xl transition-all duration-200 active:scale-95"
+          aria-disabled={!waUrl}
+          className={`flex items-center justify-center gap-2 w-full bg-emerald-500 text-white font-['Inter'] font-semibold text-[14px] py-2.5 rounded-xl transition-all duration-200 active:scale-95 ${
+            waUrl ? 'hover:bg-emerald-600' : 'opacity-50 pointer-events-none'
+          }`}
         >
           <CartIcon />
           Pedir por WhatsApp
@@ -87,20 +78,33 @@ function ProductCard({ producto }) {
   );
 }
 
-export default function CatalogoSection() {
+export default function CatalogoSection({ waUrl }) {
   const [productos, setProductos] = useState(null);
   const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState('');
   const [filtro, setFiltro] = useState('Todas');
 
   useEffect(() => {
     fetch('/api/landing/productos')
       .then((r) => r.json())
       .then((data) => {
-        // eslint-disable-next-line no-unused-vars
-        const limpios = data.map(({ precio_costo, ...rest }) => rest);
-        setProductos(limpios);
+        const plano = Object.entries(data).flatMap(([cat, items]) =>
+          items.map((p, i) => ({
+            id: `${cat}-${i}`,
+            nombre: p.nombre,
+            descripcion: '',
+            precio: p.precioVenta,
+            categoria: cat,
+            imagen_url: p.imagenUrl,
+            badge: null,
+          }))
+        );
+        setProductos(plano);
       })
-      .catch(() => setProductos(MOCK_PRODUCTOS))
+      .catch(() => {
+        setProductos([]);
+        setError('No se pudo cargar el catálogo.');
+      })
       .finally(() => setCargando(false));
   }, []);
 
@@ -144,7 +148,9 @@ export default function CatalogoSection() {
           </div>
         </div>
 
-        {cargando ? (
+        {error ? (
+          <p className="text-center font-['Inter'] text-[15px] text-zinc-400 py-16">{error}</p>
+        ) : cargando ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[1, 2, 3].map((i) => (
               <div key={i} className="bg-zinc-100 rounded-2xl h-[340px] animate-pulse" />
@@ -172,7 +178,7 @@ export default function CatalogoSection() {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {items.map((p) => (
-                      <ProductCard key={p.id} producto={p} />
+                      <ProductCard key={p.id} producto={p} waUrl={waUrl} />
                     ))}
                   </div>
                 </div>

@@ -1,5 +1,3 @@
-const waUrl = `https://wa.me/${import.meta.env.VITE_WHATSAPP_NUMBER}`;
-
 function WhatsAppIcon() {
   return (
     <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
@@ -8,14 +6,17 @@ function WhatsAppIcon() {
   );
 }
 
-export default function WhatsAppFloat() {
+export default function WhatsAppFloat({ waUrl }) {
   return (
     <a
-      href={waUrl}
+      href={waUrl || undefined}
       target="_blank"
       rel="noopener noreferrer"
       aria-label="Contáctanos por WhatsApp"
-      className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white flex items-center justify-center shadow-xl hover:shadow-2xl transition-all duration-200 active:scale-95 hover:-translate-y-0.5"
+      aria-disabled={!waUrl}
+      className={`fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-xl transition-all duration-200 active:scale-95 hover:-translate-y-0.5 ${
+        waUrl ? 'hover:bg-emerald-600 hover:shadow-2xl' : 'opacity-50 pointer-events-none'
+      }`}
     >
       <WhatsAppIcon />
     </a>
