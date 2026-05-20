@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
@@ -145,9 +146,9 @@ export default function CambiarContrasena({ open, onClose }) {
     </div>
   );
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/45 backdrop-blur-sm animate-fade-in"
+      className="fixed inset-0 z-[9999] flex items-center justify-center px-4 bg-black/45 backdrop-blur-sm animate-fade-in"
       onClick={handleClose}
     >
       <div
@@ -226,6 +227,7 @@ export default function CambiarContrasena({ open, onClose }) {
           </button>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
