@@ -73,6 +73,7 @@ export default function CambiarContrasena({ open, onClose }) {
   const [showConfirmacion, setShowConfirmacion] = useState(false);
   const [saving,           setSaving]           = useState(false);
   const [errorGeneral,     setErrorGeneral]     = useState('');
+  const [isClosing,        setIsClosing]        = useState(false);
 
   const {
     register,
@@ -85,9 +86,14 @@ export default function CambiarContrasena({ open, onClose }) {
   if (!open) return null;
 
   const handleClose = () => {
-    reset();
-    setErrorGeneral('');
-    onClose();
+    if (isClosing) return;
+    setIsClosing(true);
+    setTimeout(() => {
+      setIsClosing(false);
+      reset();
+      setErrorGeneral('');
+      onClose();
+    }, 200);
   };
 
   const onSubmit = async ({ contrasenaActual, nuevaContrasena, confirmacionContrasena }) => {
@@ -148,11 +154,11 @@ export default function CambiarContrasena({ open, onClose }) {
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center px-4 bg-black/45 backdrop-blur-sm animate-fade-in"
+      className={`fixed inset-0 z-[9999] flex items-center justify-center px-4 bg-black/45 backdrop-blur-sm ${isClosing ? 'animate-fade-out' : 'animate-fade-in'}`}
       onClick={handleClose}
     >
       <div
-        className="w-full max-w-md bg-white rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.18)] p-7 sm:p-8 animate-scale-in"
+        className={`w-full max-w-md bg-white rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.18)] p-7 sm:p-8 ${isClosing ? 'animate-scale-out' : 'animate-scale-in'}`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Icon badge */}

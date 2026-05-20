@@ -18,6 +18,14 @@
   from { opacity: 0; transform: translateY(-8px); }
   to   { opacity: 1; transform: translateY(0);    }
 }
+@keyframes fade-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+@keyframes scale-out {
+  from { opacity: 1; transform: scale(1)    translateY(0);   }
+  to   { opacity: 0; transform: scale(0.95) translateY(6px); }
+}
 
 @theme {
   /* Typography */
@@ -55,6 +63,8 @@
   --animate-fade-in:    fade-in    0.8s  ease-out both;
   --animate-scale-in:   scale-in   0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
   --animate-slide-down: slide-down 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-fade-out:   fade-out   0.6s ease-in  forwards;
+  --animate-scale-out:  scale-out  0.6s ease-in  forwards;
 }
 
 *, *::before, *::after {
@@ -80,7 +90,14 @@ button {
 }
 
 /* Recharts bar fill fix: inherit CSS fill from Bar's style prop,
-   overriding any SVG-attribute reset that Tailwind v4 layers apply */
-.recharts-rectangle {
+   overriding any SVG-attribute reset that Tailwind v4 layers apply.
+   Scope to .recharts-bar only so the tooltip cursor rectangle
+   (also a .recharts-rectangle) no longer inherits SVG's default black fill. */
+.recharts-bar .recharts-rectangle {
   fill: inherit;
+}
+
+/* Tooltip hover cursor — light warm tint, visually neutral over gray bars */
+.recharts-tooltip-cursor {
+  fill: rgba(0, 0, 0, 0.04) !important;
 }
