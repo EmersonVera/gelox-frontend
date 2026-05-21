@@ -34,7 +34,7 @@ export default function UbicacionSection() {
   const datos = info;
 
   return (
-    <section className="overflow-hidden">
+    <section id="ubicacion" className="overflow-hidden">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <div className="rounded-2xl overflow-hidden grid grid-cols-1 md:grid-cols-2 shadow-lg">
           {/* Left — red */}
@@ -66,7 +66,7 @@ export default function UbicacionSection() {
             )}
 
             <a
-              href={datos?.mapsUrl || '#'}
+              href={datos?.enlaceComoLlegar || '#'}
               target="_blank"
               rel="noopener noreferrer"
               className="self-start mt-2 bg-white text-red-700 font-['Inter'] font-bold text-[14px] px-6 py-3 rounded-xl hover:bg-red-50 transition-all duration-200 active:scale-95"
