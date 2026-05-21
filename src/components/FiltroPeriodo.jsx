@@ -8,8 +8,8 @@ const TIPOS = [
   { value: 'rango',  label: 'Rango' },
 ];
 
-export default function FiltroPeriodo({ onChange }) {
-  const [tipo, setTipo] = useState('dia');
+export default function FiltroPeriodo({ onChange, defaultTipo = 'dia' }) {
+  const [tipo, setTipo] = useState(defaultTipo);
   const [desde, setDesde] = useState('');
   const [hasta, setHasta] = useState('');
 

@@ -127,7 +127,7 @@ export default function Reportes() {
                     </p>
                 </div>
                 {/* RF16 — Filtro de período */}
-                <FiltroPeriodo onChange={setFiltro} />
+                <FiltroPeriodo defaultTipo="mes" onChange={setFiltro} />
             </div>
 
             {error && (
