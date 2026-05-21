@@ -8,7 +8,7 @@ export async function getReporteFinanciero(fechaInicio, fechaFin) {
     return res.data;
 }
 
-export async function getGraficaInversionIngresos(fechaInicio, fechaFin, tipoPeriodo = 'SEMANA') {
+export async function getGraficaInversionIngresos(fechaInicio, fechaFin, tipoPeriodo) {
     const res = await api.get(
         `/api/reportes/grafica-inversion-ingresos?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}&tipo_periodo=${tipoPeriodo}`
     );
