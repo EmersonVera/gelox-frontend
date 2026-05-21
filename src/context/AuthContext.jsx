@@ -21,7 +21,7 @@ export function AuthProvider({ children }) {
         setUsuario(user);
         setToken(result.token);
         try {
-          const { data } = await api.post('/api/auth/verificar', {});
+          const { data } = await api.get('/api/auth/perfil');
           if (cancelled) return;
           setPerfil(data);
         } catch {
