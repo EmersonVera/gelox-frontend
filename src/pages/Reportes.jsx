@@ -21,6 +21,13 @@ function fmt(n) {
     }).format(n);
 }
 
+function validarRangoFechas(fechaInicio, fechaFin) {
+    if (!fechaInicio || !fechaFin) return null; // otros tipos de filtro no necesitan validación
+    if (fechaInicio > fechaFin)
+        return 'La fecha de inicio no puede ser posterior a la fecha fin.';
+    return null;
+}
+
 function rangoFromFiltro(filtro) {
     const hoy = new Date();
     const pad = (n) => String(n).padStart(2, '0');
@@ -75,16 +82,50 @@ function CustomTooltip({ active, payload, label }) {
 
 /* ── Subtítulos dinámicos de la gráfica ── */
 const SUBTITULOS_GRAFICA = {
-    dia:    'Ingresos vs inversión del día',
-    semana: 'Ingresos vs inversión por día (semana actual)',
-    mes:    'Ingresos vs inversión por semana (mes actual)',
-    anio:   'Ingresos vs inversión por mes (año actual)',
-    rango:  'Ingresos vs inversión por semana (rango personalizado)',
+    dia:   'Ingresos vs. inversión del día',
+    semana:'Ingresos vs. inversión por día (semana actual)',
+    mes:   'Ingresos vs. inversión por semana (mes actual)',
+    anio:  'Ingresos vs. inversión por mes (año actual)',
 };
+
+const MESES_CORTO = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+
+/**
+ * Genera un subtítulo compacto para rangos personalizados.
+ * Casos:
+ *   mismo mes y año   → "24–25 may 2026"
+ *   mismo año         → "24 may–2 jun 2026"
+ *   años distintos    → "28 dic 2025–3 ene 2026"
+ */
+function subtituloRango(desde, hasta) {
+    if (!desde || !hasta) return 'Ingresos vs. inversión';
+
+    const [ay, am, ad] = desde.split('-').map(Number);
+    const [by, bm, bd] = hasta.split('-').map(Number);
+    const mA = MESES_CORTO[am - 1];
+    const mB = MESES_CORTO[bm - 1];
+
+    let rango;
+    if (ay === by && am === bm) {
+        // Mismo mes y año — evitar repetir mes y año
+        rango = ad === bd ? `${ad} ${mA} ${ay}` : `${ad}–${bd} ${mA} ${ay}`;
+    } else if (ay === by) {
+        // Mismo año, meses distintos
+        rango = `${ad} ${mA}–${bd} ${mB} ${ay}`;
+    } else {
+        // Años distintos
+        rango = `${ad} ${mA} ${ay}–${bd} ${mB} ${by}`;
+    }
+
+    return `Ingresos vs. inversión (${rango})`;
+}
 
 /* ── Componente principal ── */
 export default function Reportes() {
     const [filtro, setFiltro] = useState({ tipo: 'mes' });
+    // Refleja el filtro del último fetch exitoso — el subtítulo de la gráfica
+    // solo debe cambiar cuando los datos realmente se actualizan.
+    const [filtroActivo, setFiltroActivo] = useState({ tipo: 'mes' });
     const [reporte, setReporte] = useState(null);
     const [grafica, setGrafica] = useState([]);
     const [canales, setCanales] = useState([]);
@@ -92,10 +133,18 @@ export default function Reportes() {
     const [error, setError] = useState(null);
 
     const cargarDatos = useCallback(async () => {
-        setLoading(true);
         setError(null);
+
+        // ── Validación frontend — evita el request si el rango es inválido ──
+        const { fechaInicio, fechaFin } = rangoFromFiltro(filtro);
+        const mensajeValidacion = validarRangoFechas(fechaInicio, fechaFin);
+        if (mensajeValidacion) {
+            setError(mensajeValidacion);
+            return; // subtítulo permanece con filtroActivo (último válido)
+        }
+
+        setLoading(true);
         try {
-            const { fechaInicio, fechaFin } = rangoFromFiltro(filtro);
             const [rep, graf, can] = await Promise.all([
                 getReporteFinanciero(fechaInicio, fechaFin),
                 getGraficaInversionIngresos(fechaInicio, fechaFin, filtro.tipo.toUpperCase()),
@@ -104,8 +153,11 @@ export default function Reportes() {
             setReporte(rep);
             setGrafica(graf);
             setCanales(can?.canales ?? can ?? []);
+            setFiltroActivo(filtro); // ✅ solo se promueve si el fetch fue exitoso
         } catch (e) {
-            setError(e.message);
+            // Preferir el mensaje del backend (error 400) si está disponible
+            const mensajeBackend = e?.response?.data?.message;
+            setError(mensajeBackend ?? e.message ?? 'Error inesperado al cargar los datos.');
         } finally {
             setLoading(false);
         }
@@ -169,7 +221,9 @@ export default function Reportes() {
                         Comparativa de Rendimiento
                     </h2>
                     <p className="text-xs text-muted mb-4">
-                        {SUBTITULOS_GRAFICA[filtro.tipo] ?? 'Ingresos vs inversión'}
+                        {filtroActivo.tipo === 'rango'
+                            ? subtituloRango(filtroActivo.desde, filtroActivo.hasta)
+                            : (SUBTITULOS_GRAFICA[filtroActivo.tipo] ?? 'Ingresos vs. inversión')}
                     </p>
 
                     {loading ? (
