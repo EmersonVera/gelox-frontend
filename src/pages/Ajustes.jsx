@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
@@ -74,7 +74,7 @@ const errMsg      = 'text-xs text-error-fg mt-1 animate-slide-down';
 
 /* ── Component ── */
 export default function Ajustes() {
-  const { perfil, updatePerfil: updatePerfilCtx } = useAuth();
+  const { perfil, usuario, updatePerfil: updatePerfilCtx } = useAuth();
 
   const [modalContrasena, setModalContrasena] = useState(false);
   const [fotoPreview, setFotoPreview]   = useState(perfil?.foto_url ?? null);
@@ -90,15 +90,27 @@ export default function Ajustes() {
     register,
     handleSubmit,
     setError,
+    reset,
     formState: { errors },
   } = useForm({
     resolver: yupResolver(schema),
     defaultValues: {
       nombre:   perfil?.nombre   ?? '',
-      correo:   perfil?.correo   ?? '',
+      correo:   perfil?.correo   ?? usuario?.email ?? '',
       telefono: perfil?.telefono ?? '',
     },
   });
+
+  /* Sincronizar el formulario cuando el perfil cargue o cambie */
+  useEffect(() => {
+    if (perfil) {
+      reset({
+        nombre:   perfil.nombre   ?? '',
+        correo:   perfil.correo   ?? usuario?.email ?? '',
+        telefono: perfil.telefono ?? '',
+      });
+    }
+  }, [perfil, usuario, reset]);
 
   /* ── Photo handlers ── */
   const handleFotoClick = () => fileRef.current?.click();
