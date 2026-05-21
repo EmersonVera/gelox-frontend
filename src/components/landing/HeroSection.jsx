@@ -35,8 +35,8 @@ export default function HeroSection({ waUrl }) {
               target="_blank"
               rel="noopener noreferrer"
               aria-disabled={!waUrl}
-              className={`bg-red-700 text-white font-['Inter'] font-semibold text-[15px] px-6 py-3 rounded-xl transition-all duration-200 active:scale-95 shadow-lg shadow-red-700/20 ${
-                waUrl ? 'hover:bg-red-800' : 'opacity-50 pointer-events-none'
+              className={`bg-emerald-500 text-white font-['Inter'] font-semibold text-[15px] px-6 py-3 rounded-xl transition-all duration-200 active:scale-95 shadow-lg shadow-emerald-500/20 ${
+                waUrl ? 'hover:bg-emerald-600' : 'opacity-50 pointer-events-none'
               }`}
             >
               Pedir por WhatsApp →

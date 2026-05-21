@@ -3,6 +3,14 @@ import api from '../../api/axiosConfig';
 
 const CATEGORIAS = ['Todas', 'Paletas', 'Conos', 'Familiares'];
 
+// Endpoint a llamar según el filtro seleccionado
+const ENDPOINT_MAP = {
+  Todas:      '/api/landing/productos',
+  Paletas:    '/api/landing/productos/paletas',
+  Conos:      '/api/landing/productos/conos',
+  Familiares: '/api/landing/productos/familiares',
+};
+
 const BADGE_STYLES = {
   FAVORITO:   'bg-red-100 text-red-700',
   POPULAR:    'bg-zinc-200 text-zinc-700',
@@ -11,6 +19,34 @@ const BADGE_STYLES = {
 
 function formatPrecio(n) {
   return '$' + n.toLocaleString('es-CO');
+}
+
+/** Convierte la respuesta agrupada de /productos (Map<categoria, items[]>) */
+function parseAgrupado(data) {
+  return Object.entries(data).flatMap(([cat, items]) =>
+    items.map((p, i) => ({
+      id: `${cat}-${i}`,
+      nombre: p.nombre,
+      descripcion: p.descripcion || '',
+      precio: p.precioVenta,
+      categoria: cat,                // e.g. "PALETAS"
+      imagen_url: p.imagenUrl,
+      badge: null,
+    }))
+  );
+}
+
+/** Convierte la respuesta plana de /productos/paletas (items[]) */
+function parsePlano(items, categoria) {
+  return items.map((p, i) => ({
+    id: `${categoria}-${i}`,
+    nombre: p.nombre,
+    descripcion: p.descripcion || '',
+    precio: p.precioVenta,
+    categoria,                       // e.g. "PALETAS"
+    imagen_url: p.imagenUrl,
+    badge: null,
+  }));
 }
 
 function CartIcon() {
@@ -31,20 +67,21 @@ function IceCreamPlaceholder() {
 }
 
 function ProductCard({ producto, waUrl }) {
+  const [imgError, setImgError] = useState(false);
+
   return (
     <div className="bg-white border border-zinc-200 rounded-2xl shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden flex flex-col">
       <div className="relative h-44 bg-zinc-50 overflow-hidden">
-        {producto.imagen_url ? (
+        {producto.imagen_url && !imgError ? (
           <img
             src={producto.imagen_url}
             alt={producto.nombre}
             className="w-full h-full object-cover"
-            onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextSibling.style.display = 'flex'; }}
+            onError={() => setImgError(true)}
           />
-        ) : null}
-        <div className={`w-full h-full ${producto.imagen_url ? 'hidden' : 'flex'}`}>
+        ) : (
           <IceCreamPlaceholder />
-        </div>
+        )}
         {producto.badge && (
           <span className={`absolute top-3 right-3 font-['Inter'] font-bold text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-full ${BADGE_STYLES[producto.badge] ?? BADGE_STYLES.DISPONIBLE}`}>
             {producto.badge}
@@ -82,23 +119,20 @@ function ProductCard({ producto, waUrl }) {
 export default function CatalogoSection({ waUrl }) {
   const [productos, setProductos] = useState(null);
   const [cargando, setCargando] = useState(true);
-  const [error, setError] = useState('');
-  const [filtro, setFiltro] = useState('Todas');
+  const [error, setError]       = useState('');
+  const [filtro, setFiltro]     = useState('Todas');
 
+  // Cada vez que cambia el filtro, llama al endpoint correspondiente
   useEffect(() => {
-    api.get('/api/landing/productos')
+    setCargando(true);
+    setError('');
+
+    api.get(ENDPOINT_MAP[filtro])
       .then((r) => {
-        const plano = Object.entries(r.data).flatMap(([cat, items]) =>
-          items.map((p, i) => ({
-            id: `${cat}-${i}`,
-            nombre: p.nombre,
-            descripcion: '',
-            precio: p.precioVenta,
-            categoria: cat,
-            imagen_url: p.imagenUrl,
-            badge: null,
-          }))
-        );
+        const plano =
+          filtro === 'Todas'
+            ? parseAgrupado(r.data)
+            : parsePlano(r.data, filtro.toUpperCase());
         setProductos(plano);
       })
       .catch(() => {
@@ -106,19 +140,15 @@ export default function CatalogoSection({ waUrl }) {
         setError('No se pudo cargar el catálogo.');
       })
       .finally(() => setCargando(false));
-  }, []);
+  }, [filtro]);
 
-  const filtrados = productos
-    ? filtro === 'Todas'
-      ? productos
-      : productos.filter((p) => p.categoria === filtro.toUpperCase())
-    : [];
-
-  const categoriasFiltradas = [...new Set(filtrados.map((p) => p.categoria))];
+  // Categorías únicas presentes en los productos cargados (para los separadores)
+  const categoriasFiltradas = [...new Set((productos ?? []).map((p) => p.categoria))];
 
   return (
     <section id="catalogo" className="bg-white py-16">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6 mb-10">
           <div>
@@ -130,7 +160,7 @@ export default function CatalogoSection({ waUrl }) {
             </p>
           </div>
 
-          {/* Category filters */}
+          {/* Botones de categoría */}
           <div className="flex flex-wrap gap-2">
             {CATEGORIAS.map((cat) => (
               <button
@@ -148,6 +178,7 @@ export default function CatalogoSection({ waUrl }) {
           </div>
         </div>
 
+        {/* Contenido */}
         {error ? (
           <p className="text-center font-['Inter'] text-[15px] text-zinc-400 py-16">{error}</p>
         ) : cargando ? (
@@ -156,18 +187,18 @@ export default function CatalogoSection({ waUrl }) {
               <div key={i} className="bg-zinc-100 rounded-2xl h-[340px] animate-pulse" />
             ))}
           </div>
-        ) : filtrados.length === 0 ? (
+        ) : (productos ?? []).length === 0 ? (
           <p className="text-center font-['Inter'] text-[15px] text-zinc-400 py-16">
             No hay productos en esta categoría.
           </p>
         ) : (
           <div className="flex flex-col gap-10">
             {categoriasFiltradas.map((cat) => {
-              const items = filtrados.filter((p) => p.categoria === cat);
+              const items = (productos ?? []).filter((p) => p.categoria === cat);
               const label = cat.charAt(0) + cat.slice(1).toLowerCase();
               return (
                 <div key={cat}>
-                  {/* Category separator */}
+                  {/* Separador de categoría */}
                   <div className="flex items-center gap-3 mb-6">
                     <div className="w-6 h-0.5 bg-red-600" />
                     <span className="font-['Manrope'] font-bold text-[13px] text-red-700 uppercase tracking-widest">
@@ -186,6 +217,7 @@ export default function CatalogoSection({ waUrl }) {
             })}
           </div>
         )}
+
       </div>
     </section>
   );
