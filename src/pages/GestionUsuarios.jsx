@@ -143,6 +143,7 @@ export default function GestionUsuarios() {
                   <tr className="bg-surface text-left">
                     <th className="px-6 py-3 text-xs font-semibold text-muted uppercase tracking-wider">Nombre</th>
                     <th className="px-4 py-3 text-xs font-semibold text-muted uppercase tracking-wider">Rol de Acceso</th>
+                    <th className="px-4 py-3 text-xs font-semibold text-muted uppercase tracking-wider">Estado</th>
                     <th className="px-4 py-3 text-xs font-semibold text-muted uppercase tracking-wider">Último Acceso</th>
                     <th className="px-4 py-3 text-xs font-semibold text-muted uppercase tracking-wider">Acciones</th>
                   </tr>
@@ -177,6 +178,22 @@ export default function GestionUsuarios() {
                           }`}>
                             {rolLabel}
                           </span>
+                        </td>
+
+                        <td className="px-4 py-4">
+                          {(() => {
+                            const activo = u.habilitado !== false && u.activo !== false;
+                            return (
+                              <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
+                                activo
+                                  ? 'bg-green-50 text-green-700'
+                                  : 'bg-gray-100 text-gray-500'
+                              }`}>
+                                <span className={`w-1.5 h-1.5 rounded-full ${activo ? 'bg-green-500' : 'bg-gray-400'}`} />
+                                {activo ? 'Activo' : 'Inactivo'}
+                              </span>
+                            );
+                          })()}
                         </td>
 
                         <td className="px-4 py-4 text-sm text-muted">

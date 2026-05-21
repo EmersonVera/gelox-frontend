@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import AppLayout from '../components/AppLayout';
 import api from '../api/axiosConfig';
+import { deshabilitarUsuario, habilitarUsuario } from '../services/usuariosService';
 
 /* ── Icons ── */
 function ArrowLeftIcon() {
@@ -69,14 +70,20 @@ function WarningIcon() {
   );
 }
 
-function TrashIcon() {
+function BanIcon() {
   return (
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="3 6 5 6 21 6" />
-      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-      <path d="M10 11v6" />
-      <path d="M14 11v6" />
-      <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+      <circle cx="12" cy="12" r="10" />
+      <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
+    </svg>
+  );
+}
+
+function CheckCircleIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+      <polyline points="22 4 12 14.01 9 11.01" />
     </svg>
   );
 }
@@ -149,12 +156,15 @@ export default function EditarUsuario() {
       ? usuario.rol
       : 'ENCARGADO_INVENTARIO';
 
+  /* Estado actual del usuario: deshabilitado si habilitado === false */
+  const estaDeshabilitado = usuario.habilitado === false || usuario.activo === false;
+
   const [rolSeleccionado, setRolSeleccionado] = useState(rolInicial);
   const [foto, setFoto]                       = useState(null);
   const [fotoPreview, setFotoPreview]         = useState(usuario.foto_url ?? null);
   const [errorServidor, setErrorServidor]     = useState('');
   const [guardando, setGuardando]             = useState(false);
-  const [eliminando, setEliminando]           = useState(false);
+  const [cambiandoEstado, setCambiandoEstado] = useState(false);
   const fileRef = useRef(null);
 
   const {
@@ -210,21 +220,28 @@ export default function EditarUsuario() {
     }
   };
 
-  const handleEliminar = async () => {
+  const handleCambiarEstado = async () => {
+    const accion = estaDeshabilitado ? 'habilitar' : 'deshabilitar';
     const confirmar = window.confirm(
-      `¿Estás seguro de que deseas eliminar a ${usuario.nombre ?? 'este usuario'}? Esta acción no se puede deshacer.`
+      estaDeshabilitado
+        ? `¿Deseas habilitar a ${usuario.nombre ?? 'este usuario'}? Recuperará acceso al sistema.`
+        : `¿Deseas deshabilitar a ${usuario.nombre ?? 'este usuario'}? Se revocarán todos sus accesos.`
     );
     if (!confirmar) return;
-    setEliminando(true);
+    setCambiandoEstado(true);
     setErrorServidor('');
     try {
-      await api.delete(`/api/usuarios/${id}`);
+      if (estaDeshabilitado) {
+        await habilitarUsuario(id);
+      } else {
+        await deshabilitarUsuario(id);
+      }
       navigate('/usuarios');
     } catch (err) {
       const msg = err?.response?.data?.mensaje ?? err?.response?.data?.message ?? '';
-      setErrorServidor(msg || 'Error al eliminar el usuario. Intenta de nuevo.');
+      setErrorServidor(msg || `Error al ${accion} el usuario. Intenta de nuevo.`);
     } finally {
-      setEliminando(false);
+      setCambiandoEstado(false);
     }
   };
 
@@ -278,6 +295,17 @@ export default function EditarUsuario() {
                 subtitle="Datos personales y de contacto"
               />
 
+              {/* Banner de usuario deshabilitado */}
+              {estaDeshabilitado && (
+                <div className="mb-4 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 text-sm flex items-center gap-2">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
+                  </svg>
+                  Este usuario está deshabilitado. Habilítalo para poder editar su perfil.
+                </div>
+              )}
+
               <div className="flex flex-col gap-5">
                 {/* Nombre */}
                 <div>
@@ -286,7 +314,12 @@ export default function EditarUsuario() {
                     id="nombre"
                     type="text"
                     placeholder="Ej. Juan Pérez García"
-                    className={`${inputBase} ${errors.nombre ? inputError : inputNormal}`}
+                    disabled={estaDeshabilitado}
+                    className={`${inputBase} ${
+                      estaDeshabilitado
+                        ? 'border-divider bg-surface text-muted cursor-not-allowed'
+                        : errors.nombre ? inputError : inputNormal
+                    }`}
                     {...register('nombre', {
                       required: 'El nombre es requerido.',
                       minLength: { value: 3, message: 'Mínimo 3 caracteres.' },
@@ -302,7 +335,12 @@ export default function EditarUsuario() {
                     id="correo"
                     type="email"
                     placeholder="usuario@gelox.com"
-                    className={`${inputBase} ${errors.correo ? inputError : inputNormal}`}
+                    disabled={estaDeshabilitado}
+                    className={`${inputBase} ${
+                      estaDeshabilitado
+                        ? 'border-divider bg-surface text-muted cursor-not-allowed'
+                        : errors.correo ? inputError : inputNormal
+                    }`}
                     {...register('correo', {
                       required: 'El correo es requerido.',
                       pattern: {
@@ -322,8 +360,13 @@ export default function EditarUsuario() {
                   </label>
                   <button
                     type="button"
-                    onClick={() => fileRef.current?.click()}
-                    className="w-full flex flex-col items-center justify-center gap-2 py-5 border-2 border-dashed border-divider rounded-xl text-faint hover:border-primary hover:text-primary transition duration-300"
+                    onClick={() => !estaDeshabilitado && fileRef.current?.click()}
+                    disabled={estaDeshabilitado}
+                    className={`w-full flex flex-col items-center justify-center gap-2 py-5 border-2 border-dashed rounded-xl transition duration-300 ${
+                      estaDeshabilitado
+                        ? 'border-divider text-divider cursor-not-allowed bg-surface'
+                        : 'border-divider text-faint hover:border-primary hover:text-primary'
+                    }`}
                   >
                     {fotoPreview ? (
                       <img
@@ -343,7 +386,7 @@ export default function EditarUsuario() {
                     type="file"
                     accept="image/*"
                     className="hidden"
-                    onChange={handleFotoChange}
+                    onChange={estaDeshabilitado ? undefined : handleFotoChange}
                   />
                 </div>
               </div>
@@ -364,28 +407,31 @@ export default function EditarUsuario() {
                     <button
                       key={rol.value}
                       type="button"
-                      onClick={() => setRolSeleccionado(rol.value)}
+                      onClick={() => !estaDeshabilitado && setRolSeleccionado(rol.value)}
+                      disabled={estaDeshabilitado}
                       className={`w-full text-left flex items-start gap-4 px-4 py-4 rounded-xl border-2 transition duration-200 ${
-                        activo
-                          ? 'border-primary bg-primary/5'
-                          : 'border-border bg-white hover:border-divider hover:bg-surface'
+                        estaDeshabilitado
+                          ? 'border-border bg-surface cursor-not-allowed opacity-60'
+                          : activo
+                            ? 'border-primary bg-primary/5'
+                            : 'border-border bg-white hover:border-divider hover:bg-surface'
                       }`}
                     >
-                      <span className={`mt-0.5 shrink-0 ${activo ? 'text-primary' : 'text-faint'}`}>
+                      <span className={`mt-0.5 shrink-0 ${activo && !estaDeshabilitado ? 'text-primary' : 'text-faint'}`}>
                         {rol.icon}
                       </span>
                       <div>
-                        <p className={`text-sm font-semibold ${activo ? 'text-primary' : 'text-ink'}`}>
+                        <p className={`text-sm font-semibold ${activo && !estaDeshabilitado ? 'text-primary' : 'text-ink'}`}>
                           {rol.label}
                         </p>
                         <p className="text-xs text-muted mt-0.5">{rol.description}</p>
                       </div>
                       <span
                         className={`ml-auto mt-0.5 w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center ${
-                          activo ? 'border-primary' : 'border-divider'
+                          activo && !estaDeshabilitado ? 'border-primary' : 'border-divider'
                         }`}
                       >
-                        {activo && <span className="w-2 h-2 rounded-full bg-primary block" />}
+                        {activo && !estaDeshabilitado && <span className="w-2 h-2 rounded-full bg-primary block" />}
                       </span>
                     </button>
                   );
@@ -410,31 +456,45 @@ export default function EditarUsuario() {
               <p className="text-xs text-muted text-center">{usuario.correo ?? ''}</p>
             </div>
 
-            {/* Danger zone */}
-            <div className="bg-white rounded-2xl border border-[#ffb4a9] shadow-[0_1px_3px_rgba(0,0,0,0.07)] p-6">
-              <div className="flex items-center gap-2 text-danger mb-3">
-                <WarningIcon />
-                <span className="text-sm font-bold">Zona de Peligro</span>
+            {/* Danger / Action zone */}
+            <div className={`bg-white rounded-2xl border shadow-[0_1px_3px_rgba(0,0,0,0.07)] p-6 ${
+              estaDeshabilitado ? 'border-green-200' : 'border-[#ffb4a9]'
+            }`}>
+              <div className={`flex items-center gap-2 mb-3 ${estaDeshabilitado ? 'text-green-600' : 'text-danger'}`}>
+                {estaDeshabilitado ? <CheckCircleIcon /> : <WarningIcon />}
+                <span className="text-sm font-bold">
+                  {estaDeshabilitado ? 'Zona de Acción' : 'Zona de Peligro'}
+                </span>
               </div>
               <p className="text-xs text-muted leading-relaxed mb-4">
-                Al eliminar este usuario, se revocarán todos los accesos de forma permanente y se
-                perderá el historial de sesiones activas. Esta acción no se puede deshacer.
+                {estaDeshabilitado
+                  ? 'Al habilitar este usuario, recuperará acceso al sistema con su rol y permisos asignados.'
+                  : 'Al deshabilitar este usuario, se revocarán todos sus accesos al sistema. Podrás habilitarlo nuevamente cuando lo necesites.'}
               </p>
               <button
                 type="button"
-                onClick={handleEliminar}
-                disabled={eliminando}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-danger text-white text-sm font-semibold rounded-xl hover:bg-danger-dark transition duration-300 active:scale-[0.97] disabled:opacity-60"
+                onClick={handleCambiarEstado}
+                disabled={cambiandoEstado}
+                className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 text-white text-sm font-semibold rounded-xl transition duration-300 active:scale-[0.97] disabled:opacity-60 ${
+                  estaDeshabilitado
+                    ? 'bg-green-500 hover:bg-green-600'
+                    : 'bg-danger hover:bg-danger-dark'
+                }`}
               >
-                {eliminando ? (
+                {cambiandoEstado ? (
                   <>
                     <span className="w-4 h-4 rounded-full border-2 border-white/40 border-t-white animate-spin" />
-                    Eliminando...
+                    Procesando...
+                  </>
+                ) : estaDeshabilitado ? (
+                  <>
+                    <CheckCircleIcon />
+                    Habilitar Usuario
                   </>
                 ) : (
                   <>
-                    <TrashIcon />
-                    Eliminar Usuario
+                    <BanIcon />
+                    Deshabilitar Usuario
                   </>
                 )}
               </button>
@@ -442,8 +502,8 @@ export default function EditarUsuario() {
           </div>
         </div>
 
-        {/* ── Sticky footer ── */}
-        <div className="sticky bottom-0 -mx-6 -mb-6 md:-mx-8 md:-mb-8 px-6 md:px-8 py-4 bg-white border-t border-border flex items-center justify-end gap-3 shadow-[0_-4px_20px_rgba(0,0,0,0.06)]">
+        {/* ── Footer de acciones ── */}
+        <div className="bg-white rounded-2xl border border-border shadow-[0_1px_3px_rgba(0,0,0,0.07)] px-6 py-4 flex items-center justify-end gap-3">
           <button
             type="button"
             onClick={() => navigate('/usuarios')}
@@ -454,8 +514,9 @@ export default function EditarUsuario() {
           </button>
           <button
             type="submit"
-            disabled={guardando || eliminando}
+            disabled={guardando || cambiandoEstado || estaDeshabilitado}
             className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-white text-sm font-semibold rounded-xl hover:bg-primary-dark transition duration-300 active:scale-[0.97] shadow-[0_2px_8px_rgba(158,32,22,0.25)] disabled:opacity-60"
+            title={estaDeshabilitado ? 'Habilita el usuario para guardar cambios' : undefined}
           >
             {guardando ? (
               <>
