@@ -5,6 +5,7 @@ import GestionUsuarios from '../pages/GestionUsuarios';
 import NuevoUsuario from '../pages/NuevoUsuario';
 import EditarUsuario from '../pages/EditarUsuario';
 import RecuperarContrasena from '../pages/RecuperarContrasena';
+import RestablecerContrasena from '../pages/RestablecerContrasena';
 import ProtectedRoute from './ProtectedRoute';
 import DashboardGerente from '../pages/DashboardGerente';
 import DashboardInventario from '../pages/placeholders/DashboardInventario';
@@ -20,6 +21,7 @@ export default function AppRouter() {
         {/* Rutas públicas */}
         <Route path="/login" element={<Login />} />
         <Route path="/recuperar-contrasena" element={<RecuperarContrasena />} />
+        <Route path="/restablecer-contrasena" element={<RestablecerContrasena />} />
         <Route path="/landing" element={<LandingPage />} />
         <Route path="/" element={<Navigate to="/login" replace />} />
 
