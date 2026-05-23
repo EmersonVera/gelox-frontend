@@ -13,6 +13,8 @@ import DashboardVentas from '../pages/placeholders/DashboardVentas';
 import LandingPage from '../pages/LandingPage';
 import Reportes from '../pages/Reportes';
 import CatalogoProductos from '../pages/CatalogoProductos';
+import HistorialCierres from '../pages/HistorialCierres';
+import DetalleCierre from '../pages/DetalleCierre';
 
 
 export default function AppRouter() {
@@ -33,6 +35,8 @@ export default function AppRouter() {
           <Route path="/usuarios/nuevo" element={<NuevoUsuario />} />
           <Route path="/usuarios/:id/editar" element={<EditarUsuario />} />
           <Route path="/reportes" element={<Reportes />} />
+          <Route path="/cierres-caja" element={<HistorialCierres />} />
+          <Route path="/cierres-caja/:id" element={<DetalleCierre />} />
         </Route>
 
         {/* Rutas privadas — Encargado Inventario */}
