@@ -12,6 +12,7 @@ import DashboardInventario from '../pages/placeholders/DashboardInventario';
 import DashboardVentas from '../pages/placeholders/DashboardVentas';
 import LandingPage from '../pages/LandingPage';
 import Reportes from '../pages/Reportes';
+import CatalogoProductos from '../pages/CatalogoProductos';
 
 
 export default function AppRouter() {
@@ -47,6 +48,7 @@ export default function AppRouter() {
         {/* Rutas privadas — Todos los roles */}
         <Route element={<ProtectedRoute rolesPermitidos={['ADMINISTRADOR', 'ENCARGADO_INVENTARIO', 'ENCARGADO_VENTAS']} />}>
           <Route path="/ajustes" element={<Ajustes />} />
+          <Route path="/catalogo" element={<CatalogoProductos />} />
         </Route>
 
         <Route path="/no-autorizado" element={<div className="p-8 text-sm text-muted">No tienes permiso para acceder a esta sección.</div>} />
