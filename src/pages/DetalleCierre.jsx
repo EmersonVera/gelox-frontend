@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import AppLayout from '../components/AppLayout';
+import api from '../api/axiosConfig';
 
 const formatCOP = (n) => '$' + Number(n).toLocaleString('es-CO', { minimumFractionDigits: 2 });
 
@@ -32,26 +33,20 @@ const CANALES_INFO = {
 
 export default function DetalleCierre() {
   const { id } = useParams();
-  const { token } = useAuth();
+  useAuth(); // mantiene el contexto activo
   const navigate = useNavigate();
   const [cierre, setCierre]     = useState(null);
   const [cargando, setCargando] = useState(true);
 
   useEffect(() => {
-    fetch(`/api/cierre-caja/${id}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((r) => {
-        if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
-        return r.json();
-      })
-      .then(setCierre)
+    api.get(`/api/cierre-caja/${id}`)
+      .then(({ data }) => setCierre(data))
       .catch((e) => {
         console.error(e);
         setCierre(null);
       })
       .finally(() => setCargando(false));
-  }, [id, token]);
+  }, [id]);
 
   /* ── Skeleton ── */
   if (cargando) return (

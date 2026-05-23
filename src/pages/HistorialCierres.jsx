@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import AppLayout from '../components/AppLayout';
+import api from '../api/axiosConfig';
 
 const ESTADOS = [
   { value: '',         label: 'Cualquier estado' },
@@ -50,7 +51,7 @@ function PaginaBtn({ children, onClick, activo, disabled }) {
 }
 
 export default function HistorialCierres() {
-  const { token } = useAuth();
+  useAuth(); // mantiene el contexto activo
   const navigate = useNavigate();
 
   const hoy = new Date().toISOString().split('T')[0];
@@ -71,30 +72,24 @@ export default function HistorialCierres() {
     setCargando(true);
     setError(null);
     try {
-      const params = new URLSearchParams({ page, limit: 10 });
-      if (filtrosAplicados.desde)  params.set('desde',  filtrosAplicados.desde);
-      if (filtrosAplicados.hasta)  params.set('hasta',  filtrosAplicados.hasta);
-      if (filtrosAplicados.estado) params.set('estado', filtrosAplicados.estado);
-      const res = await fetch(`/api/cierre-caja?${params}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) {
-        throw new Error(`Error del servidor: ${res.status} ${res.statusText}`);
-      }
-      const data = await res.json();
+      const params = { page, limit: 10 };
+      if (filtrosAplicados.desde)  params.desde  = filtrosAplicados.desde;
+      if (filtrosAplicados.hasta)  params.hasta   = filtrosAplicados.hasta;
+      if (filtrosAplicados.estado) params.estado  = filtrosAplicados.estado;
+      const { data } = await api.get('/api/cierre-caja', { params });
       setCierres(Array.isArray(data.cierres) ? data.cierres : []);
       setTotal(data.total ?? 0);
       setTotalPages(data.totalPages ?? 1);
     } catch (e) {
       console.error(e);
-      setError(e.message ?? 'No se pudo cargar el historial de cierres.');
+      setError(e.response?.data?.message ?? e.message ?? 'No se pudo cargar el historial de cierres.');
       setCierres([]);
       setTotal(0);
       setTotalPages(1);
     } finally {
       setCargando(false);
     }
-  }, [token, page, filtrosAplicados]);
+  }, [page, filtrosAplicados]);
 
   useEffect(() => { fetchCierres(); }, [fetchCierres]);
 
