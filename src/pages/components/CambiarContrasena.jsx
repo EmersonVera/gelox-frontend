@@ -105,7 +105,7 @@ export default function CambiarContrasena({ open, onClose }) {
       handleClose();
     } catch (err) {
       const status  = err?.response?.status;
-      const mensaje = err?.response?.data?.mensaje ?? '';
+      const mensaje = err?.response?.data?.error ?? err?.response?.data?.mensaje ?? '';
       if (
         status === 400 &&
         (mensaje.toLowerCase().includes('actual') ||
