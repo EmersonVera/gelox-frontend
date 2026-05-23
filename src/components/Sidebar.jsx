@@ -53,6 +53,17 @@ function StoreIcon() {
   );
 }
 
+function ReceiptIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1z" />
+      <line x1="8" y1="10" x2="16" y2="10" />
+      <line x1="8" y1="14" x2="16" y2="14" />
+      <line x1="8" y1="18" x2="12" y2="18" />
+    </svg>
+  );
+}
+
 
 function CartIcon() {
   return (
@@ -92,12 +103,13 @@ function CloseIcon() {
 }
 
 const LINKS_ADMINISTRADOR = [
-  { icon: <GridIcon />,  label: 'Vista General', to: '/dashboard/gerente' },
-  { icon: <ChartIcon />, label: 'Reportes',      to: '/reportes' },
-  { icon: <UsersIcon />, label: 'Usuarios',      to: '/usuarios' },
-  { icon: <BoxIcon />,   label: 'Inventarios',   to: '/inventarios' },
-  { icon: <StoreIcon />, label: 'Comerciantes',  to: '/comerciantes' },
-  { icon: <CartIcon />,  label: 'Ventas',        to: '/ventas' },
+  { icon: <GridIcon />,    label: 'Vista General',  to: '/dashboard/gerente' },
+  { icon: <ChartIcon />,   label: 'Reportes',       to: '/reportes' },
+  { icon: <ReceiptIcon />, label: 'Cierres de Caja', to: '/cierres-caja' },
+  { icon: <UsersIcon />,   label: 'Usuarios',       to: '/usuarios' },
+  { icon: <BoxIcon />,     label: 'Inventarios',    to: '/inventarios' },
+  { icon: <StoreIcon />,   label: 'Comerciantes',   to: '/comerciantes' },
+  { icon: <CartIcon />,    label: 'Ventas',         to: '/ventas' },
 ];
 
 const LINKS_INVENTARIO = [
