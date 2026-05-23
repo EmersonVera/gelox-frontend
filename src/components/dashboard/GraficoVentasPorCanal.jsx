@@ -18,17 +18,21 @@ export default function GraficoVentasPorCanal() {
     api.get('/api/dashboard/ventas-por-canal')
       .then((r) => {
         const raw = r.data;
-        setData([
+        const items = [
           { canal: 'Comerciantes', porcentaje: Number(raw.porcentajeComerciantes ?? 0) },
           { canal: 'Ventanilla',   porcentaje: Number(raw.porcentajeVentanilla   ?? 0) },
           { canal: 'Rural',        porcentaje: Number(raw.porcentajeRural         ?? 0) },
-        ]);
+        ];
+       
+        const sumParcial = items.slice(0, -1).reduce((acc, d) => acc + d.porcentaje, 0);
+        items[items.length - 1].porcentaje = Number((100 - sumParcial).toFixed(2));
+        setData(items);
       })
       .catch(() => setData([]))
       .finally(() => setCargando(false));
   }, []);
 
-  const total = data.reduce((acc, d) => acc + d.porcentaje, 0);
+  const total = 100;
 
   return (
     <div className="bg-white border border-[rgba(245,245,244,0.5)] rounded-[12px] drop-shadow-[0px_1px_1px_rgba(0,0,0,0.05)] p-[33px] col-span-1 flex flex-col">
@@ -70,7 +74,7 @@ export default function GraficoVentasPorCanal() {
             </PieChart>
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
               <span className="font-['Manrope'] font-bold text-[30px] text-[#1b1b1c] leading-none">
-                {total}%
+                {Number(total.toFixed(2))}%
               </span>
               <span className="font-['Inter'] font-bold text-[10px] text-[#a8a29e] uppercase tracking-[0.5px] mt-1">
                 TOTAL
