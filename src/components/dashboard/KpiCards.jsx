@@ -38,7 +38,7 @@ function Badge({ valor, tipo }) {
   if (tipo === 'porcentaje') {
     const positivo = valor >= 0;
     return (
-      <span className={`text-xs font-bold px-2 py-1 rounded-full font-['Inter'] ${
+      <span className={`text-xs font-bold px-2 py-1 rounded-full font-inter ${
         positivo ? 'bg-[#f0fdf4] text-[#16a34a]' : 'bg-[#fef2f2] text-[#dc2626]'
       }`}>
         {positivo ? '+' : ''}{valor}%
@@ -51,7 +51,7 @@ function Badge({ valor, tipo }) {
     Bajo:  'bg-[#fef2f2] text-[#dc2626]',
   };
   return (
-    <span className={`text-xs font-bold px-2 py-1 rounded-full font-['Inter'] ${colores[valor] ?? colores.Bajo}`}>
+    <span className={`text-xs font-bold px-2 py-1 rounded-full font-inter ${colores[valor] ?? colores.Bajo}`}>
       {valor}
     </span>
   );
@@ -78,7 +78,7 @@ export default function KpiCards() {
   if (cargando) return (
     <div className="grid grid-cols-3 gap-6">
       {[1, 2, 3].map((i) => (
-        <div key={i} className="bg-white rounded-[12px] p-[25px] h-[149px] animate-pulse border border-[rgba(245,245,244,0.5)]" />
+        <div key={i} className="bg-white rounded-xl p-[25px] h-[149px] animate-pulse border border-[rgba(245,245,244,0.5)]" />
       ))}
     </div>
   );
@@ -116,26 +116,28 @@ export default function KpiCards() {
     },
   ];
 
+  const DELAYS = ['', '[animation-delay:80ms]', '[animation-delay:160ms]'];
+
   return (
     <div className="grid grid-cols-3 gap-x-6">
-      {cards.map((c) => (
+      {cards.map((c, idx) => (
         <div
           key={c.label}
-          className="bg-white border border-[rgba(245,245,244,0.5)] rounded-[12px] drop-shadow-[0px_1px_1px_rgba(0,0,0,0.05)] p-[25px] flex flex-col"
+          className={`bg-white border border-[rgba(245,245,244,0.5)] rounded-xl drop-shadow-[0px_1px_1px_rgba(0,0,0,0.05)] p-[25px] flex flex-col animate-fade-in-up ${DELAYS[idx]}`}
         >
           <div className="flex items-start justify-between pb-4">
             <div className="opacity-60">{c.icono}</div>
             {c.badge}
           </div>
           <div className="flex flex-col gap-1">
-            <span className="font-['Inter'] font-bold text-[10px] text-[#a8a29e] uppercase tracking-[0.5px]">
+            <span className="font-inter font-bold text-[10px] text-[#a8a29e] uppercase tracking-[0.5px]">
               {c.label}
             </span>
             <div className="flex items-baseline gap-1">
-              <span className="font-['Manrope'] font-bold text-[24px] text-[#1b1b1c] leading-[32px]">
+              <span className="font-display font-bold text-[24px] text-ink leading-[32px]">
                 {c.valor}
               </span>
-              <span className="font-['Manrope'] font-normal text-[14px] text-[#a8a29e] leading-[20px]">
+              <span className="font-display font-normal text-[14px] text-[#a8a29e] leading-[20px]">
                 {c.sufijo}
               </span>
             </div>

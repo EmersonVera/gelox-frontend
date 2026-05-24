@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import AppLayout from "../components/AppLayout";
-import { useAuth } from "../context/AuthContext";
-import { getUsuarios } from "../services/usuariosService";
+import AppLayout from "../../components/AppLayout";
+import { useAuth } from "../../context/AuthContext";
+import { getUsuarios } from "../../services/usuariosService";
 
 /* ── Constants ── */
 const ROL_LABEL = {
@@ -134,21 +134,15 @@ export default function GestionUsuarios() {
       })
       .toLowerCase();
 
-    // Hoy
     if (fecha.toDateString() === ahora.toDateString()) {
       return `Hoy, ${horaFormateada}`;
     }
-
-    // Ayer (<48 horas)
     if (diffHoras < 48) {
       return `Ayer, ${horaFormateada}`;
     }
-
-    // Más de 30 días
     if (diffDias > 30) {
       return "Más de 30 días";
     }
-
     return `Hace ${diffDias} día${diffDias !== 1 ? "s" : ""}`;
   };
 
