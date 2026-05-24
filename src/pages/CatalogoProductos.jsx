@@ -36,7 +36,8 @@ export default function CatalogoProductos() {
       // Spring Pageable es 0-indexed; usar "size" no "limit"
       const params = new URLSearchParams({ page: page - 1, size: PAGE_SIZE });
       if (categoriaActiva !== 'Todos') params.set('categoria', categoriaActiva.toUpperCase());
-      const res = await fetch(`/api/catalogo/productos?${params}`, {
+      const base = import.meta.env.VITE_API_BASE_URL ?? '';
+      const res = await fetch(`${base}/api/catalogo/productos?${params}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error(`Error ${res.status}`);
