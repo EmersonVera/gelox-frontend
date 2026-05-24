@@ -18,7 +18,7 @@ const schema = yup.object({
   codigoTecnico: yup.string().required('Requerido'),
   categoria:     yup.string().required('Requerido'),
   precioVenta:   yup.number().typeError('Número').positive().required('Requerido'),
-  precioCosto:   yup.number().typeError('Número').min(0).required('Requerido'),
+  precioCosto:   yup.number().typeError('Número').min(0).optional(),
   descripcion:   yup.string().required('Requerido'),
   stockMedio:    yup.number().typeError('Número').min(0).required(),
   stockMinimo:   yup.number().typeError('Número').min(0).required(),
@@ -26,7 +26,8 @@ const schema = yup.object({
 });
 
 export default function EditarProducto({ producto, onClose, onSuccess }) {
-  const { token } = useAuth();
+  const { token, perfil } = useAuth();
+  const esAdmin = perfil?.rol === 'ADMINISTRADOR';
   const [preview, setPreview]                     = useState(producto.imagenUrl || null);
   const [imagenNueva, setImagenNueva]             = useState(null);
   const [guardando, setGuardando]                 = useState(false);
@@ -88,7 +89,8 @@ export default function EditarProducto({ producto, onClose, onSuccess }) {
         imagenUrl,
       };
 
-      const res = await fetch(`/api/catalogo/productos/${producto.id}`, {
+      const base = import.meta.env.VITE_API_BASE_URL ?? '';
+      const res = await fetch(`${base}/api/catalogo/productos/${producto.id}`, {
         method: 'PUT',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -216,15 +218,17 @@ export default function EditarProducto({ producto, onClose, onSuccess }) {
               </div>
             </div>
 
-            {/* Precio Costo */}
-            <div>
-              <label className={labelClass}>Precio de Costo COP</label>
-              <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 font-['Inter'] text-[16px] text-[#a8a29e]">$</span>
-                <input {...register('precioCosto')} type="number" step="0.01" className={`${inputClass} pl-8`} />
+            {/* Precio Costo — solo ADMINISTRADOR */}
+            {esAdmin && (
+              <div>
+                <label className={labelClass}>Precio de Costo COP</label>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 font-['Inter'] text-[16px] text-[#a8a29e]">$</span>
+                  <input {...register('precioCosto')} type="number" step="0.01" className={`${inputClass} pl-8`} />
+                </div>
+                {errors.precioCosto && <p className={errorClass}>{errors.precioCosto.message}</p>}
               </div>
-              {errors.precioCosto && <p className={errorClass}>{errors.precioCosto.message}</p>}
-            </div>
+            )}
 
             {/* Descripción */}
             <div>

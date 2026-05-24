@@ -80,6 +80,8 @@ export default function AppRouter() {
         <Route element={<ProtectedRoute rolesPermitidos={['ADMINISTRADOR', 'ENCARGADO_VENTAS']} />}>
           <Route path="/ajustes"  element={<Ajustes />} />
           <Route path="/catalogo" element={<CatalogoProductos />} />
+          {/* /inventarios redirige al catálogo mientras las demás vistas se desarrollan */}
+          <Route path="/inventarios" element={<Navigate to="/catalogo" replace />} />
         </Route>
 
         {/* ══ Fallbacks ══ */}
