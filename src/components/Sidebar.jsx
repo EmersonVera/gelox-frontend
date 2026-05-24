@@ -1,4 +1,4 @@
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 /* ── Icons ── */
@@ -102,6 +102,45 @@ function CloseIcon() {
   );
 }
 
+function ArrowLeftIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="19" y1="12" x2="5" y2="12" />
+      <polyline points="12 19 5 12 12 5" />
+    </svg>
+  );
+}
+
+function WasteIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="3 6 5 6 21 6" />
+      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+      <path d="M10 11v6M14 11v6" />
+      <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+    </svg>
+  );
+}
+
+function DownloadBoxIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <polyline points="7 10 12 15 17 10" />
+      <line x1="12" y1="15" x2="12" y2="3" />
+    </svg>
+  );
+}
+
+function ClipboardIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+      <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
+    </svg>
+  );
+}
+
 const LINKS_ADMINISTRADOR = [
   { icon: <GridIcon />,    label: 'Vista General',  to: '/dashboard/gerente' },
   { icon: <ChartIcon />,   label: 'Reportes',       to: '/reportes' },
@@ -112,8 +151,15 @@ const LINKS_ADMINISTRADOR = [
   { icon: <CartIcon />,    label: 'Ventas',         to: '/ventas' },
 ];
 
-const LINKS_INVENTARIO = [
-  { icon: <BoxIcon />, label: 'Inventarios', to: '/inventarios' },
+// Links del sidebar de la sección inventarios
+// `to: null` = módulo sin vista aún (se muestra deshabilitado)
+const LINKS_INVENTARIO_SECCION = [
+  { icon: <BoxIcon />,        label: 'Gestión de Inventarios', to: null },
+  { icon: <WasteIcon />,      label: 'Registro de Merma',      to: null },
+  { icon: <DownloadBoxIcon />,label: 'Registro de Entrada',    to: null },
+  { icon: <GridIcon />,       label: 'Catálogo',               to: '/catalogo' },
+  { icon: <CartIcon />,       label: 'Generar Pedido',         to: null },
+  { icon: <ClipboardIcon />,  label: 'Reporte Pedido',         to: null },
 ];
 
 const LINKS_VENTAS = [
@@ -122,7 +168,7 @@ const LINKS_VENTAS = [
 
 const MAP_LINKS = {
   ADMINISTRADOR: LINKS_ADMINISTRADOR,
-  ENCARGADO_INVENTARIO: LINKS_INVENTARIO,
+  ENCARGADO_INVENTARIO: LINKS_INVENTARIO_SECCION,
   ENCARGADO_VENTAS: LINKS_VENTAS,
 };
 
@@ -132,8 +178,23 @@ const navItemBase =
 export default function Sidebar({ open, onClose }) {
   const { perfil, logout, token } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
-  const links = MAP_LINKS[perfil?.rol] ?? LINKS_ADMINISTRADOR;
+  // Detecta si el admin está navegando dentro de la sección de inventarios
+  const inInventarioSection =
+    location.pathname.startsWith('/inventarios') ||
+    location.pathname === '/catalogo';
+
+  const isAdminEnInventario =
+    perfil?.rol === 'ADMINISTRADOR' && inInventarioSection;
+
+  const isEncargadoInventario = perfil?.rol === 'ENCARGADO_INVENTARIO';
+
+  // Determina qué set de links mostrar
+  const links =
+    isAdminEnInventario || isEncargadoInventario
+      ? LINKS_INVENTARIO_SECCION
+      : MAP_LINKS[perfil?.rol] ?? LINKS_ADMINISTRADOR;
 
   const handleLogout = async () => {
     fetch('/api/auth/cerrar-sesion', {
@@ -170,7 +231,9 @@ export default function Sidebar({ open, onClose }) {
         <div className="flex items-center justify-between">
           <div>
             <div className="font-display text-2xl font-bold text-[#9e2016] tracking-[-0.6px]">GELOX</div>
-            <div className="font-display font-normal text-[12px] text-[#a8a29e] uppercase tracking-[1.2px] mt-1">Gestión Distribuidora</div>
+            <div className="font-display font-normal text-[12px] text-[#a8a29e] uppercase tracking-[1.2px] mt-1">
+              {isAdminEnInventario || isEncargadoInventario ? 'Inventarios' : 'Gestión Distribuidora'}
+            </div>
           </div>
           <button
             type="button"
@@ -185,18 +248,47 @@ export default function Sidebar({ open, onClose }) {
 
       {/* Navigation */}
       <nav className="flex-1 px-4 py-3 flex flex-col gap-1 overflow-y-auto">
-        {links.map(({ icon, label, to }) => (
-          <NavLink
-            key={to}
-            to={to}
-            className={linkClass}
-            end={to.startsWith('/dashboard')}
-            onClick={handleNavClick}
+
+        {/* Botón volver — solo visible para el admin dentro de la sección inventarios */}
+        {isAdminEnInventario && (
+          <button
+            type="button"
+            onClick={() => { navigate('/dashboard/gerente'); if (onClose) onClose(); }}
+            className={`${navItemBase} text-[#78716c] font-medium hover:bg-surface hover:text-ink border-b border-[#f5f5f4] mb-2 pb-3`}
           >
-            <span className="shrink-0">{icon}</span>
-            {label}
-          </NavLink>
-        ))}
+            <span className="shrink-0"><ArrowLeftIcon /></span>
+            Volver a Administrador
+          </button>
+        )}
+
+        {links.map(({ icon, label, to }) =>
+          to ? (
+            // Link activo con ruta
+            <NavLink
+              key={to}
+              to={to}
+              className={linkClass}
+              end={to.startsWith('/dashboard')}
+              onClick={handleNavClick}
+            >
+              <span className="shrink-0">{icon}</span>
+              {label}
+            </NavLink>
+          ) : (
+            // Módulo aún sin vista — se muestra deshabilitado
+            <span
+              key={label}
+              title="Próximamente"
+              className={`${navItemBase} text-[#c4bfbb] cursor-not-allowed select-none`}
+            >
+              <span className="shrink-0 opacity-50">{icon}</span>
+              <span className="flex-1">{label}</span>
+              <span className="text-[10px] font-['Inter'] bg-[#f5f5f4] text-[#a8a29e] px-1.5 py-0.5 rounded-full">
+                Pronto
+              </span>
+            </span>
+          )
+        )}
       </nav>
 
       {/* Bottom section */}
