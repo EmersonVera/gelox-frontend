@@ -88,7 +88,8 @@ export default function EditarProducto({ producto, onClose, onSuccess }) {
         imagenUrl,
       };
 
-      const res = await fetch(`/api/catalogo/productos/${producto.id}`, {
+      const base = import.meta.env.VITE_API_BASE_URL ?? '';
+      const res = await fetch(`${base}/api/catalogo/productos/${producto.id}`, {
         method: 'PUT',
         headers: {
           Authorization: `Bearer ${token}`,

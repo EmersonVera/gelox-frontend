@@ -73,7 +73,8 @@ export default function NuevoProducto({ onClose, onSuccess }) {
         imagenUrl,
       };
 
-      const res = await fetch('/api/catalogo/productos', {
+      const base = import.meta.env.VITE_API_BASE_URL ?? '';
+      const res = await fetch(`${base}/api/catalogo/productos`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,

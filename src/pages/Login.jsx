@@ -15,7 +15,7 @@ const schema = yup.object({
 
 const ROLE_REDIRECT = {
   ADMINISTRADOR: '/dashboard/gerente',
-  ENCARGADO_INVENTARIO: '/dashboard/inventario',
+  ENCARGADO_INVENTARIO: '/catalogo',
   ENCARGADO_VENTAS: '/dashboard/ventas',
 };
 
