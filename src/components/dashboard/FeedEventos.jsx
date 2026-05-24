@@ -114,36 +114,40 @@ export default function FeedEventos() {
   }, []);
 
   return (
-    <div className="bg-white border border-[rgba(245,245,244,0.5)] rounded-[12px] drop-shadow-[0px_1px_1px_rgba(0,0,0,0.05)] p-[33px] flex flex-col gap-6">
-      <h3 className="font-['Manrope'] font-bold text-[18px] text-[#1b1b1c] leading-[28px]">
+    <div className="bg-white border border-[rgba(245,245,244,0.5)] rounded-xl drop-shadow-[0px_1px_1px_rgba(0,0,0,0.05)] p-[33px] flex flex-col gap-6 animate-fade-in-up [animation-delay:80ms]">
+      <h3 className="font-display font-bold text-[18px] text-ink leading-[28px]">
         Actividad Reciente
       </h3>
 
       {cargando ? (
-        <p className="font-['Inter'] text-[14px] text-[#a8a29e]">Cargando...</p>
+        <p className="font-inter text-[14px] text-[#a8a29e]">Cargando...</p>
       ) : (
         <>
           {error && (
-            <p className="text-[11px] font-['Inter'] text-[#a8a29e]">{error}</p>
+            <p className="text-[11px] font-inter text-[#a8a29e]">{error}</p>
           )}
           <div className="flex flex-col gap-4">
             {eventos.map((ev, idx) => {
               const cfg = TIPO_CONFIG[ev.tipo] ?? TIPO_CONFIG.DESPACHO;
               const { Icono, fondoIcono, colorIcono, textoRojo } = cfg;
               return (
-                <div key={idx} className="flex items-start gap-3">
+                <div
+                  key={idx}
+                  className="flex items-start gap-3 animate-fade-in"
+                  style={{ animationDelay: `${idx * 40}ms` }}
+                >
                   <div className={`flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center ${fondoIcono} ${colorIcono}`}>
                     <Icono />
                   </div>
                   <div className="flex flex-col gap-[2px] min-w-0">
                     <span
-                      className={`font-['Inter'] font-normal text-[13px] leading-[18px] ${
-                        textoRojo ? 'text-[#9e2016]' : 'text-[#1b1b1c]'
+                      className={`font-inter font-normal text-[13px] leading-[18px] ${
+                        textoRojo ? 'text-primary' : 'text-ink'
                       }`}
                     >
                       {ev.descripcion}
                     </span>
-                    <span className="font-['Inter'] font-medium text-[10px] text-[#a8a29e] tracking-[0.4px] uppercase">
+                    <span className="font-inter font-medium text-[10px] text-[#a8a29e] tracking-[0.4px] uppercase">
                       {tiempoRelativo(ev.timestamp)}
                     </span>
                   </div>

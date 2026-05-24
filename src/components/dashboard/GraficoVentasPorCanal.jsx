@@ -35,11 +35,11 @@ export default function GraficoVentasPorCanal() {
   const total = 100;
 
   return (
-    <div className="bg-white border border-[rgba(245,245,244,0.5)] rounded-[12px] drop-shadow-[0px_1px_1px_rgba(0,0,0,0.05)] p-[33px] col-span-1 flex flex-col">
-      <h3 className="font-['Manrope'] font-bold text-[18px] text-[#1b1b1c] leading-[28px] mb-1">
+    <div className="bg-white border border-[rgba(245,245,244,0.5)] rounded-xl drop-shadow-[0px_1px_1px_rgba(0,0,0,0.05)] p-[33px] col-span-1 flex flex-col animate-fade-in-up [animation-delay:120ms]">
+      <h3 className="font-display font-bold text-[18px] text-ink leading-[28px] mb-1">
         Distribución de Ventas
       </h3>
-      <p className="font-['Inter'] font-normal text-[14px] text-[#a8a29e] leading-[20px] mb-8">
+      <p className="font-inter font-normal text-[14px] text-[#a8a29e] leading-[20px] mb-8">
         Canales de distribución
       </p>
 
@@ -62,6 +62,9 @@ export default function GraficoVentasPorCanal() {
                 startAngle={90}
                 endAngle={-270}
                 strokeWidth={0}
+                isAnimationActive
+                animationDuration={1000}
+                animationEasing="ease-out"
               >
                 {data.map((_, i) => (
                   <Cell key={i} fill={COLORES[i % COLORES.length]} />
@@ -69,14 +72,14 @@ export default function GraficoVentasPorCanal() {
               </Pie>
               <Tooltip
                 formatter={(v) => [`${v}%`, undefined]}
-                contentStyle={{ fontFamily: 'Inter', fontSize: 12, borderRadius: 8, border: '1px solid #f5f5f4' }}
+                contentStyle={{ fontFamily: 'Inter', fontSize: 12, borderRadius: 12, border: '1px solid #f5f5f4' }}
               />
             </PieChart>
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <span className="font-['Manrope'] font-bold text-[30px] text-[#1b1b1c] leading-none">
+              <span className="font-display font-bold text-[30px] text-ink leading-none">
                 {Number(total.toFixed(2))}%
               </span>
-              <span className="font-['Inter'] font-bold text-[10px] text-[#a8a29e] uppercase tracking-[0.5px] mt-1">
+              <span className="font-inter font-bold text-[10px] text-[#a8a29e] uppercase tracking-[0.5px] mt-1">
                 TOTAL
               </span>
             </div>
@@ -87,11 +90,11 @@ export default function GraficoVentasPorCanal() {
               <div key={d.canal} className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: COLORES[i] }} />
-                  <span className="font-['Inter'] font-normal text-[14px] text-[#1b1b1c] leading-[20px]">
+                  <span className="font-inter font-normal text-[14px] text-ink leading-[20px]">
                     {d.canal}
                   </span>
                 </div>
-                <span className="font-['Inter'] font-bold text-[14px] text-[#1b1b1c] leading-[20px]">
+                <span className="font-inter font-bold text-[14px] text-ink leading-[20px]">
                   {d.porcentaje}%
                 </span>
               </div>

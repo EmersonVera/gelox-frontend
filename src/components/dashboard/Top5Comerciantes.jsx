@@ -37,15 +37,15 @@ export default function Top5Comerciantes() {
   const maxIngreso = data ? Math.max(...data.map((c) => c.ingreso)) : 1;
 
   return (
-    <div className="bg-white border border-[rgba(245,245,244,0.5)] rounded-[12px] drop-shadow-[0px_1px_1px_rgba(0,0,0,0.05)] p-[33px] flex flex-col gap-6">
+    <div className="bg-white border border-[rgba(245,245,244,0.5)] rounded-xl drop-shadow-[0px_1px_1px_rgba(0,0,0,0.05)] p-[33px] flex flex-col gap-6 animate-fade-in-up">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h3 className="font-['Manrope'] font-bold text-[18px] text-[#1b1b1c] leading-[28px]">
+        <h3 className="font-display font-bold text-[18px] text-ink leading-[28px]">
           Top 5 Comerciantes
         </h3>
         <a
           href="#"
-          className="font-['Inter'] font-medium text-[13px] text-[#9e2016] hover:underline"
+          className="font-inter font-medium text-[13px] text-primary hover:underline transition duration-200"
         >
           Ver todos →
         </a>
@@ -64,7 +64,7 @@ export default function Top5Comerciantes() {
       ) : (
         <>
           {error && (
-            <p className="text-[11px] font-['Inter'] text-[#a8a29e]">{error}</p>
+            <p className="text-[11px] font-inter text-[#a8a29e]">{error}</p>
           )}
           <div className="flex flex-col gap-5">
             {data.map((c) => {
@@ -72,10 +72,10 @@ export default function Top5Comerciantes() {
               return (
                 <div key={c.posicion} className="flex flex-col gap-1">
                   <div className="flex items-baseline justify-between">
-                    <span className="font-['Inter'] font-medium text-[14px] text-[#1b1b1c] leading-[20px]">
+                    <span className="font-inter font-medium text-[14px] text-ink leading-[20px]">
                       {c.nombre}
                     </span>
-                    <span className="font-['Manrope'] font-bold text-[14px] text-[#1b1b1c] leading-[20px]">
+                    <span className="font-display font-bold text-[14px] text-ink leading-[20px]">
                       {formatCOP(c.ingreso)}
                     </span>
                   </div>
