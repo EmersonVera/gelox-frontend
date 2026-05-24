@@ -197,7 +197,7 @@ export default function Sidebar({ open, onClose }) {
       : MAP_LINKS[perfil?.rol] ?? LINKS_ADMINISTRADOR;
 
   const handleLogout = async () => {
-    fetch('/api/auth/cerrar-sesion', {
+    fetch(`${import.meta.env.VITE_API_BASE_URL ?? ''}/api/auth/cerrar-sesion`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
