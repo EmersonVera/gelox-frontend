@@ -1,15 +1,15 @@
-// src/pages/Reportes.jsx
+// src/pages/administrador/Reportes.jsx
 import { useState, useEffect, useCallback } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import AppLayout from '../components/AppLayout';
-import TablaRentabilidadCanal from '../components/reportes/tablarentabilidadcanal';
-import FiltroPeriodo from '../components/FiltroPeriodo';
-import CierreCaja from '../components/CierreCaja';
+import AppLayout from '../../components/AppLayout';
+import TablaRentabilidadCanal from '../../components/reportes/tablarentabilidadcanal';
+import FiltroPeriodo from '../../components/FiltroPeriodo';
+import CierreCaja from '../../components/CierreCaja';
 import {
     getReporteFinanciero,
     getGraficaInversionIngresos,
     getReportePorCanal,
-} from '../services/reporteService';
+} from '../../services/reporteService';
 
 /* ── Helpers ── */
 function fmt(n) {
@@ -22,7 +22,7 @@ function fmt(n) {
 }
 
 function validarRangoFechas(fechaInicio, fechaFin) {
-    if (!fechaInicio || !fechaFin) return null; // otros tipos de filtro no necesitan validación
+    if (!fechaInicio || !fechaFin) return null;
     if (fechaInicio > fechaFin)
         return 'La fecha de inicio no puede ser posterior a la fecha fin.';
     return null;
@@ -45,11 +45,9 @@ function rangoFromFiltro(filtro) {
     }
     if (filtro.tipo === 'mes')
         return { fechaInicio: `${hoy.getFullYear()}-${pad(hoy.getMonth() + 1)}-01`, fechaFin: today };
-    // anio
     return { fechaInicio: `${hoy.getFullYear()}-01-01`, fechaFin: today };
 }
 
-/* ── KPI Card ── */
 function KpiCard({ label, value, sub, positive }) {
     return (
         <div className="bg-white rounded-2xl border border-border shadow-sm p-6 flex flex-col gap-1 min-w-0">
@@ -62,25 +60,18 @@ function KpiCard({ label, value, sub, positive }) {
     );
 }
 
-/* ── Tooltip personalizado del gráfico ── */
 function CustomTooltip({ active, payload, label }) {
     if (!active || !payload?.length) return null;
     return (
-        <div
-            className="border border-border rounded-xl p-3 shadow-md text-sm"
-            style={{ backgroundColor: '#fff' }}
-        >
+        <div className="border border-border rounded-xl p-3 shadow-md text-sm" style={{ backgroundColor: '#fff' }}>
             <p className="font-semibold text-ink mb-1">{label}</p>
             {payload.map((p) => (
-                <p key={p.name} style={{ color: p.color }}>
-                    {p.name}: {fmt(p.value)}
-                </p>
+                <p key={p.name} style={{ color: p.color }}>{p.name}: {fmt(p.value)}</p>
             ))}
         </div>
     );
 }
 
-/* ── Subtítulos dinámicos de la gráfica ── */
 const SUBTITULOS_GRAFICA = {
     dia:   'Ingresos vs. inversión del día',
     semana:'Ingresos vs. inversión por día (semana actual)',
@@ -90,41 +81,25 @@ const SUBTITULOS_GRAFICA = {
 
 const MESES_CORTO = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
 
-/**
- * Genera un subtítulo compacto para rangos personalizados.
- * Casos:
- *   mismo mes y año   → "24–25 may 2026"
- *   mismo año         → "24 may–2 jun 2026"
- *   años distintos    → "28 dic 2025–3 ene 2026"
- */
 function subtituloRango(desde, hasta) {
     if (!desde || !hasta) return 'Ingresos vs. inversión';
-
     const [ay, am, ad] = desde.split('-').map(Number);
     const [by, bm, bd] = hasta.split('-').map(Number);
     const mA = MESES_CORTO[am - 1];
     const mB = MESES_CORTO[bm - 1];
-
     let rango;
     if (ay === by && am === bm) {
-        // Mismo mes y año — evitar repetir mes y año
         rango = ad === bd ? `${ad} ${mA} ${ay}` : `${ad}–${bd} ${mA} ${ay}`;
     } else if (ay === by) {
-        // Mismo año, meses distintos
         rango = `${ad} ${mA}–${bd} ${mB} ${ay}`;
     } else {
-        // Años distintos
         rango = `${ad} ${mA} ${ay}–${bd} ${mB} ${by}`;
     }
-
     return `Ingresos vs. inversión (${rango})`;
 }
 
-/* ── Componente principal ── */
 export default function Reportes() {
     const [filtro, setFiltro] = useState({ tipo: 'mes' });
-    // Refleja el filtro del último fetch exitoso — el subtítulo de la gráfica
-    // solo debe cambiar cuando los datos realmente se actualizan.
     const [filtroActivo, setFiltroActivo] = useState({ tipo: 'mes' });
     const [reporte, setReporte] = useState(null);
     const [grafica, setGrafica] = useState([]);
@@ -134,15 +109,9 @@ export default function Reportes() {
 
     const cargarDatos = useCallback(async () => {
         setError(null);
-
-        // ── Validación frontend — evita el request si el rango es inválido ──
         const { fechaInicio, fechaFin } = rangoFromFiltro(filtro);
         const mensajeValidacion = validarRangoFechas(fechaInicio, fechaFin);
-        if (mensajeValidacion) {
-            setError(mensajeValidacion);
-            return; // subtítulo permanece con filtroActivo (último válido)
-        }
-
+        if (mensajeValidacion) { setError(mensajeValidacion); return; }
         setLoading(true);
         try {
             const [rep, graf, can] = await Promise.all([
@@ -153,9 +122,8 @@ export default function Reportes() {
             setReporte(rep);
             setGrafica(graf);
             setCanales(can?.canales ?? can ?? []);
-            setFiltroActivo(filtro); // ✅ solo se promueve si el fetch fue exitoso
+            setFiltroActivo(filtro);
         } catch (e) {
-            // Preferir el mensaje del backend (error 400) si está disponible
             const mensajeBackend = e?.response?.data?.message;
             setError(mensajeBackend ?? e.message ?? 'Error inesperado al cargar los datos.');
         } finally {
@@ -167,8 +135,6 @@ export default function Reportes() {
 
     return (
         <AppLayout>
-
-            {/* ── Header ── */}
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-8">
                 <div>
                     <h1 className="font-display text-3xl font-extrabold text-ink tracking-tight">
@@ -178,7 +144,6 @@ export default function Reportes() {
                         Monitoreo de flujo de caja y desempeño de distribución Gelox.
                     </p>
                 </div>
-                {/* RF16 — Filtro de período */}
                 <FiltroPeriodo defaultTipo="mes" onChange={setFiltro} />
             </div>
 
@@ -188,88 +153,45 @@ export default function Reportes() {
                 </div>
             )}
 
-            {/* ── RF12 — KPIs ── */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                <KpiCard
-                    label="Inversión Total"
-                    value={loading ? '…' : fmt(reporte?.totalInversion)}
-                    sub={reporte ? '+4.2% vs mes anterior' : undefined}
-                />
-                <KpiCard
-                    label="Ingresos Totales"
-                    value={loading ? '…' : fmt(reporte?.ingresosTotales)}
-                    sub={reporte ? '+12.8% vs mes anterior' : undefined}
-                />
-                <KpiCard
-                    label="Utilidad Bruta"
-                    value={loading ? '…' : fmt(reporte?.utilidadNeta)}
-                    sub={reporte ? 'Meta alcanzada' : undefined}
-                    positive
-                />
-                <KpiCard
-                    label="Margen de Ganancia"
-                    value={loading ? '…' : reporte ? `${(reporte.margenGanancia ?? 0).toFixed(0)}%` : '—'}
-                />
+                <KpiCard label="Inversión Total"    value={loading ? '…' : fmt(reporte?.totalInversion)}  sub={reporte ? '+4.2% vs mes anterior' : undefined} />
+                <KpiCard label="Ingresos Totales"   value={loading ? '…' : fmt(reporte?.ingresosTotales)} sub={reporte ? '+12.8% vs mes anterior' : undefined} />
+                <KpiCard label="Utilidad Bruta"     value={loading ? '…' : fmt(reporte?.utilidadNeta)}    sub={reporte ? 'Meta alcanzada' : undefined} positive />
+                <KpiCard label="Margen de Ganancia" value={loading ? '…' : reporte ? `${(reporte.margenGanancia ?? 0).toFixed(0)}%` : '—'} />
             </div>
 
-            {/* ── RF13 Gráfica + RF15 Cierre de caja ── */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
-
-                {/* Comparativa de Rendimiento — RF13 */}
                 <div className="lg:col-span-2 bg-white rounded-2xl border border-border shadow-sm p-6 flex flex-col">
-                    <h2 className="font-display font-bold text-lg text-ink leading-6 mb-0.5">
-                        Comparativa de Rendimiento
-                    </h2>
+                    <h2 className="font-display font-bold text-lg text-ink leading-6 mb-0.5">Comparativa de Rendimiento</h2>
                     <p className="text-xs text-muted mb-4">
                         {filtroActivo.tipo === 'rango'
                             ? subtituloRango(filtroActivo.desde, filtroActivo.hasta)
                             : (SUBTITULOS_GRAFICA[filtroActivo.tipo] ?? 'Ingresos vs. inversión')}
                     </p>
-
                     {loading ? (
-                        <div className="flex-1 flex items-center justify-center text-sm text-muted">
-                            Cargando gráfica…
-                        </div>
+                        <div className="flex-1 flex items-center justify-center text-sm text-muted">Cargando gráfica…</div>
                     ) : grafica.length === 0 ? (
-                        <div className="flex-1 flex items-center justify-center text-sm text-muted">
-                            Sin datos para el período seleccionado
-                        </div>
+                        <div className="flex-1 flex items-center justify-center text-sm text-muted">Sin datos para el período seleccionado</div>
                     ) : (
                         <div className="flex-1 min-h-0">
                             <ResponsiveContainer width="100%" height="100%">
                                 <BarChart data={grafica} barGap={4} barCategoryGap="30%">
-                                    <XAxis
-                                        dataKey="etiqueta"
-                                        tick={{ fontSize: 11, fill: '#8d706c' }}
-                                        axisLine={false}
-                                        tickLine={false}
-                                    />
+                                    <XAxis dataKey="etiqueta" tick={{ fontSize: 11, fill: '#8d706c' }} axisLine={false} tickLine={false} />
                                     <YAxis hide />
-                                    <Tooltip
-                                        content={<CustomTooltip />}
-                                        cursor={{ fill: 'rgba(0, 0, 0, 0.04)' }}
-                                    />
-                                    <Legend
-                                        iconType="circle"
-                                        iconSize={8}
-                                        wrapperStyle={{ fontSize: 12 }}
-                                        formatter={(v) => <span className="text-muted">{v}</span>}
-                                    />
-                                    <Bar dataKey="ingresos"  name="Ingresos"  fill="#9e2016" style={{ fill: '#9e2016' }} isAnimationActive={false} radius={[4, 4, 0, 0]} />
-                                    <Bar dataKey="inversion" name="Inversión" fill="#d6d3d1" style={{ fill: '#d6d3d1' }} isAnimationActive={false} radius={[4, 4, 0, 0]} />
+                                    <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(0, 0, 0, 0.04)' }} />
+                                    <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12 }}
+                                        formatter={(v) => <span className="text-muted">{v}</span>} />
+                                    <Bar dataKey="ingresos"  name="Ingresos"  fill="#9e2016" style={{ fill: '#9e2016' }} isAnimationActive animationDuration={900} animationEasing="ease-out" radius={[4, 4, 0, 0]} />
+                                    <Bar dataKey="inversion" name="Inversión" fill="#d6d3d1" style={{ fill: '#d6d3d1' }} isAnimationActive animationDuration={900} animationEasing="ease-out" radius={[4, 4, 0, 0]} />
                                 </BarChart>
                             </ResponsiveContainer>
                         </div>
                     )}
                 </div>
-
-                {/* Cierre de Caja Diario — RF15 */}
                 <CierreCaja efectivoEsperado={reporte?.ingresosTotales ?? 0} />
             </div>
 
-            {/* ── RF14 — Tabla Rentabilidad por Canal ── */}
             <TablaRentabilidadCanal data={canales} />
-
         </AppLayout>
     );
 }

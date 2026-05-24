@@ -1,9 +1,9 @@
 import { useState, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
-import AppLayout from '../components/AppLayout';
-import { crearUsuario } from '../services/usuariosService';
-import api from '../api/axiosConfig';
+import AppLayout from '../../components/AppLayout';
+import { crearUsuario } from '../../services/usuariosService';
+import api from '../../api/axiosConfig';
 
 /* ── Icons ── */
 function PersonIcon() {
@@ -70,7 +70,6 @@ const inputError  = 'border-danger ring-2 ring-danger/20 bg-error-bg';
 const lbl         = 'text-xs font-semibold text-faint uppercase tracking-wider block mb-1.5';
 const errMsg      = 'text-xs text-error-fg mt-1 animate-slide-down';
 
-/* ── Section header ── */
 function SectionTitle({ children }) {
   return (
     <div className="flex items-center gap-2 mb-5">
@@ -172,13 +171,11 @@ export default function NuevoUsuario() {
     <AppLayout>
       <div className="max-w-4xl mx-auto flex flex-col gap-6 animate-fade-in-up">
 
-        {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-primary text-xs font-semibold uppercase tracking-wider">
           <PersonIcon />
           <span>Administración de Usuarios</span>
         </div>
 
-        {/* Page header */}
         <div>
           <h1 className="font-display text-2xl font-extrabold text-ink tracking-tight">
             Registrar Nuevo Usuario
@@ -188,7 +185,6 @@ export default function NuevoUsuario() {
           </p>
         </div>
 
-        {/* Server error banner */}
         {errorServidor && (
           <div className="px-4 py-3 rounded-xl bg-error-bg border border-[#ffb4a9] text-error-fg text-sm animate-slide-down">
             {errorServidor}
@@ -198,13 +194,10 @@ export default function NuevoUsuario() {
         <form onSubmit={handleSubmit(onSubmit)} noValidate>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-            {/* ── Left column: Personal info ── */}
             <div className="bg-white rounded-2xl border border-border shadow-[0_1px_3px_rgba(0,0,0,0.07)] p-6">
               <SectionTitle>Información Personal</SectionTitle>
 
               <div className="flex flex-col gap-5">
-
-                {/* Nombre */}
                 <div>
                   <label htmlFor="nombre" className={lbl}>Nombre Completo</label>
                   <input
@@ -220,7 +213,6 @@ export default function NuevoUsuario() {
                   {errors.nombre && <p className={errMsg}>{errors.nombre.message}</p>}
                 </div>
 
-                {/* Correo */}
                 <div>
                   <label htmlFor="correo" className={lbl}>Correo Electrónico</label>
                   <input
@@ -239,7 +231,6 @@ export default function NuevoUsuario() {
                   {errors.correo && <p className={errMsg}>{errors.correo.message}</p>}
                 </div>
 
-                {/* Contraseña */}
                 <div>
                   <label htmlFor="contrasena" className={lbl}>Contraseña Temporal</label>
                   <div className="relative">
@@ -268,7 +259,6 @@ export default function NuevoUsuario() {
                   </p>
                 </div>
 
-                {/* Foto */}
                 <div>
                   <label className={lbl}>
                     Fotografía del Perfil <span className="normal-case font-normal text-muted">(opcional)</span>
@@ -299,11 +289,9 @@ export default function NuevoUsuario() {
                     onChange={handleFotoChange}
                   />
                 </div>
-
               </div>
             </div>
 
-            {/* ── Right column: Role + actions ── */}
             <div className="flex flex-col gap-4">
               <div className="bg-white rounded-2xl border border-border shadow-[0_1px_3px_rgba(0,0,0,0.07)] p-6 flex-1">
                 <SectionTitle>Asignación de Rol</SectionTitle>
@@ -348,7 +336,6 @@ export default function NuevoUsuario() {
                 {rolError && <p className={`${errMsg} mt-2`}>{rolError}</p>}
               </div>
 
-              {/* Actions */}
               <div className="flex flex-col gap-3">
                 <button
                   type="submit"
