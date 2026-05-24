@@ -15,7 +15,7 @@ const schema = yup.object({
   codigoTecnico: yup.string().required('El código es requerido'),
   categoria:     yup.string().required('Selecciona una categoría'),
   precioVenta:   yup.number().typeError('Ingresa un número').positive('Debe ser mayor a 0').required('El precio es requerido'),
-  precioCosto:   yup.number().typeError('Ingresa un número').min(0, 'Debe ser >= 0').required('El precio de costo es requerido'),
+  precioCosto:   yup.number().typeError('Ingresa un número').min(0, 'Debe ser >= 0').optional(),
   descripcion:   yup.string().required('La descripción es requerida'),
   stockMedio:    yup.number().typeError('Ingresa un número').min(0).required('Requerido'),
   stockMinimo:   yup.number().typeError('Ingresa un número').min(0).required('Requerido'),
@@ -23,7 +23,8 @@ const schema = yup.object({
 });
 
 export default function NuevoProducto({ onClose, onSuccess }) {
-  const { token } = useAuth();
+  const { token, perfil } = useAuth();
+  const esAdmin = perfil?.rol === 'ADMINISTRADOR';
   const [imagen, setImagen]       = useState(null);
   const [preview, setPreview]     = useState(null);
   const [guardando, setGuardando] = useState(false);
@@ -158,15 +159,17 @@ export default function NuevoProducto({ onClose, onSuccess }) {
               </div>
             </div>
 
-            {/* Precio Costo */}
-            <div>
-              <label className={labelClass}>Precio de Costo COP</label>
-              <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 font-['Inter'] text-[16px] text-[#a8a29e]">$</span>
-                <input {...register('precioCosto')} type="number" step="0.01" placeholder="0.00" className={`${inputClass} pl-8`} />
+            {/* Precio Costo — solo ADMINISTRADOR */}
+            {esAdmin && (
+              <div>
+                <label className={labelClass}>Precio de Costo COP</label>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 font-['Inter'] text-[16px] text-[#a8a29e]">$</span>
+                  <input {...register('precioCosto')} type="number" step="0.01" placeholder="0.00" className={`${inputClass} pl-8`} />
+                </div>
+                {errors.precioCosto && <p className={errorClass}>{errors.precioCosto.message}</p>}
               </div>
-              {errors.precioCosto && <p className={errorClass}>{errors.precioCosto.message}</p>}
-            </div>
+            )}
 
             {/* Descripción */}
             <div>
