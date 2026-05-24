@@ -53,6 +53,8 @@ export default function AppRouter() {
         <Route element={<ProtectedRoute rolesPermitidos={['ADMINISTRADOR', 'ENCARGADO_INVENTARIO', 'ENCARGADO_VENTAS']} />}>
           <Route path="/ajustes" element={<Ajustes />} />
           <Route path="/catalogo" element={<CatalogoProductos />} />
+          {/* /inventarios redirige al catálogo mientras las demás vistas se desarrollan */}
+          <Route path="/inventarios" element={<Navigate to="/catalogo" replace />} />
         </Route>
 
         <Route path="/no-autorizado" element={<div className="p-8 text-sm text-muted">No tienes permiso para acceder a esta sección.</div>} />
