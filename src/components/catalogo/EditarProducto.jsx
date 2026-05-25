@@ -1,5 +1,6 @@
 // src/components/catalogo/EditarProducto.jsx — RF20
-import { useForm } from 'react-hook-form';
+import { createPortal } from 'react-dom';
+import { useForm, Controller } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import { useState, useRef } from 'react';
@@ -7,11 +8,11 @@ import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import app from '../../auth/firebase';
 import { useAuth } from '../../context/AuthContext';
 import ModalConfirmarEliminar from './ModalConfirmarEliminar';
+import CustomSelect from '../ui/CustomSelect';
 
 const CATEGORIAS_OPT = ['Paletas', 'Conos', 'Familiares'];
 const UNIDADES_OPT   = ['Unidades', 'Cajas', 'Litros'];
-
-const CAT_LABEL = { PALETAS: 'Paletas', CONOS: 'Conos', FAMILIARES: 'Familiares' };
+const CAT_LABEL      = { PALETAS: 'Paletas', CONOS: 'Conos', FAMILIARES: 'Familiares' };
 
 const schema = yup.object({
   nombre:        yup.string().required('Requerido'),
@@ -37,7 +38,7 @@ export default function EditarProducto({ producto, onClose, onSuccess }) {
 
   const categoriaDisplay = CAT_LABEL[producto.categoria] ?? producto.categoria ?? '';
 
-  const { register, handleSubmit, formState: { errors } } = useForm({
+  const { register, handleSubmit, control, formState: { errors } } = useForm({
     resolver: yupResolver(schema),
     defaultValues: {
       nombre:        producto.nombre,
@@ -72,11 +73,8 @@ export default function EditarProducto({ producto, onClose, onSuccess }) {
     setGuardando(true);
     setErrorApi('');
     try {
-      // Si el usuario seleccionó una imagen nueva, subirla a Firebase Storage
       let imagenUrl = producto.imagenUrl ?? null;
-      if (imagenNueva) {
-        imagenUrl = await subirImagen(imagenNueva);
-      }
+      if (imagenNueva) imagenUrl = await subirImagen(imagenNueva);
 
       const body = {
         codigoTecnico: data.codigoTecnico,
@@ -91,12 +89,9 @@ export default function EditarProducto({ producto, onClose, onSuccess }) {
 
       const base = import.meta.env.VITE_API_BASE_URL ?? '';
       const res = await fetch(`${base}/api/catalogo/productos/${producto.id}`, {
-        method: 'PUT',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(body),
+        method:  'PUT',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body:    JSON.stringify(body),
       });
 
       if (!res.ok) {
@@ -112,50 +107,47 @@ export default function EditarProducto({ producto, onClose, onSuccess }) {
     }
   };
 
-  const inputClass = "bg-[#f6f3f3] border-none rounded-[8px] px-4 py-3 font-['Inter'] text-[16px] text-[#1b1b1c] outline-none focus:ring-2 focus:ring-[#9e2016]/20 w-full";
-  const labelClass = "font-['Inter'] font-semibold text-[11px] uppercase tracking-[0.55px] text-[#1b1b1c] mb-2 block";
-  const errorClass = "font-['Inter'] text-[12px] text-[#dc2626] mt-1";
+  const inputClass  = "bg-[#f6f3f3] border-none rounded-[8px] px-4 py-3 font-['Inter'] text-[16px] text-[#1b1b1c] outline-none focus:ring-2 focus:ring-[#9e2016]/20 w-full";
+  const labelClass  = "font-['Inter'] font-semibold text-[11px] uppercase tracking-[0.55px] text-[#1b1b1c] mb-2 block";
+  const errorClass  = "font-['Inter'] text-[12px] text-[#dc2626] mt-1";
 
+  /* ── Modal confirmar eliminar ── */
   if (confirmarEliminar) {
-    return (
+    return createPortal(
       <ModalConfirmarEliminar
         producto={producto}
         onClose={() => setConfirmarEliminar(false)}
         onSuccess={() => { onSuccess(); onClose(); }}
-      />
+      />,
+      document.body
     );
   }
 
-  return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+  return createPortal(
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[9999] p-4">
       <div className="bg-white rounded-[16px] w-[520px] max-h-[90vh] overflow-y-auto shadow-2xl">
         <div className="p-8 flex flex-col gap-6">
 
-          {/* Header */}
+          {/* Header — solo título y cierre, sin botón eliminar */}
           <div className="flex items-start justify-between">
             <div className="flex items-start gap-3">
               <div className="w-10 h-10 bg-[#fef2f2] rounded-[10px] flex items-center justify-center shrink-0">
                 <svg width="18" height="18" fill="none" viewBox="0 0 18 18">
-                  <path d="M3 5h12M3 9h8M3 13h6" stroke="#9e2016" strokeWidth="1.5" strokeLinecap="round"/>
+                  <path d="M3 5h12M3 9h8M3 13h6" stroke="#9e2016" strokeWidth="1.5" strokeLinecap="round" />
                 </svg>
               </div>
               <div>
                 <h2 className="font-['Manrope'] font-bold text-[20px] text-[#1b1b1c]">Editar Producto</h2>
-                <p className="font-['Inter'] font-normal text-[14px] text-[#a8a29e] mt-0.5">Gestión de inventario para GELOX</p>
+                <p className="font-['Inter'] font-normal text-[14px] text-[#a8a29e] mt-0.5">
+                  Gestión de inventario para GELOX
+                </p>
               </div>
             </div>
-            <div className="flex gap-2 items-center">
-              <button onClick={() => setConfirmarEliminar(true)} className="text-[#78716c] hover:text-[#dc2626] cursor-pointer transition-colors">
-                <svg width="18" height="18" fill="none" viewBox="0 0 18 18">
-                  <path d="M2 5h14M6 5V3.5A1.5 1.5 0 0 1 7.5 2h3A1.5 1.5 0 0 1 12 3.5V5M4 5l1 10a1.5 1.5 0 0 0 1.5 1.5h5A1.5 1.5 0 0 0 13 15l1-10" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </button>
-              <button onClick={onClose} className="text-[#78716c] hover:text-[#1b1b1c] cursor-pointer">
-                <svg width="20" height="20" fill="none" viewBox="0 0 20 20">
-                  <path d="M15 5L5 15M5 5l10 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                </svg>
-              </button>
-            </div>
+            <button onClick={onClose} className="text-[#78716c] hover:text-[#1b1b1c] cursor-pointer">
+              <svg width="20" height="20" fill="none" viewBox="0 0 20 20">
+                <path d="M15 5L5 15M5 5l10 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+            </button>
           </div>
 
           {/* Preview producto */}
@@ -179,7 +171,13 @@ export default function EditarProducto({ producto, onClose, onSuccess }) {
               >
                 Cambiar Imagen
               </button>
-              <input ref={inputFileRef} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={handleImagen} />
+              <input
+                ref={inputFileRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                className="hidden"
+                onChange={handleImagen}
+              />
             </div>
           </div>
 
@@ -203,9 +201,17 @@ export default function EditarProducto({ producto, onClose, onSuccess }) {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className={labelClass}>Categoría</label>
-                <select {...register('categoria')} className={inputClass}>
-                  {CATEGORIAS_OPT.map((c) => <option key={c}>{c}</option>)}
-                </select>
+                <Controller
+                  control={control}
+                  name="categoria"
+                  render={({ field }) => (
+                    <CustomSelect
+                      value={field.value}
+                      onChange={field.onChange}
+                      options={CATEGORIAS_OPT}
+                    />
+                  )}
+                />
                 {errors.categoria && <p className={errorClass}>{errors.categoria.message}</p>}
               </div>
               <div>
@@ -237,60 +243,67 @@ export default function EditarProducto({ producto, onClose, onSuccess }) {
               {errors.descripcion && <p className={errorClass}>{errors.descripcion.message}</p>}
             </div>
 
-            {/* Stock */}
-            <div className="grid grid-cols-3 gap-4">
-              <div>
-                <label className={labelClass}>Stock Medio</label>
-                <input {...register('stockMedio')} type="number" min="0" className={inputClass} />
-                {errors.stockMedio && <p className={errorClass}>{errors.stockMedio.message}</p>}
+            {/* Configuración alertas — mismo estilo que NuevoProducto */}
+            <div className="bg-[#fef2f2] rounded-[12px] p-4 flex flex-col gap-4">
+              <div className="flex items-center gap-2">
+                <svg width="14" height="14" fill="none" viewBox="0 0 14 14">
+                  <path d="M7 1a4 4 0 0 1 4 4c0 3 1 4 1 4H2s1-1 1-4a4 4 0 0 1 4-4zM5.5 9a1.5 1.5 0 0 0 3 0" stroke="#9e2016" strokeWidth="1.2" strokeLinecap="round" />
+                </svg>
+                <span className="font-['Inter'] font-bold text-[11px] uppercase tracking-[0.55px] text-[#9e2016]">
+                  Configuración de Alertas
+                </span>
               </div>
-              <div>
-                <label className={labelClass}>Stock Mínimo (Alerta)</label>
-                <input {...register('stockMinimo')} type="number" min="0" className={inputClass} />
-                {errors.stockMinimo && <p className={errorClass}>{errors.stockMinimo.message}</p>}
-              </div>
-              <div>
-                <label className={labelClass}>Unidad de Medida</label>
-                <select {...register('unidadMedida')} className={inputClass}>
-                  {UNIDADES_OPT.map((u) => <option key={u}>{u}</option>)}
-                </select>
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className={labelClass}>Stock Medio</label>
+                  <input {...register('stockMedio')} type="number" min="0" className={inputClass} />
+                  {errors.stockMedio && <p className={errorClass}>{errors.stockMedio.message}</p>}
+                </div>
+                <div>
+                  <label className={labelClass}>Stock Mínimo</label>
+                  <input {...register('stockMinimo')} type="number" min="0" className={inputClass} />
+                  {errors.stockMinimo && <p className={errorClass}>{errors.stockMinimo.message}</p>}
+                </div>
+                <div>
+                  <label className={labelClass}>Unidad de Medida</label>
+                  <Controller
+                    control={control}
+                    name="unidadMedida"
+                    render={({ field }) => (
+                      <CustomSelect
+                        value={field.value}
+                        onChange={field.onChange}
+                        options={UNIDADES_OPT}
+                      />
+                    )}
+                  />
+                </div>
               </div>
             </div>
 
             {errorApi && <p className={errorClass}>{errorApi}</p>}
 
-            {/* Footer */}
-            <div className="flex items-center justify-between pt-2">
+            {/* Footer — sin botón Eliminar */}
+            <div className="flex items-center justify-end gap-4 pt-2">
               <button
                 type="button"
-                onClick={() => setConfirmarEliminar(true)}
-                className="flex items-center gap-2 font-['Inter'] font-semibold text-[14px] text-[#dc2626] hover:text-[#b91c1c] cursor-pointer transition-colors"
+                onClick={onClose}
+                className="font-['Inter'] font-semibold text-[14px] text-[#57534e] hover:text-[#1b1b1c] cursor-pointer transition-colors"
               >
-                <svg width="16" height="16" fill="none" viewBox="0 0 16 16">
-                  <path d="M2 4h12M5 4V3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1M3 4l1 9a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1l1-9" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-                Eliminar Producto
+                Cancelar
               </button>
-              <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="border border-[#e7e5e4] rounded-[8px] px-5 py-2.5 font-['Inter'] font-semibold text-[14px] text-[#57534e] hover:bg-[#f6f3f3] cursor-pointer transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={guardando}
-                  className="bg-[#9e2016] hover:bg-[#c0392b] disabled:opacity-70 text-white font-['Manrope'] font-bold text-[14px] px-6 py-2.5 rounded-[8px] cursor-pointer transition-colors"
-                >
-                  {guardando ? 'Guardando...' : 'Actualizar Cambios'}
-                </button>
-              </div>
+              <button
+                type="submit"
+                disabled={guardando}
+                className="bg-[#9e2016] hover:bg-[#c0392b] disabled:opacity-70 text-white font-['Manrope'] font-bold text-[14px] px-6 py-3 rounded-[8px] cursor-pointer transition-colors"
+              >
+                {guardando ? 'Guardando...' : 'Actualizar Cambios'}
+              </button>
             </div>
           </form>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
