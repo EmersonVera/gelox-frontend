@@ -3,38 +3,66 @@ import { useAuth } from '../../context/AuthContext';
 import api from '../../api/axiosConfig';
 
 /* ── Icons ── */
-function TruckIcon() {
+function ArrowLeftIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="1" y="3" width="15" height="13" rx="1" />
-      <path d="M16 8h4l3 5v3h-7V8z" />
-      <circle cx="5.5" cy="18.5" r="2.5" />
-      <circle cx="18.5" cy="18.5" r="2.5" />
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="19" y1="12" x2="5" y2="12" />
+      <polyline points="12 19 5 12 12 5" />
     </svg>
   );
 }
-
-function BarChartIcon() {
+function PackageIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="18" y1="20" x2="18" y2="10" />
-      <line x1="12" y1="20" x2="12" y2="4" />
-      <line x1="6"  y1="20" x2="6"  y2="14" />
+      <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+      <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+      <line x1="12" y1="22.08" x2="12" y2="12" />
     </svg>
   );
 }
-
-function UsersIcon() {
+function TrendingDownIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-      <circle cx="9" cy="7" r="4" />
-      <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+      <polyline points="23 18 13.5 8.5 8.5 13.5 1 6" />
+      <polyline points="17 18 23 18 23 12" />
     </svg>
   );
 }
-
+function InboxIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="22 12 16 12 14 15 10 15 8 12 2 12" />
+      <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" />
+    </svg>
+  );
+}
+function GridIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" />
+      <rect x="14" y="14" width="7" height="7" /><rect x="3" y="14" width="7" height="7" />
+    </svg>
+  );
+}
+function ClipboardIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+      <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
+    </svg>
+  );
+}
+function FileTextIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <polyline points="14 2 14 8 20 8" />
+      <line x1="16" y1="13" x2="8" y2="13" />
+      <line x1="16" y1="17" x2="8" y2="17" />
+      <polyline points="10 9 9 9 8 9" />
+    </svg>
+  );
+}
 function SettingsIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -43,7 +71,6 @@ function SettingsIcon() {
     </svg>
   );
 }
-
 function LogoutIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -53,7 +80,6 @@ function LogoutIcon() {
     </svg>
   );
 }
-
 function CloseIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -63,35 +89,27 @@ function CloseIcon() {
   );
 }
 
-function ArrowLeftIcon() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="19" y1="12" x2="5" y2="12" />
-      <polyline points="12 19 5 12 12 5" />
-    </svg>
-  );
-}
-
-/* ─── Nav Links ── */
+/* ── Nav Links
+ *  pronto: true  → ítem no disponible aún: badge "Pronto", sin navegación
+ *  pronto: false → ítem funcional: NavLink con estado activo
+ * ─────────────────────────────────────────────────────────────────── */
 const LINKS = [
-  { icon: <TruckIcon />,    label: 'Ventas',       to: '/ventas/pedidos-rurales' },
-  { icon: <BarChartIcon />, label: 'Reportes',     to: '/ventas/reportes' },
-  { icon: <UsersIcon />,    label: 'Comerciantes', to: '/ventas/comerciantes' },
+  { icon: <PackageIcon />,      label: 'Gestión de Inventarios', to: '/inventarios/gestion',        pronto: true  },
+  { icon: <TrendingDownIcon />, label: 'Registro de Merma',      to: '/inventarios/merma',          pronto: true  },
+  { icon: <InboxIcon />,        label: 'Registro de Entrada',    to: '/inventarios/entrada',        pronto: true  },
+  { icon: <GridIcon />,         label: 'Catálogo',               to: '/inventarios/catalogo',       pronto: false },
+  { icon: <ClipboardIcon />,    label: 'Generar Pedido',         to: '/inventarios/generar-pedido', pronto: true  },
+  { icon: <FileTextIcon />,     label: 'Reporte Pedido',         to: '/inventarios/reporte-pedido', pronto: true  },
 ];
 
 const navItemBase =
   'flex items-center gap-3 px-4 py-3 rounded-xl text-sm transition duration-300 active:scale-[0.97] w-full text-left font-display';
 
-export default function SidebarVentas({ open, onClose }) {
-  const { perfil, logout, rol } = useAuth();
+export default function SidebarInventarios({ open, onClose }) {
+  const { logout, rol } = useAuth();
   const navigate = useNavigate();
 
   const isAdmin = rol === 'ADMINISTRADOR';
-
-  const handleBackToAdmin = () => {
-    if (onClose) onClose();
-    navigate('/dashboard/gerente');
-  };
 
   const handleLogout = async () => {
     api.post('/api/auth/cerrar-sesion').catch(() => {});
@@ -102,7 +120,12 @@ export default function SidebarVentas({ open, onClose }) {
     }
   };
 
-  const linkClass = ({ isActive }) =>
+  const handleBackToAdmin = () => {
+    if (onClose) onClose();
+    navigate('/dashboard/gerente');
+  };
+
+  const activeLinkClass = ({ isActive }) =>
     `${navItemBase} ${isActive
       ? 'bg-white border-r-4 border-[#9e2016] text-[#9e2016] font-bold shadow-sm'
       : 'text-[#78716c] font-medium hover:bg-surface hover:text-ink'
@@ -118,13 +141,13 @@ export default function SidebarVentas({ open, onClose }) {
         transition-transform duration-300 ease-in-out
         ${open ? 'translate-x-0' : '-translate-x-full'}`}
     >
-      {/* Logo */}
+      {/* ── Logo ── */}
       <div className="px-8 pt-8 pb-6 border-b border-border">
         <div className="flex items-center justify-between">
           <div>
             <div className="font-display text-2xl font-bold text-[#9e2016] tracking-[-0.6px]">GELOX</div>
             <div className="font-display font-normal text-[12px] text-[#a8a29e] uppercase tracking-[1.2px] mt-1">
-              Gestión Distribuidora
+              Inventarios
             </div>
           </div>
           <button
@@ -138,7 +161,7 @@ export default function SidebarVentas({ open, onClose }) {
         </div>
       </div>
 
-      {/* Botón volver a Admin — solo para ADMINISTRADOR */}
+      {/* ── Botón volver a Admin — solo para ADMINISTRADOR ── */}
       {isAdmin && (
         <div className="px-4 pt-3 pb-1">
           <button
@@ -154,50 +177,42 @@ export default function SidebarVentas({ open, onClose }) {
         </div>
       )}
 
-      {/* Rol badge */}
-      <div className="px-6 pt-4 pb-2">
-        <span className="text-[10px] uppercase tracking-widest font-bold text-[#9e2016]/60 font-inter">
-          {isAdmin ? 'Módulo · Ventas' : 'Encargado de Ventas'}
-        </span>
-      </div>
-
-      {/* User info — solo para encargado de ventas */}
-      {!isAdmin && perfil && (
-        <div className="px-6 pb-4 flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-[#9e2016]/10 flex items-center justify-center shrink-0">
-            <span className="text-[#9e2016] text-xs font-bold font-display">
-              {perfil.nombre?.charAt(0)?.toUpperCase() ?? 'V'}
-            </span>
-          </div>
-          <div className="min-w-0">
-            <p className="text-xs font-semibold text-ink truncate font-display">{perfil.nombre}</p>
-            <p className="text-[10px] text-muted truncate font-inter">{perfil.correo}</p>
-          </div>
-        </div>
-      )}
-
-      {/* Navigation */}
-      <nav className="flex-1 px-4 py-2 flex flex-col gap-1 overflow-y-auto">
-        <p className="px-4 pb-1 pt-2 text-[10px] uppercase tracking-widest font-bold text-zinc-400 font-inter">
-          Módulos
-        </p>
-        {LINKS.map(({ icon, label, to }) => (
-          <NavLink
-            key={to}
-            to={to}
-            className={linkClass}
-            onClick={handleNavClick}
-          >
-            <span className="shrink-0">{icon}</span>
-            {label}
-          </NavLink>
-        ))}
+      {/* ── Navigation ── */}
+      <nav className="flex-1 px-4 py-3 flex flex-col gap-1 overflow-y-auto">
+        {LINKS.map(({ icon, label, to, pronto }) =>
+          pronto ? (
+            /* Ítem no disponible: no navega, muestra badge "Pronto" */
+            <div
+              key={to}
+              className={`${navItemBase} text-[#c4bfbb] cursor-default select-none justify-between`}
+            >
+              <div className="flex items-center gap-3">
+                <span className="shrink-0 opacity-50">{icon}</span>
+                {label}
+              </div>
+              <span className="text-[10px] font-semibold tracking-wide bg-zinc-100 text-zinc-400 rounded-full px-2 py-0.5 font-inter shrink-0">
+                Pronto
+              </span>
+            </div>
+          ) : (
+            /* Ítem funcional */
+            <NavLink
+              key={to}
+              to={to}
+              className={activeLinkClass}
+              onClick={handleNavClick}
+            >
+              <span className="shrink-0">{icon}</span>
+              {label}
+            </NavLink>
+          )
+        )}
       </nav>
 
-      {/* Bottom section */}
+      {/* ── Bottom section ── */}
       <div className="px-4 py-5 border-t border-border flex flex-col gap-0.5">
-        {/* Ajustes bajo /ventas/ para que el dispatcher mantenga esta sidebar */}
-        <NavLink to="/ventas/ajustes" className={linkClass} onClick={handleNavClick}>
+        {/* Ajustes bajo /inventarios/ para que el dispatcher mantenga esta sidebar */}
+        <NavLink to="/inventarios/ajustes" className={activeLinkClass} onClick={handleNavClick}>
           <span className="shrink-0"><SettingsIcon /></span>
           Ajustes
         </NavLink>
