@@ -19,7 +19,7 @@ import HistorialCierres from '../pages/administrador/HistorialCierres';
 import DetalleCierre    from '../pages/administrador/DetalleCierre';
 
 /* ── Módulo Ventas ── */
-import DashboardVentas from '../pages/ventas/DashboardVentas';
+import PedidoVentanilla      from '../pages/ventas/PedidoVentanilla';
 import PedidoRural     from '../pages/ventas/PedidoRural';
 
 /* ── Módulo Inventarios ── */
@@ -92,11 +92,11 @@ export default function AppRouter() {
 
         {/* ══ Módulo Ventas (Administrador + Encargado de Ventas) ══ */}
         <Route element={<ProtectedRoute rolesPermitidos={['ADMINISTRADOR', 'ENCARGADO_VENTAS']} />}>
-          <Route path="/ventas"                  element={<Navigate to="/ventas/pedidos-rurales" replace />} />
+          <Route path="/ventas"                  element={<Navigate to="/ventas/pedido-ventanilla" replace />} />
           <Route path="/ventas/pedidos-rurales"  element={<PedidoRural />} />
+          <Route path="/ventas/pedidos-ventanilla" element={<PedidoVentanilla />} />
           <Route path="/ventas/reportes"         element={<EnConstruccion modulo="Reportes de Ventas" />} />
           <Route path="/ventas/comerciantes"     element={<EnConstruccion modulo="Comerciantes" />} />
-          <Route path="/dashboard/ventas"        element={<DashboardVentas />} />
           {/* Ajustes del módulo ventas — mantiene SidebarVentas */}
           <Route path="/ventas/ajustes"          element={<Ajustes />} />
         </Route>

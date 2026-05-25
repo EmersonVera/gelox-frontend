@@ -74,7 +74,7 @@ function ArrowLeftIcon() {
 
 /* ─── Nav Links ── */
 const LINKS = [
-  { icon: <TruckIcon />,    label: 'Ventas',       to: '/ventas/pedidos-rurales' },
+  { icon: <TruckIcon />,    label: 'Ventas',       to: '/ventas/pedidos-ventanilla' },
   { icon: <BarChartIcon />, label: 'Reportes',     to: '/ventas/reportes' },
   { icon: <UsersIcon />,    label: 'Comerciantes', to: '/ventas/comerciantes' },
 ];
@@ -154,27 +154,7 @@ export default function SidebarVentas({ open, onClose }) {
         </div>
       )}
 
-      {/* Rol badge */}
-      <div className="px-6 pt-4 pb-2">
-        <span className="text-[10px] uppercase tracking-widest font-bold text-[#9e2016]/60 font-inter">
-          {isAdmin ? 'Módulo · Ventas' : 'Encargado de Ventas'}
-        </span>
-      </div>
 
-      {/* User info — solo para encargado de ventas */}
-      {!isAdmin && perfil && (
-        <div className="px-6 pb-4 flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-[#9e2016]/10 flex items-center justify-center shrink-0">
-            <span className="text-[#9e2016] text-xs font-bold font-display">
-              {perfil.nombre?.charAt(0)?.toUpperCase() ?? 'V'}
-            </span>
-          </div>
-          <div className="min-w-0">
-            <p className="text-xs font-semibold text-ink truncate font-display">{perfil.nombre}</p>
-            <p className="text-[10px] text-muted truncate font-inter">{perfil.correo}</p>
-          </div>
-        </div>
-      )}
 
       {/* Navigation */}
       <nav className="flex-1 px-4 py-2 flex flex-col gap-1 overflow-y-auto">
