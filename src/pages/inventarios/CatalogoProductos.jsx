@@ -39,8 +39,9 @@ export default function CatalogoProductos() {
       // Spring Pageable es 0-indexed; usar "size" no "limit"
       const params = new URLSearchParams({ page: page - 1, size: PAGE_SIZE });
       if (categoriaActiva !== 'Todos') params.set('categoria', categoriaActiva.toUpperCase());
-      if (filtroStock === 'bajo') params.set('stockBajo', 'true');
-      if (filtroStock === 'sin')  params.set('sinStock', 'true');
+      if (filtroStock === 'medio') params.set('stockMedio', 'true');
+      if (filtroStock === 'bajo')  params.set('stockBajo',  'true');
+      if (filtroStock === 'sin')   params.set('sinStock',   'true');
       const base = import.meta.env.VITE_API_BASE_URL ?? '';
       const res = await fetch(`${base}/api/catalogo/productos?${params}`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -50,8 +51,9 @@ export default function CatalogoProductos() {
       // Backend devuelve: { content, page, size, totalElements, totalPages }
       let lista = Array.isArray(data.content) ? data.content : [];
       // Filtrado client-side de respaldo (por si el backend no soporta el param)
-      if (filtroStock === 'bajo') lista = lista.filter(p => p.stockActual != null && p.stockActual <= p.stockMinimo);
-      if (filtroStock === 'sin')  lista = lista.filter(p => p.stockActual === 0 || p.stockActual == null);
+      if (filtroStock === 'medio') lista = lista.filter(p => p.stockActual != null && p.stockActual <= (p.stockMedio ?? p.stockMinimo));
+      if (filtroStock === 'bajo')  lista = lista.filter(p => p.stockActual != null && p.stockActual <= p.stockMinimo);
+      if (filtroStock === 'sin')   lista = lista.filter(p => p.stockActual === 0 || p.stockActual == null);
       setProductos(lista);
       setTotal(data.totalElements ?? 0);
       setTotalPages(data.totalPages ?? 1);
@@ -89,9 +91,10 @@ export default function CatalogoProductos() {
   };
 
   const FILTROS_STOCK = [
-    { value: '',     label: 'Todos los productos',  desc: 'Sin filtro aplicado',               icon: null, color: '' },
-    { value: 'bajo', label: 'Stock bajo',            desc: 'Stock actual ≤ stock mínimo',       icon: null, color: '' },
-    { value: 'sin',  label: 'Sin stock',             desc: 'Stock actual en 0 o no registrado', icon: null, color: '' },
+    { value: '',      label: 'Todos',        desc: 'Sin filtro aplicado'               },
+    { value: 'medio', label: 'Stock medio',  desc: 'Stock actual ≤ stock medio'        },
+    { value: 'bajo',  label: 'Stock mínimo', desc: 'Stock actual ≤ stock mínimo'       },
+    { value: 'sin',   label: 'Sin stock',    desc: 'Stock actual en 0 o no registrado' },
   ];
 
   return (

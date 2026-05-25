@@ -61,14 +61,17 @@ export default function CustomSelect({
     setOpen(v => !v);
   }, [disabled, filtered.length, searchable]);
 
-  /* ── Cerrar al click fuera o scroll ── */
+  /* ── Cerrar al click fuera o scroll (ignorar scroll interno del panel) ── */
   useEffect(() => {
     if (!open) return;
     const onDown = (e) => {
       if (!triggerRef.current?.contains(e.target) && !dropRef.current?.contains(e.target))
         setOpen(false);
     };
-    const onScroll = () => setOpen(false);
+    const onScroll = (e) => {
+      if (dropRef.current?.contains(e.target)) return;
+      setOpen(false);
+    };
     document.addEventListener('mousedown', onDown);
     window.addEventListener('scroll', onScroll, true);
     return () => {
