@@ -16,6 +16,10 @@ export function AuthProvider({ children }) {
 
     const unsub = onAuthStateChanged(auth, async (user) => {
       if (user) {
+        // Al hacer login necesitamos trabajo asíncrono (fetch perfil),
+        // así que activamos cargando para que ProtectedRoute espere.
+        if (!cancelled) setCargando(true);
+
         const result = await getIdTokenResult(user);
         if (cancelled) return;
         setUsuario(user);
@@ -28,13 +32,18 @@ export function AuthProvider({ children }) {
           if (cancelled) return;
           setPerfil(null);
         }
+        if (!cancelled) setCargando(false);
       } else {
+        // Al cerrar sesión no hay trabajo asíncrono: limpiamos estado
+        // directamente sin pasar por cargando=true para evitar el flash
+        // del spinner en ProtectedRoute. En la carga inicial, cargando
+        // ya es true por el useState(true), así que tampoco es necesario.
         if (cancelled) return;
         setUsuario(null);
         setPerfil(null);
         setToken(null);
+        setCargando(false);
       }
-      if (!cancelled) setCargando(false);
     });
 
     return () => {
@@ -53,7 +62,7 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider value={{ usuario, perfil, updatePerfil, token, cargando, rol: perfil?.rol ?? null, logout }}>
-      {!cargando && children}
+      {children}
     </AuthContext.Provider>
   );
 }

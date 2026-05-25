@@ -73,7 +73,11 @@
 
 body {
   font-family: var(--font-sans);
-  background-color: var(--color-canvas);
+  /* #EBEBEB coincide con el fondo del Login, así cualquier fotograma
+     "vacío" durante transiciones de ruta/auth es del mismo color y
+     no produce un destello visible. Las páginas del dashboard usan
+     bg-canvas (#fcf9f9) que sobreescribe este valor. */
+  background-color: #EBEBEB;
   color: var(--color-ink);
   margin: 0;
   -webkit-font-smoothing: antialiased;

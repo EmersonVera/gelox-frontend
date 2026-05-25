@@ -6,9 +6,8 @@ import RecuperarContrasena   from '../pages/RecuperarContrasena';
 import RestablecerContrasena from '../pages/RestablecerContrasena';
 import LandingPage           from '../pages/LandingPage';
 
-/* ── Compartidas (todos los roles) ── */
+/* ── Compartidas ── */
 import Ajustes           from '../pages/Ajustes';
-import CatalogoProductos from '../pages/CatalogoProductos';
 
 /* ── Módulo Administrador ── */
 import DashboardGerente from '../pages/administrador/DashboardGerente';
@@ -22,6 +21,14 @@ import DetalleCierre    from '../pages/administrador/DetalleCierre';
 /* ── Módulo Ventas ── */
 import DashboardVentas from '../pages/ventas/DashboardVentas';
 import PedidoRural     from '../pages/ventas/PedidoRural';
+
+/* ── Módulo Inventarios ── */
+import GestionInventarios from '../pages/inventarios/GestionInventarios';
+import RegistroMerma      from '../pages/inventarios/RegistroMerma';
+import RegistroEntrada    from '../pages/inventarios/RegistroEntrada';
+import GenerarPedido      from '../pages/inventarios/GenerarPedido';
+import ReportePedido      from '../pages/inventarios/ReportePedido';
+import CatalogoProductos from '../pages/inventarios/CatalogoProductos';
 
 /* ── Protección de rutas ── */
 import ProtectedRoute from './ProtectedRoute';
@@ -54,7 +61,7 @@ export default function AppRouter() {
         <Route path="/landing"                element={<LandingPage />} />
         <Route path="/"                       element={<Navigate to="/login" replace />} />
 
-        {/* ══ Administrador ══ */}
+        {/* ══ Solo Administrador ══ */}
         <Route element={<ProtectedRoute rolesPermitidos={['ADMINISTRADOR']} />}>
           <Route path="/dashboard/gerente"       element={<DashboardGerente />} />
           <Route path="/usuarios"                element={<GestionUsuarios />} />
@@ -63,25 +70,33 @@ export default function AppRouter() {
           <Route path="/reportes"                element={<Reportes />} />
           <Route path="/cierres-caja"            element={<HistorialCierres />} />
           <Route path="/cierres-caja/:id"        element={<DetalleCierre />} />
-          <Route path="/inventarios"             element={<EnConstruccion modulo="Inventarios" />} />
           <Route path="/comerciantes"            element={<EnConstruccion modulo="Comerciantes" />} />
-          <Route path="/ventas"                  element={<EnConstruccion modulo="Ventas" />} />
+          {/* Ajustes del admin — mantiene SidebarAdministrador */}
+          <Route path="/ajustes"                 element={<Ajustes />} />
         </Route>
 
-        {/* ══ Encargado de Ventas ══ */}
-        <Route element={<ProtectedRoute rolesPermitidos={['ENCARGADO_VENTAS']} />}>
-          <Route path="/dashboard/ventas"        element={<DashboardVentas />} />
+        {/* ══ Módulo Inventarios (Administrador + Encargado de Inventario) ══ */}
+        <Route element={<ProtectedRoute rolesPermitidos={['ADMINISTRADOR', 'ENCARGADO_INVENTARIO']} />}>
+          <Route path="/inventarios"                 element={<Navigate to="/inventarios/gestion" replace />} />
+          <Route path="/inventarios/gestion"         element={<GestionInventarios />} />
+          <Route path="/inventarios/merma"           element={<RegistroMerma />} />
+          <Route path="/inventarios/entrada"         element={<RegistroEntrada />} />
+          <Route path="/inventarios/catalogo"        element={<CatalogoProductos />} />
+          <Route path="/inventarios/generar-pedido"  element={<GenerarPedido />} />
+          <Route path="/inventarios/reporte-pedido"  element={<ReportePedido />} />
+          {/* Ajustes del módulo inventarios — mantiene SidebarInventarios */}
+          <Route path="/inventarios/ajustes"         element={<Ajustes />} />
+        </Route>
+
+        {/* ══ Módulo Ventas (Administrador + Encargado de Ventas) ══ */}
+        <Route element={<ProtectedRoute rolesPermitidos={['ADMINISTRADOR', 'ENCARGADO_VENTAS']} />}>
+          <Route path="/ventas"                  element={<Navigate to="/ventas/pedidos-rurales" replace />} />
           <Route path="/ventas/pedidos-rurales"  element={<PedidoRural />} />
           <Route path="/ventas/reportes"         element={<EnConstruccion modulo="Reportes de Ventas" />} />
           <Route path="/ventas/comerciantes"     element={<EnConstruccion modulo="Comerciantes" />} />
-        </Route>
-
-        {/* ══ Todos los roles ══ */}
-        <Route element={<ProtectedRoute rolesPermitidos={['ADMINISTRADOR', 'ENCARGADO_VENTAS']} />}>
-          <Route path="/ajustes"  element={<Ajustes />} />
-          <Route path="/catalogo" element={<CatalogoProductos />} />
-          {/* /inventarios redirige al catálogo mientras las demás vistas se desarrollan */}
-          <Route path="/inventarios" element={<Navigate to="/catalogo" replace />} />
+          <Route path="/dashboard/ventas"        element={<DashboardVentas />} />
+          {/* Ajustes del módulo ventas — mantiene SidebarVentas */}
+          <Route path="/ventas/ajustes"          element={<Ajustes />} />
         </Route>
 
         {/* ══ Fallbacks ══ */}

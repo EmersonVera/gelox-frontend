@@ -1,10 +1,10 @@
-// src/pages/CatalogoProductos.jsx — RF18
+// src/pages/inventarios/CatalogoProductos.jsx — RF18
 import { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '../context/AuthContext';
-import AppLayout from '../components/AppLayout';
-import NuevoProducto from '../components/catalogo/NuevoProducto';
-import EditarProducto from '../components/catalogo/EditarProducto';
-import ModalConfirmarEliminar from '../components/catalogo/ModalConfirmarEliminar';
+import { useAuth } from '../../context/AuthContext';
+import AppLayout from '../../components/AppLayout';
+import NuevoProducto from '../../components/catalogo/NuevoProducto';
+import EditarProducto from '../../components/catalogo/EditarProducto';
+import ModalConfirmarEliminar from '../../components/catalogo/ModalConfirmarEliminar';
 
 // Categorías que acepta el backend: PALETAS, CONOS, FAMILIARES
 const CATEGORIAS = ['Todos', 'Paletas', 'Conos', 'Familiares'];
