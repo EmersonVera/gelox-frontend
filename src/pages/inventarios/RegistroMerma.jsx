@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import AppLayout from '../../components/AppLayout';
+import CustomSelect from '../../components/ui/CustomSelect';
 
 const MOTIVOS  = ['Merma', 'Degustación', 'Daño', 'Vencimiento', 'Otro'];
 const UNIDADES = ['Unidades', 'Cajas'];
@@ -76,9 +77,9 @@ export default function RegistroMerma() {
     }
   };
 
-  const inputClass =
+  const inputClass  =
     "bg-[#f6f3f3] border-none rounded-[8px] px-4 py-3 font-['Inter'] text-[16px] text-[#1b1b1c] outline-none focus:ring-2 focus:ring-[#9e2016]/20 w-full";
-  const labelClass =
+  const labelClass  =
     "font-['Inter'] font-semibold text-[11px] uppercase tracking-[0.55px] text-[#1b1b1c] mb-2 block";
 
   return (
@@ -120,28 +121,19 @@ export default function RegistroMerma() {
             {/* Producto */}
             <div>
               <label className={labelClass}>Producto o Referencia</label>
-              <div className="relative">
-                <svg
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-[#a8a29e]"
-                  width="16" height="16" fill="none" viewBox="0 0 16 16"
-                >
-                  <circle cx="7" cy="7" r="5" stroke="currentColor" strokeWidth="1.3" />
-                  <path d="M11 11l3 3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-                </svg>
-                <select
-                  name="producto_id"
-                  value={form.producto_id}
-                  onChange={handleChange}
-                  className={`${inputClass} pl-10`}
-                >
-                  <option value="">Seleccione un producto del catálogo...</option>
-                  {productos.map(p => (
-                    <option key={p.id} value={p.id}>
-                      {p.nombre}{p.codigoTecnico || p.codigo_tecnico ? ` — ${p.codigoTecnico ?? p.codigo_tecnico}` : ''}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <CustomSelect
+                value={form.producto_id}
+                onChange={v => setForm(prev => ({ ...prev, producto_id: v }))}
+                options={[
+                  { value: '', label: 'Seleccione un producto del catálogo...' },
+                  ...productos.map(p => ({
+                    value: String(p.id),
+                    label: `${p.nombre}${p.codigoTecnico || p.codigo_tecnico ? ` — ${p.codigoTecnico ?? p.codigo_tecnico}` : ''}`,
+                  })),
+                ]}
+                placeholder="Seleccione un producto del catálogo..."
+                searchable
+              />
             </div>
 
             {/* Cantidad + Motivo */}
@@ -157,26 +149,21 @@ export default function RegistroMerma() {
                     min="0"
                     className={inputClass}
                   />
-                  <select
-                    name="unidad_medida"
+                  <CustomSelect
                     value={form.unidad_medida}
-                    onChange={handleChange}
-                    className="bg-[#f6f3f3] border-none rounded-[8px] px-3 font-['Inter'] text-[16px] text-[#1b1b1c] outline-none w-[120px] shrink-0"
-                  >
-                    {UNIDADES.map(u => <option key={u}>{u}</option>)}
-                  </select>
+                    onChange={v => setForm(prev => ({ ...prev, unidad_medida: v }))}
+                    options={UNIDADES}
+                    className="w-[120px] shrink-0"
+                  />
                 </div>
               </div>
               <div>
                 <label className={labelClass}>Motivo del Ajuste</label>
-                <select
-                  name="motivo"
+                <CustomSelect
                   value={form.motivo}
-                  onChange={handleChange}
-                  className={inputClass}
-                >
-                  {MOTIVOS.map(m => <option key={m}>{m}</option>)}
-                </select>
+                  onChange={v => setForm(prev => ({ ...prev, motivo: v }))}
+                  options={MOTIVOS}
+                />
               </div>
             </div>
 

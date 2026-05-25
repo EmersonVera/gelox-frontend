@@ -1,4 +1,5 @@
 // src/components/catalogo/ModalConfirmarEliminar.jsx
+import { createPortal } from 'react-dom';
 import { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -26,13 +27,13 @@ export default function ModalConfirmarEliminar({ producto, onClose, onSuccess })
     }
   };
 
-  return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+  return createPortal(
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[9999] p-4">
       <div className="bg-white rounded-[16px] w-[400px] p-8 shadow-2xl flex flex-col gap-6">
         <div className="flex flex-col items-center text-center gap-3">
           <div className="w-14 h-14 rounded-full bg-[#fef2f2] flex items-center justify-center">
             <svg width="24" height="24" fill="none" viewBox="0 0 24 24">
-              <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M5 6l1 14a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-14" stroke="#dc2626" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M5 6l1 14a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-14" stroke="#dc2626" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </div>
           <h3 className="font-['Manrope'] font-bold text-[18px] text-[#1b1b1c]">¿Eliminar producto?</h3>
@@ -59,6 +60,7 @@ export default function ModalConfirmarEliminar({ producto, onClose, onSuccess })
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
