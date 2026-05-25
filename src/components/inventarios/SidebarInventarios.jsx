@@ -94,7 +94,7 @@ function CloseIcon() {
  *  pronto: false → ítem funcional: NavLink con estado activo
  * ─────────────────────────────────────────────────────────────────── */
 const LINKS = [
-  { icon: <PackageIcon />,      label: 'Gestión de Inventarios', to: '/inventarios/gestion',        pronto: true  },
+  { icon: <PackageIcon />,      label: 'Gestión de Inventarios', to: '/inventarios/gestion',        pronto: false },
   { icon: <TrendingDownIcon />, label: 'Registro de Merma',      to: '/inventarios/merma',          pronto: false },
   { icon: <InboxIcon />,        label: 'Registro de Entrada',    to: '/inventarios/entrada',        pronto: false },
   { icon: <GridIcon />,         label: 'Catálogo',               to: '/inventarios/catalogo',       pronto: false },
