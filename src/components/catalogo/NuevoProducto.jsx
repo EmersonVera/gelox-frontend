@@ -1,11 +1,13 @@
 // src/components/catalogo/NuevoProducto.jsx — RF19
-import { useForm } from 'react-hook-form';
+import { createPortal } from 'react-dom';
+import { useForm, Controller } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import { useState } from 'react';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import app from '../../auth/firebase';
 import { useAuth } from '../../context/AuthContext';
+import CustomSelect from '../ui/CustomSelect';
 
 const CATEGORIAS_OPT = ['Paletas', 'Conos', 'Familiares'];
 const UNIDADES_OPT   = ['Unidades', 'Cajas', 'Litros'];
@@ -30,7 +32,7 @@ export default function NuevoProducto({ onClose, onSuccess }) {
   const [guardando, setGuardando] = useState(false);
   const [errorApi, setErrorApi]   = useState('');
 
-  const { register, handleSubmit, formState: { errors } } = useForm({
+  const { register, handleSubmit, control, formState: { errors } } = useForm({
     resolver: yupResolver(schema),
     defaultValues: { stockMedio: 0, stockMinimo: 0, unidadMedida: 'Unidades', categoria: '' },
   });
@@ -44,8 +46,8 @@ export default function NuevoProducto({ onClose, onSuccess }) {
   };
 
   const subirImagen = async (file) => {
-    const storage  = getStorage(app);
-    const nombre   = `catalogo/${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
+    const storage    = getStorage(app);
+    const nombre     = `catalogo/${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
     const storageRef = ref(storage, nombre);
     await uploadBytes(storageRef, file);
     return await getDownloadURL(storageRef);
@@ -55,18 +57,13 @@ export default function NuevoProducto({ onClose, onSuccess }) {
     setGuardando(true);
     setErrorApi('');
     try {
-      // Subir imagen a Firebase Storage si el usuario seleccionó una
       let imagenUrl = null;
-      if (imagen) {
-        imagenUrl = await subirImagen(imagen);
-      }
+      if (imagen) imagenUrl = await subirImagen(imagen);
 
-      // El backend recibe JSON camelCase; stockMedio y unidadMedida no están en
-      // CrearProductoRequest pero se ignoran silenciosamente por Jackson.
       const body = {
         codigoTecnico: data.codigoTecnico,
         nombre:        data.nombre,
-        categoria:     data.categoria.toUpperCase(),   // PALETAS | CONOS | FAMILIARES
+        categoria:     data.categoria.toUpperCase(),
         precioVenta:   data.precioVenta,
         precioCosto:   data.precioCosto,
         descripcion:   data.descripcion,
@@ -76,12 +73,9 @@ export default function NuevoProducto({ onClose, onSuccess }) {
 
       const base = import.meta.env.VITE_API_BASE_URL ?? '';
       const res = await fetch(`${base}/api/catalogo/productos`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(body),
+        method:  'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body:    JSON.stringify(body),
       });
 
       if (!res.ok) {
@@ -97,12 +91,12 @@ export default function NuevoProducto({ onClose, onSuccess }) {
     }
   };
 
-  const inputClass = "bg-[#f6f3f3] border-none rounded-[8px] px-4 py-3 font-['Inter'] text-[16px] text-[#1b1b1c] outline-none focus:ring-2 focus:ring-[#9e2016]/20 w-full";
-  const labelClass = "font-['Inter'] font-semibold text-[11px] uppercase tracking-[0.55px] text-[#1b1b1c] mb-2 block";
-  const errorClass = "font-['Inter'] text-[12px] text-[#dc2626] mt-1";
+  const inputClass  = "bg-[#f6f3f3] border-none rounded-[8px] px-4 py-3 font-['Inter'] text-[16px] text-[#1b1b1c] outline-none focus:ring-2 focus:ring-[#9e2016]/20 w-full";
+  const labelClass  = "font-['Inter'] font-semibold text-[11px] uppercase tracking-[0.55px] text-[#1b1b1c] mb-2 block";
+  const errorClass  = "font-['Inter'] text-[12px] text-[#dc2626] mt-1";
 
-  return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+  return createPortal(
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[9999] p-4">
       <div className="bg-white rounded-[16px] w-[520px] max-h-[90vh] overflow-y-auto shadow-2xl">
         <div className="p-8 flex flex-col gap-6">
 
@@ -118,7 +112,7 @@ export default function NuevoProducto({ onClose, onSuccess }) {
             </div>
             <button onClick={onClose} className="text-[#78716c] hover:text-[#1b1b1c] cursor-pointer mt-1">
               <svg width="20" height="20" fill="none" viewBox="0 0 20 20">
-                <path d="M15 5L5 15M5 5l10 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                <path d="M15 5L5 15M5 5l10 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
               </svg>
             </button>
           </div>
@@ -143,10 +137,20 @@ export default function NuevoProducto({ onClose, onSuccess }) {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className={labelClass}>Categoría</label>
-                <select {...register('categoria')} className={inputClass}>
-                  <option value="">Seleccionar...</option>
-                  {CATEGORIAS_OPT.map((c) => <option key={c}>{c}</option>)}
-                </select>
+                <Controller
+                  control={control}
+                  name="categoria"
+                  render={({ field }) => (
+                    <CustomSelect
+                      value={field.value}
+                      onChange={field.onChange}
+                      options={[
+                        { value: '', label: 'Seleccionar...' },
+                        ...CATEGORIAS_OPT.map(c => ({ value: c, label: c })),
+                      ]}
+                    />
+                  )}
+                />
                 {errors.categoria && <p className={errorClass}>{errors.categoria.message}</p>}
               </div>
               <div>
@@ -186,7 +190,7 @@ export default function NuevoProducto({ onClose, onSuccess }) {
             <div className="bg-[#fef2f2] rounded-[12px] p-4 flex flex-col gap-4">
               <div className="flex items-center gap-2">
                 <svg width="14" height="14" fill="none" viewBox="0 0 14 14">
-                  <path d="M7 1a4 4 0 0 1 4 4c0 3 1 4 1 4H2s1-1 1-4a4 4 0 0 1 4-4zM5.5 9a1.5 1.5 0 0 0 3 0" stroke="#9e2016" strokeWidth="1.2" strokeLinecap="round"/>
+                  <path d="M7 1a4 4 0 0 1 4 4c0 3 1 4 1 4H2s1-1 1-4a4 4 0 0 1 4-4zM5.5 9a1.5 1.5 0 0 0 3 0" stroke="#9e2016" strokeWidth="1.2" strokeLinecap="round" />
                 </svg>
                 <span className="font-['Inter'] font-bold text-[11px] uppercase tracking-[0.55px] text-[#9e2016]">
                   Configuración de Alertas
@@ -205,9 +209,17 @@ export default function NuevoProducto({ onClose, onSuccess }) {
                 </div>
                 <div>
                   <label className={labelClass}>Unidad de Medida</label>
-                  <select {...register('unidadMedida')} className={inputClass}>
-                    {UNIDADES_OPT.map((u) => <option key={u}>{u}</option>)}
-                  </select>
+                  <Controller
+                    control={control}
+                    name="unidadMedida"
+                    render={({ field }) => (
+                      <CustomSelect
+                        value={field.value}
+                        onChange={field.onChange}
+                        options={UNIDADES_OPT}
+                      />
+                    )}
+                  />
                 </div>
               </div>
             </div>
@@ -226,10 +238,10 @@ export default function NuevoProducto({ onClose, onSuccess }) {
                   <>
                     <div className="w-12 h-12 rounded-full bg-[#fef2f2] flex items-center justify-center">
                       <svg width="22" height="22" fill="none" viewBox="0 0 22 22">
-                        <path d="M3 17l4-4 3 3 4-5 5 6H3z" stroke="#9e2016" strokeWidth="1.4" strokeLinejoin="round"/>
-                        <circle cx="7.5" cy="8.5" r="1.5" stroke="#9e2016" strokeWidth="1.4"/>
-                        <rect x="1" y="3" width="20" height="16" rx="2" stroke="#9e2016" strokeWidth="1.4"/>
-                        <path d="M15 1v4M13 3h4" stroke="#9e2016" strokeWidth="1.4" strokeLinecap="round"/>
+                        <path d="M3 17l4-4 3 3 4-5 5 6H3z" stroke="#9e2016" strokeWidth="1.4" strokeLinejoin="round" />
+                        <circle cx="7.5" cy="8.5" r="1.5" stroke="#9e2016" strokeWidth="1.4" />
+                        <rect x="1" y="3" width="20" height="16" rx="2" stroke="#9e2016" strokeWidth="1.4" />
+                        <path d="M15 1v4M13 3h4" stroke="#9e2016" strokeWidth="1.4" strokeLinecap="round" />
                       </svg>
                     </div>
                     <div className="text-center">
@@ -267,6 +279,7 @@ export default function NuevoProducto({ onClose, onSuccess }) {
           </form>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

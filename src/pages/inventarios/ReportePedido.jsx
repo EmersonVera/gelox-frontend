@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import AppLayout from '../../components/AppLayout';
+import CustomSelect from '../../components/ui/CustomSelect';
 
 const base = import.meta.env.VITE_API_BASE_URL ?? '';
 
@@ -70,8 +71,6 @@ export default function ReportePedido() {
 
   useEffect(() => { fetchPedidos(); }, [fetchPedidos]);
 
-  const selectClass =
-    "bg-[#f6f3f3] border-none rounded-[8px] px-3 py-2.5 font-['Inter'] text-[14px] text-[#1b1b1c] outline-none focus:ring-2 focus:ring-[#9e2016]/20";
 
   return (
     <AppLayout>
@@ -141,28 +140,30 @@ export default function ReportePedido() {
           </div>
           <div className="flex items-center gap-2">
             <span className="font-['Inter'] font-medium text-[14px] text-[#57534e]">Estado:</span>
-            <select
+            <CustomSelect
               value={estado}
-              onChange={e => { setEstado(e.target.value); setPage(1); }}
-              className={selectClass}
-            >
-              <option value="">Todos los estados</option>
-              <option value="PENDIENTE">Pendiente</option>
-              <option value="COMPLETO">Completo</option>
-              <option value="DISCREPANCIA">Discrepancia</option>
-            </select>
+              onChange={v => { setEstado(v); setPage(1); }}
+              options={[
+                { value: '', label: 'Todos los estados' },
+                { value: 'PENDIENTE', label: 'Pendiente' },
+                { value: 'COMPLETO', label: 'Completo' },
+                { value: 'DISCREPANCIA', label: 'Discrepancia' },
+              ]}
+              size="sm"
+            />
           </div>
           <div className="flex items-center gap-2">
             <span className="font-['Inter'] font-medium text-[14px] text-[#57534e]">Fecha:</span>
-            <select
+            <CustomSelect
               value={fecha}
-              onChange={e => { setFecha(e.target.value); setPage(1); }}
-              className={selectClass}
-            >
-              <option value="30d">Últimos 30 días</option>
-              <option value="7d">Últimos 7 días</option>
-              <option value="mes">Este mes</option>
-            </select>
+              onChange={v => { setFecha(v); setPage(1); }}
+              options={[
+                { value: '30d', label: 'Últimos 30 días' },
+                { value: '7d', label: 'Últimos 7 días' },
+                { value: 'mes', label: 'Este mes' },
+              ]}
+              size="sm"
+            />
           </div>
         </div>
 

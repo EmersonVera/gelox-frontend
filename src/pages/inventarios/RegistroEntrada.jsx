@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import AppLayout from '../../components/AppLayout';
 import CantidadControl from '../../components/inventarios/CantidadControl';
+import CustomSelect from '../../components/ui/CustomSelect';
 
 const CATEGORIAS = ['Todos', 'Paletas', 'Conos', 'Vaso', 'Litros'];
 const base = import.meta.env.VITE_API_BASE_URL ?? '';
@@ -163,18 +164,16 @@ export default function RegistroEntrada() {
           <label className="font-['Inter'] font-semibold text-[11px] uppercase tracking-[0.55px] text-[#1b1b1c] mb-2 block">
             Selecciona Pedido
           </label>
-          <select
+          <CustomSelect
             value={pedidoSeleccionado}
-            onChange={e => setPedidoSeleccionado(e.target.value)}
-            className="bg-[#f6f3f3] border-none rounded-[8px] px-4 py-2.5 font-['Inter'] text-[14px] text-[#1b1b1c] outline-none focus:ring-2 focus:ring-[#9e2016]/20 min-w-[220px]"
-          >
-            <option value="">-- Seleccionar pedido --</option>
-            {pedidos.map(p => (
-              <option key={p.id} value={p.id}>
-                {p.nombre ?? p.id_pedido ?? p.id}
-              </option>
-            ))}
-          </select>
+            onChange={setPedidoSeleccionado}
+            options={[
+              { value: '', label: '-- Seleccionar pedido --' },
+              ...pedidos.map(p => ({ value: String(p.id), label: p.nombre ?? p.id_pedido ?? String(p.id) })),
+            ]}
+            className="min-w-[220px]"
+            size="sm"
+          />
         </div>
 
         <div className="flex gap-6 items-start">

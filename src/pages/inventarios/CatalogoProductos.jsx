@@ -1,5 +1,5 @@
 // src/pages/inventarios/CatalogoProductos.jsx — RF18
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import AppLayout from '../../components/AppLayout';
 import NuevoProducto from '../../components/catalogo/NuevoProducto';
@@ -25,10 +25,13 @@ export default function CatalogoProductos() {
   const [totalPages, setTotalPages]           = useState(1);
   const [page, setPage]                       = useState(1);          // 1-indexed para UI
   const [categoriaActiva, setCategoriaActiva] = useState('Todos');
+  const [filtroStock, setFiltroStock]         = useState('');        // '' | 'bajo' | 'sin'
+  const [filtroOpen, setFiltroOpen]           = useState(false);
   const [cargando, setCargando]               = useState(true);
   const [modalNuevo, setModalNuevo]           = useState(false);
   const [productoEditar, setProductoEditar]   = useState(null);
   const [productoEliminar, setProductoEliminar] = useState(null);
+  const filtroRef = useRef(null);
 
   const fetchProductos = useCallback(async () => {
     setCargando(true);
@@ -36,6 +39,8 @@ export default function CatalogoProductos() {
       // Spring Pageable es 0-indexed; usar "size" no "limit"
       const params = new URLSearchParams({ page: page - 1, size: PAGE_SIZE });
       if (categoriaActiva !== 'Todos') params.set('categoria', categoriaActiva.toUpperCase());
+      if (filtroStock === 'bajo') params.set('stockBajo', 'true');
+      if (filtroStock === 'sin')  params.set('sinStock', 'true');
       const base = import.meta.env.VITE_API_BASE_URL ?? '';
       const res = await fetch(`${base}/api/catalogo/productos?${params}`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -43,7 +48,11 @@ export default function CatalogoProductos() {
       if (!res.ok) throw new Error(`Error ${res.status}`);
       const data = await res.json();
       // Backend devuelve: { content, page, size, totalElements, totalPages }
-      setProductos(Array.isArray(data.content) ? data.content : []);
+      let lista = Array.isArray(data.content) ? data.content : [];
+      // Filtrado client-side de respaldo (por si el backend no soporta el param)
+      if (filtroStock === 'bajo') lista = lista.filter(p => p.stockActual != null && p.stockActual <= p.stockMinimo);
+      if (filtroStock === 'sin')  lista = lista.filter(p => p.stockActual === 0 || p.stockActual == null);
+      setProductos(lista);
       setTotal(data.totalElements ?? 0);
       setTotalPages(data.totalPages ?? 1);
     } catch (e) {
@@ -54,14 +63,36 @@ export default function CatalogoProductos() {
     } finally {
       setCargando(false);
     }
-  }, [token, page, categoriaActiva]);
+  }, [token, page, categoriaActiva, filtroStock]);
 
   useEffect(() => { fetchProductos(); }, [fetchProductos]);
+
+  // Cerrar panel de filtros al hacer clic fuera
+  useEffect(() => {
+    if (!filtroOpen) return;
+    const handler = (e) => {
+      if (!filtroRef.current?.contains(e.target)) setFiltroOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [filtroOpen]);
 
   const handleCategoriaChange = (cat) => {
     setCategoriaActiva(cat);
     setPage(1);
   };
+
+  const handleFiltroStock = (valor) => {
+    setFiltroStock(valor);
+    setFiltroOpen(false);
+    setPage(1);
+  };
+
+  const FILTROS_STOCK = [
+    { value: '',     label: 'Todos los productos',  desc: 'Sin filtro aplicado',               icon: null, color: '' },
+    { value: 'bajo', label: 'Stock bajo',            desc: 'Stock actual ≤ stock mínimo',       icon: null, color: '' },
+    { value: 'sin',  label: 'Sin stock',             desc: 'Stock actual en 0 o no registrado', icon: null, color: '' },
+  ];
 
   return (
     <AppLayout>
@@ -78,12 +109,63 @@ export default function CatalogoProductos() {
             </p>
           </div>
           <div className="flex gap-3">
-            <button className="flex items-center gap-2 border border-[#e7e5e4] bg-white rounded-[8px] px-4 py-2 font-['Inter'] font-medium text-[14px] text-[#1b1b1c] hover:bg-[#f6f3f3] cursor-pointer transition-colors">
-              <svg width="16" height="16" fill="none" viewBox="0 0 16 16">
-                <path d="M2 4h12M4 8h8M6 12h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-              </svg>
-              Filtros
-            </button>
+            {/* ── Botón Filtros con panel desplegable ── */}
+            <div className="relative" ref={filtroRef}>
+              <button
+                onClick={() => setFiltroOpen(v => !v)}
+                className={[
+                  'flex items-center gap-2 border rounded-[8px] px-4 py-2',
+                  "font-['Inter'] font-medium text-[14px] cursor-pointer transition-colors",
+                  filtroStock
+                    ? 'border-[#9e2016] bg-[#fef2f2] text-[#9e2016]'
+                    : 'border-[#e7e5e4] bg-white text-[#1b1b1c] hover:bg-[#f6f3f3]',
+                ].join(' ')}
+              >
+                <svg width="16" height="16" fill="none" viewBox="0 0 16 16">
+                  <path d="M2 4h12M4 8h8M6 12h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                </svg>
+                Filtros
+                {filtroStock && (
+                  <span className="w-2 h-2 bg-[#9e2016] rounded-full shrink-0" />
+                )}
+              </button>
+
+              {filtroOpen && (
+                <div className="absolute right-0 top-full mt-1.5 bg-white border border-[#f0eded] rounded-[12px] shadow-2xl overflow-hidden z-50 min-w-[220px]">
+                  <p className="px-4 pt-3 pb-1 font-['Inter'] font-semibold text-[10px] uppercase tracking-[0.55px] text-[#a8a29e]">
+                    Filtrar por stock
+                  </p>
+                  <ul className="py-1.5">
+                    {FILTROS_STOCK.map(opt => (
+                      <li key={opt.value}>
+                        <button
+                          type="button"
+                          onClick={() => handleFiltroStock(opt.value)}
+                          className={[
+                            'w-full px-4 py-2.5 text-left transition-colors duration-100',
+                            filtroStock === opt.value
+                              ? 'bg-[#fef2f2]'
+                              : 'hover:bg-[#f6f3f3]',
+                          ].join(' ')}
+                        >
+                          <div className="flex-1">
+                            <p className={`font-['Inter'] font-semibold text-[14px] ${
+                              filtroStock === opt.value ? 'text-[#9e2016]' : 'text-[#1b1b1c]'
+                            }`}>
+                              {opt.label}
+                            </p>
+                            <p className="font-['Inter'] font-normal text-[12px] text-[#a8a29e] mt-0.5">
+                              {opt.desc}
+                            </p>
+                          </div>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+
             <button
               onClick={() => setModalNuevo(true)}
               className="flex items-center gap-2 bg-[#9e2016] hover:bg-[#c0392b] text-white rounded-[8px] px-4 py-2 font-['Manrope'] font-bold text-[14px] cursor-pointer transition-colors"
@@ -93,8 +175,8 @@ export default function CatalogoProductos() {
           </div>
         </div>
 
-        {/* Pills categoría */}
-        <div className="flex gap-2 flex-wrap">
+        {/* Pills categoría + badge filtro activo */}
+        <div className="flex items-center gap-2 flex-wrap">
           {CATEGORIAS.map((cat) => (
             <button
               key={cat}
@@ -108,6 +190,18 @@ export default function CatalogoProductos() {
               {cat}
             </button>
           ))}
+          {filtroStock && (
+            <span className="flex items-center gap-1.5 bg-[#fef2f2] border border-[#9e2016]/20 text-[#9e2016] rounded-full px-3 py-1 font-['Inter'] font-semibold text-[13px]">
+              {FILTROS_STOCK.find(f => f.value === filtroStock)?.label}
+              <button
+                onClick={() => handleFiltroStock('')}
+                className="ml-0.5 text-[#9e2016]/60 hover:text-[#9e2016] cursor-pointer transition-colors"
+                title="Quitar filtro"
+              >
+                ×
+              </button>
+            </span>
+          )}
         </div>
 
         {/* Grid */}

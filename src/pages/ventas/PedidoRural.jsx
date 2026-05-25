@@ -6,6 +6,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import AppLayout from '../../components/AppLayout';
 import api from '../../api/axiosConfig';
+import CustomSelect from '../../components/ui/CustomSelect';
 
 const formatCOP = (n) => '$' + Number(n || 0).toLocaleString('es-CO', { minimumFractionDigits: 0 });
 const fechaHoy  = () => new Date().toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -31,8 +32,6 @@ function AlertIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" fi
 function CheckIcon() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>; }
 function SpinIcon() { return <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>; }
 function PackageIcon() { return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>; }
-function ChevronDownIcon() { return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="6 9 12 15 18 9"/></svg>; }
-
 const inputCls = 'w-full bg-white border border-zinc-200 rounded-xl px-4 py-2.5 text-sm font-inter outline-none focus:border-[#9e2016] focus:ring-2 focus:ring-[#9e2016]/15 transition-all duration-200 text-zinc-900 placeholder:text-zinc-400';
 const labelCls = 'block text-[10px] font-bold uppercase tracking-widest text-zinc-500 font-inter mb-1.5';
 
@@ -302,19 +301,16 @@ export default function PedidoRural() {
                     {/* Dropdown clientes guardados */}
                     <div>
                       <p className={labelCls}>Clientes Guardados</p>
-                      <div className="relative">
-                        <select value={clienteIdSel} onChange={(e) => handleSelectCliente(e.target.value)}
-                          className={`${inputCls} appearance-none pr-10 ${loadingClientes ? 'opacity-60' : ''}`}
-                          disabled={loadingClientes}>
-                          <option value="">Seleccionar cliente guardado...</option>
-                          {clientes.map((c) => (
-                            <option key={c.id} value={String(c.id)}>{c.nombre} · {c.telefono}</option>
-                          ))}
-                        </select>
-                        <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400">
-                          <ChevronDownIcon />
-                        </span>
-                      </div>
+                      <CustomSelect
+                        value={clienteIdSel}
+                        onChange={handleSelectCliente}
+                        options={[
+                          { value: '', label: 'Seleccionar cliente guardado...' },
+                          ...clientes.map(c => ({ value: String(c.id), label: `${c.nombre} · ${c.telefono}` })),
+                        ]}
+                        disabled={loadingClientes}
+                        searchable
+                      />
                       <p className="text-[11px] text-zinc-400 font-inter mt-1.5">
                         Al seleccionar, los campos se autocompletán automáticamente.
                       </p>

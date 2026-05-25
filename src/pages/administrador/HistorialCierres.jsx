@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import AppLayout from '../../components/AppLayout';
 import api from '../../api/axiosConfig';
+import CustomSelect from '../../components/ui/CustomSelect';
 
 const ESTADOS = [
   { value: '',         label: 'Cualquier estado' },
@@ -114,9 +115,11 @@ export default function HistorialCierres() {
         </div>
         <div className="w-[240px] min-w-[200px]">
           <label className={labelClass}>Estado (Diferencia)</label>
-          <select value={estado} onChange={(e) => setEstado(e.target.value)} className={inputClass}>
-            {ESTADOS.map((e) => <option key={e.value} value={e.value}>{e.label}</option>)}
-          </select>
+          <CustomSelect
+            value={estado}
+            onChange={setEstado}
+            options={ESTADOS}
+          />
         </div>
         <button onClick={handleAplicar}
           className="flex items-center gap-2 bg-[#9e2016] hover:bg-[#c0392b] text-white font-['Manrope'] font-bold text-[14px] rounded-[8px] px-5 py-3 cursor-pointer transition-colors shrink-0">
