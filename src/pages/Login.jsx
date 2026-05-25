@@ -16,7 +16,7 @@ const schema = yup.object({
 const ROLE_REDIRECT = {
   ADMINISTRADOR:        '/dashboard/gerente',
   ENCARGADO_INVENTARIO: '/inventarios/gestion',
-  ENCARGADO_VENTAS:     '/dashboard/ventas',
+  ENCARGADO_VENTAS:     '/ventas/pedidos-ventanilla',
 };
 
 function EnvelopeIcon() {
