@@ -1,5 +1,6 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import api from '../../api/axiosConfig';
 
 /* ── Icons ── */
 function GridIcon() {
@@ -106,26 +107,20 @@ const LINKS = [
   { icon: <ChartIcon />,   label: 'Reportes',        to: '/reportes' },
   { icon: <ReceiptIcon />, label: 'Cierres de Caja', to: '/cierres-caja' },
   { icon: <UsersIcon />,   label: 'Usuarios',        to: '/usuarios' },
-  { icon: <BoxIcon />,     label: 'Inventarios',     to: '/inventarios' },
+  { icon: <BoxIcon />,     label: 'Inventarios',     to: '/inventarios/gestion' },
   { icon: <StoreIcon />,   label: 'Comerciantes',    to: '/comerciantes' },
-  { icon: <CartIcon />,    label: 'Ventas',          to: '/ventas' },
+  { icon: <CartIcon />,    label: 'Ventas',          to: '/ventas/pedidos-rurales' },
 ];
 
 const navItemBase =
   'flex items-center gap-3 px-4 py-3 rounded-xl text-sm transition duration-300 active:scale-[0.97] w-full text-left font-display';
 
 export default function SidebarAdministrador({ open, onClose }) {
-  const { perfil, logout, token } = useAuth();
+  const { perfil, logout } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
-    fetch('/api/auth/cerrar-sesion', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    }).catch(() => {});
+    api.post('/api/auth/cerrar-sesion').catch(() => {});
     try {
       await logout();
     } finally {
@@ -193,7 +188,7 @@ export default function SidebarAdministrador({ open, onClose }) {
       </nav>
 
       {/* Bottom section */}
-      <div className="px-6 py-5 border-t border-border flex flex-col gap-0.5">
+      <div className="px-4 py-5 border-t border-border flex flex-col gap-0.5">
         <NavLink to="/ajustes" className={linkClass} onClick={handleNavClick}>
           <span className="shrink-0"><SettingsIcon /></span>
           Ajustes

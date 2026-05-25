@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
@@ -14,9 +14,9 @@ const schema = yup.object({
 });
 
 const ROLE_REDIRECT = {
-  ADMINISTRADOR: '/dashboard/gerente',
-  ENCARGADO_INVENTARIO: '/catalogo',
-  ENCARGADO_VENTAS: '/dashboard/ventas',
+  ADMINISTRADOR:        '/dashboard/gerente',
+  ENCARGADO_INVENTARIO: '/inventarios/gestion',
+  ENCARGADO_VENTAS:     '/dashboard/ventas',
 };
 
 function EnvelopeIcon() {
@@ -67,6 +67,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [errorGeneral, setErrorGeneral] = useState('');
   const navigate = useNavigate();
+  const { usuario, rol, cargando } = useAuth();
 
   const {
     register,
@@ -74,19 +75,43 @@ export default function Login() {
     formState: { errors },
   } = useForm({ resolver: yupResolver(schema) });
 
+  /**
+   * Guard reactivo: navega cuando AuthContext confirma que usuario Y rol
+   * están listos. Esto cubre dos casos:
+   *   1. El usuario acaba de hacer login (onAuthStateChanged ya resolvió).
+   *   2. El usuario ya tenía sesión activa y navegó al /login directamente.
+   * Al delegar la navegación aquí — en lugar de hacerla desde onSubmit —
+   * se elimina la race condition que causaba que ProtectedRoute viera
+   * usuario=null y redirigiera de vuelta a /login.
+   */
+  useEffect(() => {
+    if (!cargando && usuario && rol) {
+      navigate(ROLE_REDIRECT[rol] ?? '/dashboard/gerente', { replace: true });
+    }
+  }, [cargando, usuario, rol, navigate]);
+
+  // Oculta la UI solo cuando NO hay un envío en curso.
+  // Si loading=true el formulario debe quedarse visible ("Iniciando sesión…")
+  // para que el botón de carga no desaparezca de golpe cuando cargando pase
+  // a true tras el onAuthStateChanged.
+  if (!loading && (cargando || usuario)) {
+    return <div className="min-h-screen bg-[#EBEBEB]" />;
+  }
+
   const onSubmit = async ({ correo, contrasena }) => {
     setLoading(true);
     setErrorGeneral('');
     try {
       const credencial = await signInWithEmailAndPassword(auth, correo, contrasena);
       const token = await credencial.user.getIdToken();
-      const { data: perfil } = await api.post(
+      // Notificar al backend para que registre la sesión.
+      // La navegación la maneja el useEffect de arriba cuando
+      // AuthContext confirme usuario + rol — no navegamos aquí.
+      await api.post(
         '/api/auth/verificar',
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      const destino = ROLE_REDIRECT[perfil.rol] ?? '/login';
-      navigate(destino, { replace: true });
     } catch (err) {
       const code = err?.code ?? '';
       if (code === 'auth/invalid-credential' || code === 'auth/wrong-password' || code === 'auth/user-not-found') {
@@ -96,7 +121,8 @@ export default function Login() {
       } else {
         setErrorGeneral('Error al iniciar sesión, intente de nuevo');
       }
-    } finally {
+      // Solo resetear loading en error; en éxito el componente se desmonta
+      // cuando el useEffect navega al dashboard.
       setLoading(false);
     }
   };
