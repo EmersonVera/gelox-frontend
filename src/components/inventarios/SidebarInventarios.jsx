@@ -95,11 +95,11 @@ function CloseIcon() {
  * ─────────────────────────────────────────────────────────────────── */
 const LINKS = [
   { icon: <PackageIcon />,      label: 'Gestión de Inventarios', to: '/inventarios/gestion',        pronto: true  },
-  { icon: <TrendingDownIcon />, label: 'Registro de Merma',      to: '/inventarios/merma',          pronto: true  },
-  { icon: <InboxIcon />,        label: 'Registro de Entrada',    to: '/inventarios/entrada',        pronto: true  },
+  { icon: <TrendingDownIcon />, label: 'Registro de Merma',      to: '/inventarios/merma',          pronto: false },
+  { icon: <InboxIcon />,        label: 'Registro de Entrada',    to: '/inventarios/entrada',        pronto: false },
   { icon: <GridIcon />,         label: 'Catálogo',               to: '/inventarios/catalogo',       pronto: false },
-  { icon: <ClipboardIcon />,    label: 'Generar Pedido',         to: '/inventarios/generar-pedido', pronto: true  },
-  { icon: <FileTextIcon />,     label: 'Reporte Pedido',         to: '/inventarios/reporte-pedido', pronto: true  },
+  { icon: <ClipboardIcon />,    label: 'Generar Pedido',         to: '/inventarios/generar-pedido', pronto: false },
+  { icon: <FileTextIcon />,     label: 'Reporte Pedido',         to: '/inventarios/reporte-pedido', pronto: false },
 ];
 
 const navItemBase =

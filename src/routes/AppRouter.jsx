@@ -28,7 +28,8 @@ import RegistroMerma      from '../pages/inventarios/RegistroMerma';
 import RegistroEntrada    from '../pages/inventarios/RegistroEntrada';
 import GenerarPedido      from '../pages/inventarios/GenerarPedido';
 import ReportePedido      from '../pages/inventarios/ReportePedido';
-import CatalogoProductos from '../pages/inventarios/CatalogoProductos';
+import DetallePedido      from '../pages/inventarios/DetallePedido';
+import CatalogoProductos  from '../pages/inventarios/CatalogoProductos';
 
 /* ── Protección de rutas ── */
 import ProtectedRoute from './ProtectedRoute';
@@ -84,6 +85,7 @@ export default function AppRouter() {
           <Route path="/inventarios/catalogo"        element={<CatalogoProductos />} />
           <Route path="/inventarios/generar-pedido"  element={<GenerarPedido />} />
           <Route path="/inventarios/reporte-pedido"  element={<ReportePedido />} />
+          <Route path="/inventarios/pedidos/:id"     element={<DetallePedido />} />
           {/* Ajustes del módulo inventarios — mantiene SidebarInventarios */}
           <Route path="/inventarios/ajustes"         element={<Ajustes />} />
         </Route>
