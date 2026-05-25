@@ -60,9 +60,13 @@ export default function RegistroEntrada() {
 
   useEffect(() => { fetchProductos(); }, [fetchProductos]);
 
-  const seleccionar = (p) => {
-    if (carrito.find(i => i.producto.id === p.id)) return;
-    setCarrito(prev => [...prev, { producto: p, cajas: 1, unidades: 0 }]);
+  const toggleSeleccionar = (p) => {
+    const enCarrito = carrito.find(i => i.producto.id === p.id);
+    if (enCarrito) {
+      setCarrito(prev => prev.filter(i => i.producto.id !== p.id));
+    } else {
+      setCarrito(prev => [...prev, { producto: p, cajas: 1, unidades: 0 }]);
+    }
   };
 
   const eliminar = (id) =>
@@ -237,16 +241,17 @@ export default function RegistroEntrada() {
                           {p.descripcion}
                         </p>
                         <button
-                          onClick={() => seleccionar(p)}
-                          disabled={enCarrito}
+                          onClick={() => toggleSeleccionar(p)}
                           className={`flex items-center justify-center gap-2 border rounded-full px-4 py-2 font-['Inter'] font-semibold text-[13px] cursor-pointer transition-colors ${
                             enCarrito
-                              ? 'bg-[#9e2016] border-[#9e2016] text-white'
+                              ? 'bg-[#9e2016] border-[#9e2016] text-white hover:bg-[#c0392b] hover:border-[#c0392b]'
                               : 'border-[#e7e5e4] text-[#1b1b1c] hover:border-[#9e2016]'
                           }`}
                         >
-                          <span style={{ color: enCarrito ? 'white' : '#9e2016' }}>+</span>
-                          {enCarrito ? 'Seleccionado' : 'Seleccionar'}
+                          <span style={{ color: enCarrito ? 'white' : '#9e2016' }}>
+                            {enCarrito ? '−' : '+'}
+                          </span>
+                          {enCarrito ? 'Quitar' : 'Seleccionar'}
                         </button>
                       </div>
                     </div>
