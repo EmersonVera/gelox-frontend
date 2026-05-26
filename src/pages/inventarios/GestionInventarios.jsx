@@ -95,10 +95,10 @@ function EstadoBadge({ estado }) {
 }
 
 /* ─── Color de stock según estado ─── */
-function StockText({ stockActual, estado }) {
-  if (estado === 'BAJO_STOCK')  return <span className="text-red-600 font-bold">{stockActual}</span>;
-  if (estado === 'STOCK_MEDIO') return <span className="text-amber-600 font-bold">{stockActual}</span>;
-  return <span className="text-zinc-900">{stockActual}</span>;
+function StockText({ cantidad, estado }) {
+  if (estado === 'BAJO_STOCK')  return <span className="text-red-600 font-bold">{cantidad}</span>;
+  if (estado === 'STOCK_MEDIO') return <span className="text-amber-600 font-bold">{cantidad}</span>;
+  return <span className="text-zinc-900">{cantidad}</span>;
 }
 
 /* ─── Skeleton rows ─── */
@@ -183,17 +183,14 @@ export default function GestionInventarios() {
   const productosFiltrados = useMemo(() => {
     const q = busqueda.trim().toLowerCase();
     return productos.filter((p) => {
-      // Filtro texto
+      // Filtro texto (nombre o código técnico)
       if (q) {
         const matchNombre = p.nombre?.toLowerCase().includes(q);
         const matchCodigo = p.codigoTecnico?.toLowerCase().includes(q);
         if (!matchNombre && !matchCodigo) return false;
       }
-      // Filtro categoría — sólo si el producto tiene el campo
-      if (categoriaActiva !== 'Todos' && p.categoria) {
-        if (p.categoria.toUpperCase() !== categoriaActiva.toUpperCase()) return false;
-      }
-      // Filtro estado
+      // Filtro categoría — no viene en InventarioProductoDTO, se omite
+      // Filtro estado — backend retorna 'NORMAL' | 'BAJO_STOCK'
       if (filtroEstado && p.estado !== filtroEstado) return false;
       return true;
     });
@@ -350,14 +347,14 @@ export default function GestionInventarios() {
                         </div>
                       </td>
 
-                      {/* Stock actual */}
+                      {/* Stock actual — backend retorna cantidadDisponible */}
                       <td className="px-6 py-4 text-right font-['Inter'] text-sm">
-                        <StockText stockActual={p.stockActual} estado={p.estado} />
+                        <StockText cantidad={p.cantidadDisponible ?? p.stockActual} estado={p.estado} />
                       </td>
 
-                      {/* Precio */}
+                      {/* Precio — backend retorna precio */}
                       <td className="px-6 py-4 text-right font-['Inter'] text-sm text-zinc-700">
-                        {formatCOP(p.precioVenta)}
+                        {formatCOP(p.precio ?? p.precioVenta)}
                       </td>
 
                       {/* Estado */}

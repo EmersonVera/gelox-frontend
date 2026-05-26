@@ -43,9 +43,12 @@ export default function ReportePedido() {
   const [total, setTotal]           = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [cargando, setCargando]     = useState(true);
+  // errorEndpoint = true cuando el backend retorna 4xx/5xx (endpoint aún no implementado)
+  const [errorEndpoint, setErrorEndpoint] = useState(false);
 
   const fetchPedidos = useCallback(async () => {
     setCargando(true);
+    setErrorEndpoint(false);
     try {
       const params = new URLSearchParams({ page, limit: 10 });
       if (busqueda) params.set('q', busqueda);
@@ -54,6 +57,16 @@ export default function ReportePedido() {
       const res  = await fetch(`${base}/api/inventario/pedidos?${params}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+
+      // El backend retorna 500 cuando el endpoint GET /api/inventario/pedidos
+      // no está implementado (Spring GlobalExceptionHandler captura NoHandlerFoundException
+      // y lo devuelve como 500 genérico). Se trata como endpoint no disponible aún.
+      if (res.status === 500 || res.status === 404 || res.status === 405) {
+        setErrorEndpoint(true);
+        setPedidos([]);
+        return;
+      }
+
       if (!res.ok) throw new Error(`pedidos ${res.status}`);
       const data = await res.json();
       const list = data.pedidos ?? data.content ?? data;
@@ -62,12 +75,13 @@ export default function ReportePedido() {
       setTotalPages(data.totalPages ?? 1);
       if (data.kpis) setKpis(data.kpis);
     } catch (e) {
-      console.error('fetchPedidos:', e);
+      // Solo loguear errores inesperados (no los 500/404 controlados arriba)
+      if (!errorEndpoint) console.warn('fetchPedidos (unexpected):', e.message);
       setPedidos([]);
     } finally {
       setCargando(false);
     }
-  }, [token, page, busqueda, estado, fecha]);
+  }, [token, page, busqueda, estado, fecha]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { fetchPedidos(); }, [fetchPedidos]);
 
@@ -193,6 +207,22 @@ export default function ReportePedido() {
                 ))}
               </div>
             ))
+          ) : errorEndpoint ? (
+            /* El backend no tiene aún el endpoint GET /api/inventario/pedidos.
+               Los pedidos se crean correctamente (RF21) pero el historial
+               aún no está disponible en el servidor. */
+            <div className="px-6 py-14 flex flex-col items-center gap-3 text-center">
+              <div className="w-12 h-12 rounded-full bg-[#fef2f2] flex items-center justify-center text-[22px]">
+                📋
+              </div>
+              <p className="font-['Manrope'] font-semibold text-[16px] text-[#1b1b1c]">
+                Historial no disponible aún
+              </p>
+              <p className="font-['Inter'] font-normal text-[14px] text-[#78716c] max-w-[320px]">
+                Los pedidos se están generando correctamente (RF21), pero el endpoint de consulta del historial
+                aún no está implementado en el servidor. Comunícalo al equipo de backend.
+              </p>
+            </div>
           ) : pedidos.length === 0 ? (
             <div className="px-6 py-12 text-center font-['Inter'] text-[14px] text-[#a8a29e]">
               No hay pedidos registrados.

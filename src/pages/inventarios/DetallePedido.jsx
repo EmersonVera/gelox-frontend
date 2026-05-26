@@ -24,9 +24,13 @@ export default function DetallePedido() {
     fetch(`${base}/api/inventario/pedidos/${id}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
-      .then(r => r.json())
-      .then(setPedido)
-      .catch(console.error)
+      .then(r => {
+        // 500/404 = endpoint GET por ID aún no implementado en el backend
+        if (!r.ok) return null;
+        return r.json();
+      })
+      .then(data => { if (data) setPedido(data); })
+      .catch(() => { /* endpoint no disponible */ })
       .finally(() => setCargando(false));
   }, [id, token]);
 

@@ -51,10 +51,17 @@ export default function RegistroMerma() {
     setError('');
     setGuardando(true);
     try {
+      // RF25 — RegistrarPerdidaRequest: productoId, cantidad, motivo, fecha, observaciones
       const res = await fetch(`${base}/api/inventario/perdidas`, {
         method:  'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ ...form, cantidad: Number(form.cantidad) }),
+        body:    JSON.stringify({
+          productoId:    form.producto_id,
+          cantidad:      Number(form.cantidad),
+          motivo:        form.motivo,
+          fecha:         form.fecha,
+          observaciones: form.observaciones,
+        }),
       });
       if (!res.ok) {
         const data = await res.json();
