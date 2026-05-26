@@ -13,6 +13,22 @@ const BADGE_ESTADO = {
 };
 const ICONO_ESTADO = { CORRECTO: '✓', FALTANTE: '⊘', SOBRANTE: '↑' };
 
+const MESES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+function formatFecha(fecha) {
+  if (!fecha) return '—';
+  const [año, mes, dia] = String(fecha).split('-').map(Number);
+  return `${dia} ${MESES[mes - 1]} ${año}`;
+}
+
+function ArrowLeftIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="19" y1="12" x2="5" y2="12" />
+      <polyline points="12 19 5 12 12 5" />
+    </svg>
+  );
+}
+
 export default function DetallePedido() {
   const { id }      = useParams();
   const { token }   = useAuth();
@@ -62,16 +78,17 @@ export default function DetallePedido() {
 
         {/* Breadcrumb */}
         <button
+          type="button"
           onClick={() => navigate('/inventarios/reporte-pedido')}
-          className="flex items-center gap-2 font-['Inter'] font-medium text-[14px] text-[#57534e] hover:text-[#1b1b1c] cursor-pointer transition-colors w-fit"
+          className="flex items-center gap-1.5 text-[#9e2016] text-xs font-semibold uppercase tracking-wider w-fit hover:underline transition cursor-pointer"
         >
-          ← Todos los pedidos
+          <ArrowLeftIcon /> Todos los pedidos
         </button>
 
         {/* Info pedido */}
         <div className="bg-white rounded-[12px] border border-[#f5f5f4] p-5 flex items-center gap-4">
           <span className="font-['Manrope'] font-bold text-[18px] text-[#1b1b1c]">
-            {pedido.id_pedido ?? pedido.id}
+            Pedido · {formatFecha(pedido.fecha)}
           </span>
           <span
             className={`inline-flex items-center font-['Inter'] font-bold text-[12px] uppercase px-3 py-1 rounded-full ${
@@ -86,8 +103,13 @@ export default function DetallePedido() {
           </span>
           <div className="flex items-center gap-1 text-[#78716c] ml-2">
             <span>📅</span>
-            <span className="font-['Inter'] font-normal text-[14px]">{pedido.fecha}</span>
+            <span className="font-['Inter'] font-normal text-[14px]">{formatFecha(pedido.fecha)}</span>
           </div>
+          {pedido.notas && (
+            <span className="font-['Inter'] font-normal text-[13px] text-[#78716c] ml-auto italic">
+              {pedido.notas}
+            </span>
+          )}
         </div>
 
         {/* Tabla comparación */}
@@ -117,61 +139,66 @@ export default function DetallePedido() {
             </div>
           ) : (
             pedido.items.map(item => {
-              const dif        = (item.cantidad_recibida ?? 0) - item.cantidad_pedida;
+              // Campos del backend: productoId, codigoTecnico, nombre, cantidadSolicitada, cantidadRecibida
+              const recibida   = item.cantidadRecibida ?? 0;
+              const solicitada = item.cantidadSolicitada ?? 0;
+              const dif        = recibida - solicitada;
+              // Solo mostrar estado de comparación si el pedido ya fue recibido
+              const mostrarComparacion = pedido.estado === 'RECIBIDO' || pedido.estado === 'CANCELADO';
               const estadoItem = dif === 0 ? 'CORRECTO' : dif < 0 ? 'FALTANTE' : 'SOBRANTE';
               return (
                 <div
-                  key={item.id}
+                  key={item.productoId}
                   className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr] gap-4 px-6 py-4 border-b border-[#fafaf9] items-center"
                 >
                   {/* Producto */}
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-[6px] bg-[#f6f3f3] shrink-0 overflow-hidden">
-                      {(item.imagenUrl || item.imagen_url) && (
-                        <img
-                          src={item.imagenUrl ?? item.imagen_url}
-                          alt=""
-                          className="w-full h-full object-cover"
-                        />
-                      )}
+                    <div className="w-8 h-8 rounded-[6px] bg-[#f6f3f3] shrink-0 flex items-center justify-center text-[#9e2016] text-[12px]">
+                      🧊
                     </div>
                     <div>
                       <p className="font-['Manrope'] font-semibold text-[14px] text-[#1b1b1c]">
                         {item.nombre}
                       </p>
                       <p className="font-['Inter'] font-normal text-[12px] text-[#a8a29e]">
-                        {item.descripcion}
+                        {item.codigoTecnico}
                       </p>
                     </div>
                   </div>
                   {/* SKU */}
                   <span className="font-['Inter'] font-medium text-[14px] text-[#57534e]">
-                    {item.codigoTecnico ?? item.codigo_tecnico}
+                    {item.codigoTecnico}
                   </span>
                   {/* Cant. pedida */}
                   <span className="font-['Inter'] font-medium text-[14px] text-[#1b1b1c]">
-                    {item.cantidad_pedida}
+                    {solicitada}
                   </span>
                   {/* Cant. recibida */}
                   <span className="font-['Inter'] font-medium text-[14px] text-[#1b1b1c]">
-                    {item.cantidad_recibida ?? '—'}
+                    {mostrarComparacion ? recibida : '—'}
                   </span>
                   {/* Diferencia */}
                   <span
                     className={`font-['Inter'] font-bold text-[14px] ${
-                      dif < 0 ? 'text-[#dc2626]' : 'text-[#16a34a]'
+                      !mostrarComparacion ? 'text-[#a8a29e]' : dif < 0 ? 'text-[#dc2626]' : 'text-[#16a34a]'
                     }`}
                   >
-                    {dif > 0 ? `+${dif}` : dif}
+                    {mostrarComparacion ? (dif > 0 ? `+${dif}` : dif) : '—'}
                   </span>
                   {/* Estado badge */}
-                  <span
-                    className={`inline-flex items-center gap-1 font-['Inter'] font-bold text-[12px] uppercase px-3 py-1 rounded-full ${
-                      BADGE_ESTADO[estadoItem]
-                    }`}
-                  >
-                    {ICONO_ESTADO[estadoItem]} {estadoItem}
-                  </span>
+                  {mostrarComparacion ? (
+                    <span
+                      className={`inline-flex items-center gap-1 font-['Inter'] font-bold text-[12px] uppercase px-3 py-1 rounded-full ${
+                        BADGE_ESTADO[estadoItem]
+                      }`}
+                    >
+                      {ICONO_ESTADO[estadoItem]} {estadoItem}
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center font-['Inter'] font-bold text-[12px] uppercase px-3 py-1 rounded-full bg-[#fefce8] text-[#ca8a04]">
+                      PENDIENTE
+                    </span>
+                  )}
                 </div>
               );
             })

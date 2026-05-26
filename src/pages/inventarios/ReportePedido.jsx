@@ -7,11 +7,19 @@ import CustomSelect from '../../components/ui/CustomSelect';
 
 const base = import.meta.env.VITE_API_BASE_URL ?? '';
 
+// Estados reales del backend: PENDIENTE, RECIBIDO, CANCELADO
 const BADGE = {
-  COMPLETO:     'bg-[#f0fdf4] text-[#16a34a]',
-  DISCREPANCIA: 'bg-[#fef2f2] text-[#dc2626]',
-  PENDIENTE:    'bg-[#fefce8] text-[#ca8a04]',
+  PENDIENTE: 'bg-[#fefce8] text-[#ca8a04]',
+  RECIBIDO:  'bg-[#f0fdf4] text-[#16a34a]',
+  CANCELADO: 'bg-[#fef2f2] text-[#dc2626]',
 };
+
+const MESES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+function formatFecha(fecha) {
+  if (!fecha) return '—';
+  const [año, mes, dia] = String(fecha).split('-').map(Number);
+  return `${dia} ${MESES[mes - 1]} ${año}`;
+}
 
 function PaginaBtn({ children, onClick, activo, disabled }) {
   return (
@@ -31,6 +39,49 @@ function PaginaBtn({ children, onClick, activo, disabled }) {
   );
 }
 
+// ── Workaround bug backend ────────────────────────────────────────────────────
+// El backend falla con 500 cuando recibe `periodo` porque pasa LocalDate a la
+// native query sin anotación @Type — el JDBC driver no puede mapear el tipo.
+// Solución: nunca enviar `periodo` al backend; filtrar fechas en el frontend.
+// Además, nunca enviar `estado=null`; siempre uno concreto (otro bug del native query).
+// ─────────────────────────────────────────────────────────────────────────────
+const ESTADOS_POSIBLES = ['PENDIENTE', 'RECIBIDO', 'CANCELADO'];
+const PAGE_SIZE = 10;
+
+/** Filtra el array de pedidos por rango de fechas en el frontend. */
+function filtrarPorRango(pedidos, desde, hasta) {
+  if (!desde && !hasta) return pedidos;
+  return pedidos.filter(p => {
+    if (!p.fecha) return false;
+    const f = String(p.fecha); // 'YYYY-MM-DD' — comparación lexicográfica funciona
+    if (desde && f < desde) return false;
+    if (hasta && f > hasta) return false;
+    return true;
+  });
+}
+
+/** Fecha YYYY-MM-DD de N días atrás. */
+function haceNDias(n) {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return d.toISOString().split('T')[0];
+}
+
+/**
+ * Fetch de un estado concreto SIN periodo (para evitar el bug de LocalDate
+ * en native queries de Spring JPA + PostgreSQL).
+ */
+async function fetchEstado(token, estadoFiltro, busqueda) {
+  const params = new URLSearchParams({ page: 1, limit: 500, estado: estadoFiltro });
+  if (busqueda) params.set('q', busqueda);
+  const res = await fetch(`${base}/api/inventario/pedidos?${params}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) return [];
+  const data = await res.json();
+  return data.content ?? data.pedidos ?? [];
+}
+
 export default function ReportePedido() {
   const { token }   = useAuth();
   const navigate    = useNavigate();
@@ -38,50 +89,92 @@ export default function ReportePedido() {
   const [kpis, setKpis]             = useState({ totalUnidades: 0, discrepancias: 0 });
   const [busqueda, setBusqueda]     = useState('');
   const [estado, setEstado]         = useState('');
-  const [fecha, setFecha]           = useState('30d');
+  const [fechaDesde, setFechaDesde] = useState(() => haceNDias(30));
+  const [fechaHasta, setFechaHasta] = useState(() => new Date().toISOString().split('T')[0]);
   const [page, setPage]             = useState(1);
   const [total, setTotal]           = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [cargando, setCargando]     = useState(true);
-  // errorEndpoint = true cuando el backend retorna 4xx/5xx (endpoint aún no implementado)
-  const [errorEndpoint, setErrorEndpoint] = useState(false);
+  const [errorRed, setErrorRed]     = useState(false);
 
   const fetchPedidos = useCallback(async () => {
     setCargando(true);
-    setErrorEndpoint(false);
+    setErrorRed(false);
     try {
-      const params = new URLSearchParams({ page, limit: 10 });
-      if (busqueda) params.set('q', busqueda);
-      if (estado)   params.set('estado', estado);
-      if (fecha)    params.set('periodo', fecha);
-      const res  = await fetch(`${base}/api/inventario/pedidos?${params}`, {
-        headers: { Authorization: `Bearer ${token}` },
+      // 1. Obtener pedidos del backend (sin periodo — workaround del bug de LocalDate)
+      let todos = [];
+      const estadosFetch = estado ? [estado] : ESTADOS_POSIBLES;
+      const resultados = await Promise.all(
+        estadosFetch.map(e => fetchEstado(token, e, busqueda))
+      );
+      todos = resultados.flat();
+
+      // 2. Filtrar por rango de fechas en el frontend
+      todos = filtrarPorRango(todos, fechaDesde, fechaHasta);
+
+      // 3. Ordenar por fecha descendente
+      todos.sort((a, b) => String(b.fecha ?? '').localeCompare(String(a.fecha ?? '')));
+
+      // 4. Paginación local
+      const totalEl  = todos.length;
+      const totalPgs = Math.max(1, Math.ceil(totalEl / PAGE_SIZE));
+      const safePage = Math.min(Math.max(1, page), totalPgs);
+      const from     = (safePage - 1) * PAGE_SIZE;
+      const pagina   = todos.slice(from, from + PAGE_SIZE);
+
+      // 5. Enriquecer TODOS los pedidos RECIBIDOS con su detalle (en paralelo).
+      //    Se necesitan todos (no solo la página) para calcular el KPI de discrepancias
+      //    correctamente aunque haya varias páginas.
+      const recibidosEnDataset = todos.filter(p => p.estado === 'RECIBIDO');
+      const detallesMap = {};
+
+      await Promise.all(
+        recibidosEnDataset.map(async (p) => {
+          try {
+            const r = await fetch(`${base}/api/inventario/pedidos/${p.id}`, {
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            if (!r.ok) return;
+            const det = await r.json();
+            const totalRecibido = (det.items ?? []).reduce(
+              (s, item) => s + (item.cantidadRecibida ?? 0), 0
+            );
+            // Hay discrepancia si algún ítem tiene cantidades distintas
+            const tieneDiscrepancia = (det.items ?? []).some(
+              item => (item.cantidadRecibida ?? 0) !== (item.cantidadSolicitada ?? 0)
+            );
+            detallesMap[p.id] = { totalRecibido, tieneDiscrepancia };
+          } catch { /* ignorar errores individuales */ }
+        })
+      );
+
+      // 6. Aplicar enriquecimiento solo a la página visible
+      const paginaEnriquecida = pagina.map(p => {
+        const extra = detallesMap[p.id];
+        return extra ? { ...p, ...extra } : p;
       });
 
-      // El backend retorna 500 cuando el endpoint GET /api/inventario/pedidos
-      // no está implementado (Spring GlobalExceptionHandler captura NoHandlerFoundException
-      // y lo devuelve como 500 genérico). Se trata como endpoint no disponible aún.
-      if (res.status === 500 || res.status === 404 || res.status === 405) {
-        setErrorEndpoint(true);
-        setPedidos([]);
-        return;
-      }
+      setPedidos(paginaEnriquecida);
+      setTotal(totalEl);
+      setTotalPages(totalPgs);
 
-      if (!res.ok) throw new Error(`pedidos ${res.status}`);
-      const data = await res.json();
-      const list = data.pedidos ?? data.content ?? data;
-      setPedidos(Array.isArray(list) ? list : []);
-      setTotal(data.total ?? data.totalElements ?? 0);
-      setTotalPages(data.totalPages ?? 1);
-      if (data.kpis) setKpis(data.kpis);
+      // KPI de discrepancias: pedidos RECIBIDOS donde totalRecibido ≠ totalSolicitado
+      const discrepancias = Object.entries(detallesMap).filter(
+        ([id, d]) => d.tieneDiscrepancia
+      ).length;
+
+      setKpis({
+        totalUnidades: todos.reduce((s, p) => s + (p.totalSolicitado ?? 0), 0),
+        discrepancias,
+      });
     } catch (e) {
-      // Solo loguear errores inesperados (no los 500/404 controlados arriba)
-      if (!errorEndpoint) console.warn('fetchPedidos (unexpected):', e.message);
+      console.warn('fetchPedidos:', e.message);
+      setErrorRed(true);
       setPedidos([]);
     } finally {
       setCargando(false);
     }
-  }, [token, page, busqueda, estado, fecha]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [token, page, busqueda, estado, fechaDesde, fechaHasta]);
 
   useEffect(() => { fetchPedidos(); }, [fetchPedidos]);
 
@@ -137,7 +230,8 @@ export default function ReportePedido() {
 
         {/* Búsqueda + filtros */}
         <div className="flex gap-3 items-center flex-wrap">
-          <div className="relative flex-1 min-w-[200px]">
+          {/* Barra de búsqueda — crece para llenar el espacio restante */}
+          <div className="relative flex-1 min-w-[180px]">
             <svg
               className="absolute left-3 top-1/2 -translate-y-1/2 text-[#a8a29e]"
               width="16" height="16" fill="none" viewBox="0 0 16 16"
@@ -148,10 +242,12 @@ export default function ReportePedido() {
             <input
               value={busqueda}
               onChange={e => { setBusqueda(e.target.value); setPage(1); }}
-              placeholder="Buscar registro o ID de pedido..."
+              placeholder="Buscar ID de pedido..."
               className="bg-[#f6f3f3] border-none rounded-[8px] pl-10 pr-4 py-2.5 w-full font-['Inter'] text-[14px] text-[#1b1b1c] outline-none focus:ring-2 focus:ring-[#9e2016]/20"
             />
           </div>
+
+          {/* Filtro estado */}
           <div className="flex items-center gap-2">
             <span className="font-['Inter'] font-medium text-[14px] text-[#57534e]">Estado:</span>
             <CustomSelect
@@ -160,23 +256,28 @@ export default function ReportePedido() {
               options={[
                 { value: '', label: 'Todos los estados' },
                 { value: 'PENDIENTE', label: 'Pendiente' },
-                { value: 'COMPLETO', label: 'Completo' },
-                { value: 'DISCREPANCIA', label: 'Discrepancia' },
+                { value: 'RECIBIDO',  label: 'Recibido' },
+                { value: 'CANCELADO', label: 'Cancelado' },
               ]}
               size="sm"
             />
           </div>
+
+          {/* Rango de fechas */}
           <div className="flex items-center gap-2">
-            <span className="font-['Inter'] font-medium text-[14px] text-[#57534e]">Fecha:</span>
-            <CustomSelect
-              value={fecha}
-              onChange={v => { setFecha(v); setPage(1); }}
-              options={[
-                { value: '30d', label: 'Últimos 30 días' },
-                { value: '7d', label: 'Últimos 7 días' },
-                { value: 'mes', label: 'Este mes' },
-              ]}
-              size="sm"
+            <span className="font-['Inter'] font-medium text-[14px] text-[#57534e]">Desde:</span>
+            <input
+              type="date"
+              value={fechaDesde}
+              onChange={e => { setFechaDesde(e.target.value); setPage(1); }}
+              className="bg-[#f6f3f3] rounded-[8px] px-3 py-2 font-['Inter'] text-[13px] text-[#1b1b1c] outline-none focus:ring-2 focus:ring-[#9e2016]/20 cursor-pointer"
+            />
+            <span className="font-['Inter'] text-[14px] text-[#a8a29e]">—</span>
+            <input
+              type="date"
+              value={fechaHasta}
+              onChange={e => { setFechaHasta(e.target.value); setPage(1); }}
+              className="bg-[#f6f3f3] rounded-[8px] px-3 py-2 font-['Inter'] text-[13px] text-[#1b1b1c] outline-none focus:ring-2 focus:ring-[#9e2016]/20 cursor-pointer"
             />
           </div>
         </div>
@@ -207,21 +308,23 @@ export default function ReportePedido() {
                 ))}
               </div>
             ))
-          ) : errorEndpoint ? (
-            /* El backend no tiene aún el endpoint GET /api/inventario/pedidos.
-               Los pedidos se crean correctamente (RF21) pero el historial
-               aún no está disponible en el servidor. */
+          ) : errorRed ? (
             <div className="px-6 py-14 flex flex-col items-center gap-3 text-center">
               <div className="w-12 h-12 rounded-full bg-[#fef2f2] flex items-center justify-center text-[22px]">
-                📋
+                ⚠️
               </div>
               <p className="font-['Manrope'] font-semibold text-[16px] text-[#1b1b1c]">
-                Historial no disponible aún
+                Error de conexión
               </p>
               <p className="font-['Inter'] font-normal text-[14px] text-[#78716c] max-w-[320px]">
-                Los pedidos se están generando correctamente (RF21), pero el endpoint de consulta del historial
-                aún no está implementado en el servidor. Comunícalo al equipo de backend.
+                No se pudo conectar con el servidor. Verifica tu conexión o contacta al equipo técnico.
               </p>
+              <button
+                onClick={fetchPedidos}
+                className="mt-2 px-4 py-2 bg-[#9e2016] text-white font-['Inter'] font-semibold text-[13px] rounded-[8px] cursor-pointer hover:bg-[#c0392b] transition-colors"
+              >
+                Reintentar
+              </button>
             </div>
           ) : pedidos.length === 0 ? (
             <div className="px-6 py-12 text-center font-['Inter'] text-[14px] text-[#a8a29e]">
@@ -234,43 +337,43 @@ export default function ReportePedido() {
                 onClick={() => navigate(`/inventarios/pedidos/${p.id}`)}
                 className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr] gap-4 px-6 py-4 border-b border-[#fafaf9] hover:bg-[#fafaf9] cursor-pointer transition-colors items-center"
               >
-                {/* Nombre + ID */}
+                {/* Nombre + ID corto */}
                 <div className="flex items-center gap-3">
                   <div className="w-7 h-7 bg-[#fef2f2] rounded-[6px] flex items-center justify-center text-[#9e2016] text-[12px]">
                     ≡
                   </div>
                   <div>
                     <p className="font-['Manrope'] font-semibold text-[14px] text-[#1b1b1c]">
-                      {p.nombre ?? `Pedido ${p.id_pedido}`}
+                      Pedido · {formatFecha(p.fecha)}
                     </p>
                     <p className="font-['Inter'] font-normal text-[12px] text-[#a8a29e]">
-                      {p.id_pedido ?? p.id}
+                      #{p.id.toString().substring(0, 8).toUpperCase()}
                     </p>
                   </div>
                 </div>
                 {/* Fecha */}
                 <span className="font-['Inter'] font-medium text-[14px] text-[#1b1b1c]">
-                  {p.fecha}
+                  {formatFecha(p.fecha)}
                 </span>
-                {/* Total pedido */}
+                {/* Total pedido — campo: totalSolicitado */}
                 <span className="font-['Inter'] font-medium text-[14px] text-[#1b1b1c]">
-                  {p.total_pedido?.toLocaleString() ?? '—'}
+                  {p.totalSolicitado?.toLocaleString() ?? '—'}
                 </span>
-                {/* Total recibido */}
+                {/* Total recibido — enriquecido desde el detalle del pedido */}
+                <span className={`font-['Inter'] font-medium text-[14px] ${
+                  p.totalRecibido != null ? 'text-[#1b1b1c]' : 'text-[#a8a29e]'
+                }`}>
+                  {p.totalRecibido != null ? p.totalRecibido.toLocaleString() : '—'}
+                </span>
+                {/* Badge estado — naranja si fue recibido con discrepancia */}
                 <span
-                  className={`font-['Inter'] font-medium text-[14px] ${
-                    p.estado === 'DISCREPANCIA' ? 'text-[#dc2626]' : 'text-[#1b1b1c]'
+                  className={`inline-flex items-center gap-1 font-['Inter'] font-bold text-[12px] uppercase px-3 py-1 rounded-full ${
+                    p.estado === 'RECIBIDO' && p.tieneDiscrepancia
+                      ? 'bg-[#fff7ed] text-[#c2410c]'
+                      : BADGE[p.estado] ?? BADGE.PENDIENTE
                   }`}
                 >
-                  {p.total_recibido?.toLocaleString() ?? '—'}
-                </span>
-                {/* Badge estado */}
-                <span
-                  className={`inline-flex items-center font-['Inter'] font-bold text-[12px] uppercase px-3 py-1 rounded-full ${
-                    BADGE[p.estado] ?? BADGE.PENDIENTE
-                  }`}
-                >
-                  {p.estado}
+                  {p.estado === 'RECIBIDO' && p.tieneDiscrepancia ? '⚠ FALTANTE' : p.estado}
                 </span>
               </div>
             ))

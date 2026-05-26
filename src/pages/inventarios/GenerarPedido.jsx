@@ -10,6 +10,7 @@ const base = import.meta.env.VITE_API_BASE_URL ?? '';
 export default function GenerarPedido() {
   const { token } = useAuth();
   const [categoriaActiva, setCategoriaActiva] = useState('Todos');
+  const [busqueda, setBusqueda]               = useState('');
   const [productos, setProductos] = useState([]);
   const [carrito, setCarrito] = useState([]); // [{ producto, cajas, unidades }]
   const [cargando, setCargando] = useState(true);
@@ -116,6 +117,28 @@ export default function GenerarPedido() {
           {/* ── Catálogo izquierda ── */}
           <div className="flex-1 flex flex-col gap-5">
 
+            {/* Barra de búsqueda */}
+            <div className="relative">
+              <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-[#a8a29e]" width="16" height="16" fill="none" viewBox="0 0 16 16">
+                <circle cx="7" cy="7" r="5" stroke="currentColor" strokeWidth="1.3"/>
+                <path d="M11 11l3 3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+              </svg>
+              <input
+                value={busqueda}
+                onChange={e => setBusqueda(e.target.value)}
+                placeholder="Buscar producto..."
+                className="bg-[#f6f3f3] border-none rounded-[8px] pl-10 pr-4 py-2.5 w-full font-['Inter'] text-[14px] text-[#1b1b1c] outline-none focus:ring-2 focus:ring-[#9e2016]/20"
+              />
+              {busqueda && (
+                <button
+                  onClick={() => setBusqueda('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#a8a29e] hover:text-[#78716c] cursor-pointer transition-colors"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+
             {/* Pills de categoría */}
             <div className="flex gap-2 flex-wrap">
               {CATEGORIAS.map(cat => (
@@ -134,7 +157,11 @@ export default function GenerarPedido() {
             </div>
 
             {/* Grid de productos */}
-            {cargando ? (
+            {(() => {
+              const productosFiltrados = busqueda
+                ? productos.filter(p => p.nombre?.toLowerCase().includes(busqueda.toLowerCase()))
+                : productos;
+              return cargando ? (
               <div className="grid grid-cols-3 gap-4">
                 {[1, 2, 3, 4, 5, 6].map(i => (
                   <div
@@ -143,13 +170,13 @@ export default function GenerarPedido() {
                   />
                 ))}
               </div>
-            ) : productos.length === 0 ? (
+            ) : productosFiltrados.length === 0 ? (
               <p className="font-['Inter'] text-[14px] text-[#a8a29e] text-center py-12">
-                No hay productos en esta categoría.
+                {busqueda ? `Sin resultados para "${busqueda}"` : 'No hay productos en esta categoría.'}
               </p>
             ) : (
               <div className="grid grid-cols-3 gap-4">
-                {productos.map(p => {
+                {productosFiltrados.map(p => {
                   const enCarrito = !!carrito.find(i => i.producto.id === p.id);
                   return (
                     <div
@@ -204,11 +231,11 @@ export default function GenerarPedido() {
                   );
                 })}
               </div>
-            )}
+            );})()}
           </div>
 
           {/* ── Panel carrito derecha ── */}
-          <div className="w-[280px] shrink-0 sticky top-8">
+          <div className="w-[340px] shrink-0 sticky top-8">
             <div className="bg-white rounded-[12px] border border-[#f5f5f4] p-5 flex flex-col gap-4">
 
               {/* Header carrito */}
@@ -233,7 +260,7 @@ export default function GenerarPedido() {
               ) : (
                 <>
                   {/* Ítems */}
-                  <div className="flex flex-col gap-4 max-h-[400px] overflow-y-auto">
+                  <div className="flex flex-col gap-4 max-h-[400px] overflow-y-auto pr-1">
                     {carrito.map(item => (
                       <div
                         key={item.producto.id}
@@ -281,22 +308,22 @@ export default function GenerarPedido() {
                   </div>
 
                   {/* Totales */}
-                  <div className="flex justify-between items-end pt-1">
-                    <div>
-                      <p className="font-['Inter'] font-semibold text-[10px] uppercase tracking-[0.5px] text-[#a8a29e]">
-                        Total Pedido
+                  <div className="bg-[#fafaf9] rounded-[8px] p-3 flex items-center">
+                    <div className="flex-1 text-center">
+                      <p className="font-['Manrope'] font-bold text-[22px] text-[#1b1b1c] leading-none">
+                        {totalCajas}
                       </p>
-                      <p className="font-['Manrope'] font-bold text-[24px] text-[#1b1b1c] leading-none">
-                        {totalCajas}{' '}
-                        <span className="font-['Inter'] font-normal text-[12px] text-[#a8a29e]">CAJAS</span>
+                      <p className="font-['Inter'] font-semibold text-[10px] uppercase tracking-[0.5px] text-[#a8a29e] mt-1">
+                        Cajas
                       </p>
                     </div>
-                    <div className="text-right">
-                      <p className="font-['Inter'] font-semibold text-[10px] uppercase tracking-[0.5px] text-[#a8a29e]">
-                        Total Unidades
+                    <div className="w-px h-9 bg-[#e7e5e4] shrink-0" />
+                    <div className="flex-1 text-center">
+                      <p className="font-['Manrope'] font-bold text-[22px] text-[#1b1b1c] leading-none">
+                        {totalUnidades}
                       </p>
-                      <p className="font-['Manrope'] font-bold text-[20px] text-[#1b1b1c] leading-none">
-                        {totalUnidades.toLocaleString()}
+                      <p className="font-['Inter'] font-semibold text-[10px] uppercase tracking-[0.5px] text-[#a8a29e] mt-1">
+                        Unidades
                       </p>
                     </div>
                   </div>

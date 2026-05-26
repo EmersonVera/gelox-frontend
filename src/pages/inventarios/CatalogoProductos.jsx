@@ -25,6 +25,7 @@ export default function CatalogoProductos() {
   const [totalPages, setTotalPages]           = useState(1);
   const [page, setPage]                       = useState(1);          // 1-indexed para UI
   const [categoriaActiva, setCategoriaActiva] = useState('Todos');
+  const [busqueda, setBusqueda]               = useState('');
   const [filtroStock, setFiltroStock]         = useState('');        // '' | 'bajo' | 'sin'
   const [filtroOpen, setFiltroOpen]           = useState(false);
   const [cargando, setCargando]               = useState(true);
@@ -36,8 +37,13 @@ export default function CatalogoProductos() {
   const fetchProductos = useCallback(async () => {
     setCargando(true);
     try {
-      // Spring Pageable es 0-indexed; usar "size" no "limit"
-      const params = new URLSearchParams({ page: page - 1, size: PAGE_SIZE });
+      // Cuando hay búsqueda activa: traer todos (size grande) y filtrar client-side
+      // El backend no soporta parámetro q para búsqueda por nombre
+      const hayBusqueda = busqueda.trim().length > 0;
+      const params = new URLSearchParams({
+        page: hayBusqueda ? 0 : page - 1,
+        size: hayBusqueda ? 500 : PAGE_SIZE,
+      });
       if (categoriaActiva !== 'Todos') params.set('categoria', categoriaActiva.toUpperCase());
       if (filtroStock === 'medio') params.set('stockMedio', 'true');
       if (filtroStock === 'bajo')  params.set('stockBajo',  'true');
@@ -48,15 +54,28 @@ export default function CatalogoProductos() {
       });
       if (!res.ok) throw new Error(`Error ${res.status}`);
       const data = await res.json();
-      // Backend devuelve: { content, page, size, totalElements, totalPages }
       let lista = Array.isArray(data.content) ? data.content : [];
-      // Filtrado client-side de respaldo (por si el backend no soporta el param)
+
+      // Filtrado client-side de stock
       if (filtroStock === 'medio') lista = lista.filter(p => p.stockActual != null && p.stockActual <= (p.stockMedio ?? p.stockMinimo));
       if (filtroStock === 'bajo')  lista = lista.filter(p => p.stockActual != null && p.stockActual <= p.stockMinimo);
       if (filtroStock === 'sin')   lista = lista.filter(p => p.stockActual === 0 || p.stockActual == null);
+
+      // Filtrado client-side por nombre (búsqueda)
+      if (hayBusqueda) {
+        const q = busqueda.trim().toLowerCase();
+        lista = lista.filter(p => p.nombre?.toLowerCase().includes(q));
+        // Paginación local sobre resultados filtrados
+        setTotal(lista.length);
+        setTotalPages(Math.max(1, Math.ceil(lista.length / PAGE_SIZE)));
+        const from = (page - 1) * PAGE_SIZE;
+        lista = lista.slice(from, from + PAGE_SIZE);
+      } else {
+        setTotal(data.totalElements ?? 0);
+        setTotalPages(data.totalPages ?? 1);
+      }
+
       setProductos(lista);
-      setTotal(data.totalElements ?? 0);
-      setTotalPages(data.totalPages ?? 1);
     } catch (e) {
       console.error('fetchProductos:', e);
       setProductos([]);
@@ -65,7 +84,7 @@ export default function CatalogoProductos() {
     } finally {
       setCargando(false);
     }
-  }, [token, page, categoriaActiva, filtroStock]);
+  }, [token, page, categoriaActiva, filtroStock, busqueda]);
 
   useEffect(() => { fetchProductos(); }, [fetchProductos]);
 
@@ -81,6 +100,11 @@ export default function CatalogoProductos() {
 
   const handleCategoriaChange = (cat) => {
     setCategoriaActiva(cat);
+    setPage(1);
+  };
+
+  const handleBusqueda = (e) => {
+    setBusqueda(e.target.value);
     setPage(1);
   };
 
@@ -178,6 +202,28 @@ export default function CatalogoProductos() {
           </div>
         </div>
 
+        {/* Barra de búsqueda */}
+        <div className="relative">
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-[#a8a29e]" width="16" height="16" fill="none" viewBox="0 0 16 16">
+            <circle cx="7" cy="7" r="5" stroke="currentColor" strokeWidth="1.3"/>
+            <path d="M11 11l3 3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+          </svg>
+          <input
+            value={busqueda}
+            onChange={handleBusqueda}
+            placeholder="Buscar producto por nombre..."
+            className="bg-[#f6f3f3] border-none rounded-[8px] pl-10 pr-10 py-2.5 w-full font-['Inter'] text-[14px] text-[#1b1b1c] outline-none focus:ring-2 focus:ring-[#9e2016]/20"
+          />
+          {busqueda && (
+            <button
+              onClick={() => { setBusqueda(''); setPage(1); }}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-[#a8a29e] hover:text-[#78716c] cursor-pointer transition-colors"
+            >
+              ✕
+            </button>
+          )}
+        </div>
+
         {/* Pills categoría + badge filtro activo */}
         <div className="flex items-center gap-2 flex-wrap">
           {CATEGORIAS.map((cat) => (
@@ -213,6 +259,12 @@ export default function CatalogoProductos() {
             {Array.from({ length: 6 }).map((_, i) => (
               <div key={i} className="bg-white rounded-[12px] h-[380px] animate-pulse border border-[#f5f5f4]" />
             ))}
+          </div>
+        ) : productos.length === 0 && busqueda ? (
+          <div className="flex flex-col items-center gap-2 py-16 text-center">
+            <span className="text-[32px]">🔍</span>
+            <p className="font-['Manrope'] font-semibold text-[16px] text-[#1b1b1c]">Sin resultados</p>
+            <p className="font-['Inter'] text-[14px] text-[#a8a29e]">No se encontraron productos para <strong>"{busqueda}"</strong></p>
           </div>
         ) : (
           <div className="grid grid-cols-3 gap-6">
