@@ -147,7 +147,7 @@ export default function SidebarInventarios({ open, onClose }) {
           <div>
             <div className="font-display text-2xl font-bold text-[#9e2016] tracking-[-0.6px]">GELOX</div>
             <div className="font-display font-normal text-[12px] text-[#a8a29e] uppercase tracking-[1.2px] mt-1">
-              Inventarios
+              Gestión Distribuidora
             </div>
           </div>
           <button
@@ -176,6 +176,13 @@ export default function SidebarInventarios({ open, onClose }) {
           </button>
         </div>
       )}
+
+      {/* ── Rol badge ── */}
+      <div className="px-6 pt-3 pb-1">
+        <span className="text-[10px] uppercase tracking-widest font-bold text-[#9e2016]/60 font-inter">
+          Inventario
+        </span>
+      </div>
 
       {/* ── Navigation ── */}
       <nav className="flex-1 px-4 py-3 flex flex-col gap-1 overflow-y-auto">

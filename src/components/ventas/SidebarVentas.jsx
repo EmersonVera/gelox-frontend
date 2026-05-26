@@ -154,13 +154,15 @@ export default function SidebarVentas({ open, onClose }) {
         </div>
       )}
 
-
+      {/* Rol badge */}
+      <div className="px-6 pt-3 pb-1">
+        <span className="text-[10px] uppercase tracking-widest font-bold text-[#9e2016]/60 font-inter">
+          Ventas / Comerciantes
+        </span>
+      </div>
 
       {/* Navigation */}
       <nav className="flex-1 px-4 py-2 flex flex-col gap-1 overflow-y-auto">
-        <p className="px-4 pb-1 pt-2 text-[10px] uppercase tracking-widest font-bold text-zinc-400 font-inter">
-          Módulos
-        </p>
         {LINKS.map(({ icon, label, to }) => (
           <NavLink
             key={to}
