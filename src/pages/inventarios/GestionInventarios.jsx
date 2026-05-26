@@ -1,6 +1,7 @@
 // src/pages/inventarios/GestionInventarios.jsx — RF17 + RF24 + RF26 + RF27
 import { useState, useEffect, useMemo } from 'react';
 import AppLayout from '../../components/AppLayout';
+import CustomSelect from '../../components/ui/CustomSelect';
 import {
   getProductosInventario,
   getAlertasStock,
@@ -23,7 +24,7 @@ const CATEGORIAS = ['Todos', 'Paletas', 'Conos', 'Familiares'];
 const ESTADOS_FILTRO = [
   { value: '',            label: 'Todos los estados' },
   { value: 'NORMAL',      label: 'Normal' },
-  { value: 'BAJO_STOCK',  label: 'Bajo Stock' },
+  { value: 'BAJO_STOCK',  label: 'Stock Bajo' },
   { value: 'STOCK_MEDIO', label: 'Stock Medio' },
 ];
 
@@ -316,39 +317,20 @@ export default function GestionInventarios() {
               </span>
 
               {/* Selector de estado — llama a /api/inventario/buscar (RF27) */}
-              <div className="relative">
-                <select
+              <div className="flex items-center gap-2">
+                <CustomSelect
                   value={filtroEstado}
-                  onChange={(e) => setFiltroEstado(e.target.value)}
+                  onChange={(v) => setFiltroEstado(v)}
+                  options={ESTADOS_FILTRO}
+                  size="sm"
                   disabled={cargando || buscando}
-                  className="bg-zinc-100 border border-transparent focus:border-red-700 focus:ring-2
-                    focus:ring-red-700/20 rounded-xl px-3 py-2 pr-8 outline-none transition-all
-                    text-zinc-900 text-sm font-['Inter'] cursor-pointer appearance-none
-                    disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  {ESTADOS_FILTRO.map((e) => (
-                    <option key={e.value} value={e.value}>{e.label}</option>
-                  ))}
-                </select>
-
-                {/* Spinner mientras el backend responde */}
-                {buscando ? (
-                  <span className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
-                    <svg className="animate-spin w-3.5 h-3.5 text-red-600" viewBox="0 0 24 24" fill="none">
-                      <circle className="opacity-25" cx="12" cy="12" r="10"
-                        stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                    </svg>
-                  </span>
-                ) : (
-                  // Chevron decorativo cuando no hay spinner
-                  <span className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-400">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
-                      stroke="currentColor" strokeWidth="2.5">
-                      <polyline points="6 9 12 15 18 9" />
-                    </svg>
-                  </span>
+                  className="min-w-[160px]"
+                />
+                {buscando && (
+                  <svg className="animate-spin w-4 h-4 text-red-600 shrink-0" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
                 )}
               </div>
             </div>
