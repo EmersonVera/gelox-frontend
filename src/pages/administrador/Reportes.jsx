@@ -176,7 +176,7 @@ export default function Reportes() {
                             ) : grafica.length === 0 ? (
                                 <div className="flex-1 flex items-center justify-center text-sm text-muted">Sin datos para el período seleccionado</div>
                             ) : (
-                                <div className="h-64">
+                                <div className="flex-1 min-h-[16rem]">
                                     <ResponsiveContainer width="100%" height="100%">
                                         <BarChart data={grafica} barGap={4} barCategoryGap="30%">
                                             <XAxis dataKey="etiqueta" tick={{ fontSize: 11, fill: '#8d706c' }} axisLine={false} tickLine={false} />
