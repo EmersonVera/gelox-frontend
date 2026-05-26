@@ -65,7 +65,7 @@ const inputNormal = 'border-divider focus:border-primary focus:ring-2 focus:ring
 const inputErr    = 'border-danger ring-2 ring-danger/20 bg-error-bg';
 
 /* ── Component ── */
-export default function CambiarContrasena({ open, onClose }) {
+export default function CambiarContrasena({ open, onClose, onSuccess }) {
   const { perfil, usuario } = useAuth();
 
   const [showActual,       setShowActual]       = useState(false);
@@ -103,6 +103,7 @@ export default function CambiarContrasena({ open, onClose }) {
       await cambiarContrasena(usuario.uid, { contrasenaActual, nuevaContrasena, confirmacion: confirmacionContrasena });
       reset();
       handleClose();
+      onSuccess?.();
     } catch (err) {
       const status  = err?.response?.status;
       const mensaje = err?.response?.data?.error ?? err?.response?.data?.mensaje ?? '';

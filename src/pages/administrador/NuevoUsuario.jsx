@@ -152,13 +152,19 @@ export default function NuevoUsuario() {
       }
       navigate('/usuarios');
     } catch (err) {
+      const data = err?.response?.data;
       const msg =
-        err?.response?.data?.mensaje ??
-        err?.response?.data?.message ??
+        (typeof data === 'string' ? data : undefined) ??
+        data?.mensaje ??
+        data?.message ??
+        data?.error ??
+        data?.detail ??
+        data?.descripcion ??
         '';
       const lower = msg.toLowerCase();
       if (lower.includes('correo') || lower.includes('email') || lower.includes('duplicado')) {
         setError('correo', { message: msg || 'El correo ya está en uso.' });
+        setErrorServidor(msg || 'El correo ya está en uso.');
       } else {
         setErrorServidor(msg || 'Error al crear el usuario. Intenta de nuevo.');
       }

@@ -4,6 +4,7 @@
  * Carrito lateral con controles − Caja/Unidad +
  */
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import AppLayout from '../../components/AppLayout';
 import api from '../../api/axiosConfig';
 import CustomSelect from '../../components/ui/CustomSelect';
@@ -46,6 +47,7 @@ function QtyBtn({ onClick, children }) {
 
 /* ═══════════════════════════════════════════════════════ */
 export default function PedidoRural() {
+  const navigate = useNavigate();
   const [tipoCliente, setTipoCliente]         = useState('rural');
   const [clientes, setClientes]               = useState([]);
   const [loadingClientes, setLoadingClientes] = useState(false);
@@ -268,7 +270,11 @@ export default function PedidoRural() {
                     { id: 'ventanilla', icon: <WindowIcon />, label: 'Ventanilla' },
                     { id: 'rural',      icon: <TruckIcon />,  label: 'Rural' },
                   ].map(({ id, icon, label }) => (
-                    <button key={id} type="button" onClick={() => setTipoCliente(id)}
+                    <button key={id} type="button"
+                      onClick={() => {
+                        if (id === 'ventanilla') { navigate('/ventas/nueva'); return; }
+                        setTipoCliente(id);
+                      }}
                       className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all duration-200 ${
                         tipoCliente === id
                           ? 'border-[#9e2016] bg-[#9e2016]/5 text-[#9e2016]'
@@ -279,11 +285,6 @@ export default function PedidoRural() {
                     </button>
                   ))}
                 </div>
-                {tipoCliente === 'ventanilla' && (
-                  <div className="bg-zinc-50 border border-zinc-200 rounded-xl p-4 text-center text-sm text-zinc-400 font-inter animate-scale-in">
-                    🚧 Módulo de ventanilla en construcción
-                  </div>
-                )}
               </section>
 
               {tipoCliente === 'rural' && (
@@ -420,7 +421,7 @@ export default function PedidoRural() {
             </div>
 
             {/* ── CARRITO DERECHO (2/5) ── */}
-            <div className="lg:col-span-2 lg:sticky lg:top-6">
+            <div className="lg:col-span-2 lg:sticky lg:top-0">
               <div className="bg-white border border-zinc-200 rounded-2xl shadow-sm overflow-hidden flex flex-col">
 
                 {/* Header */}

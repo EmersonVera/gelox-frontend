@@ -160,36 +160,43 @@ export default function Reportes() {
                 <KpiCard label="Margen de Ganancia" value={loading ? '…' : reporte ? `${(reporte.margenGanancia ?? 0).toFixed(0)}%` : '—'} />
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
-                <div className="lg:col-span-2 bg-white rounded-2xl border border-border shadow-sm p-6 flex flex-col">
-                    <h2 className="font-display font-bold text-lg text-ink leading-6 mb-0.5">Comparativa de Rendimiento</h2>
-                    <p className="text-xs text-muted mb-4">
-                        {filtroActivo.tipo === 'rango'
-                            ? subtituloRango(filtroActivo.desde, filtroActivo.hasta)
-                            : (SUBTITULOS_GRAFICA[filtroActivo.tipo] ?? 'Ingresos vs. inversión')}
-                    </p>
-                    {loading ? (
-                        <div className="flex-1 flex items-center justify-center text-sm text-muted">Cargando gráfica…</div>
-                    ) : grafica.length === 0 ? (
-                        <div className="flex-1 flex items-center justify-center text-sm text-muted">Sin datos para el período seleccionado</div>
-                    ) : (
-                        <div className="flex-1 min-h-0">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={grafica} barGap={4} barCategoryGap="30%">
-                                    <XAxis dataKey="etiqueta" tick={{ fontSize: 11, fill: '#8d706c' }} axisLine={false} tickLine={false} />
-                                    <YAxis hide />
-                                    <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(0, 0, 0, 0.04)' }} />
-                                    <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12 }}
-                                        formatter={(v) => <span className="text-muted">{v}</span>} />
-                                    <Bar dataKey="ingresos"  name="Ingresos"  fill="#9e2016" style={{ fill: '#9e2016' }} isAnimationActive animationDuration={900} animationEasing="ease-out" radius={[4, 4, 0, 0]} />
-                                    <Bar dataKey="inversion" name="Inversión" fill="#d6d3d1" style={{ fill: '#d6d3d1' }} isAnimationActive animationDuration={900} animationEasing="ease-out" radius={[4, 4, 0, 0]} />
-                                </BarChart>
-                            </ResponsiveContainer>
+            {(() => {
+                const mostrarCierre = filtroActivo.tipo === 'dia' || filtroActivo.tipo === 'rango';
+                return (
+                    <div className={`grid grid-cols-1 gap-4 mb-6 ${mostrarCierre ? 'lg:grid-cols-3' : ''}`}>
+                        <div className={`${mostrarCierre ? 'lg:col-span-2' : ''} bg-white rounded-2xl border border-border shadow-sm p-6 flex flex-col`}>
+                            <h2 className="font-display font-bold text-lg text-ink leading-6 mb-0.5">Comparativa de Rendimiento</h2>
+                            <p className="text-xs text-muted mb-4">
+                                {filtroActivo.tipo === 'rango'
+                                    ? subtituloRango(filtroActivo.desde, filtroActivo.hasta)
+                                    : (SUBTITULOS_GRAFICA[filtroActivo.tipo] ?? 'Ingresos vs. inversión')}
+                            </p>
+                            {loading ? (
+                                <div className="flex-1 flex items-center justify-center text-sm text-muted">Cargando gráfica…</div>
+                            ) : grafica.length === 0 ? (
+                                <div className="flex-1 flex items-center justify-center text-sm text-muted">Sin datos para el período seleccionado</div>
+                            ) : (
+                                <div className="h-64">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <BarChart data={grafica} barGap={4} barCategoryGap="30%">
+                                            <XAxis dataKey="etiqueta" tick={{ fontSize: 11, fill: '#8d706c' }} axisLine={false} tickLine={false} />
+                                            <YAxis hide />
+                                            <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(0, 0, 0, 0.04)' }} />
+                                            <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12 }}
+                                                formatter={(v) => <span className="text-muted">{v}</span>} />
+                                            <Bar dataKey="ingresos"  name="Ingresos"  fill="#9e2016" style={{ fill: '#9e2016' }} isAnimationActive animationDuration={900} animationEasing="ease-out" radius={[4, 4, 0, 0]} />
+                                            <Bar dataKey="inversion" name="Inversión" fill="#d6d3d1" style={{ fill: '#d6d3d1' }} isAnimationActive animationDuration={900} animationEasing="ease-out" radius={[4, 4, 0, 0]} />
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            )}
                         </div>
-                    )}
-                </div>
-                <CierreCaja efectivoEsperado={reporte?.ingresosTotales ?? 0} />
-            </div>
+                        {mostrarCierre && (
+                            <CierreCaja efectivoEsperado={reporte?.ingresosTotales ?? 0} />
+                        )}
+                    </div>
+                );
+            })()}
 
             <TablaRentabilidadCanal data={canales} />
         </AppLayout>

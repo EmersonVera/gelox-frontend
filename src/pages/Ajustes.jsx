@@ -4,6 +4,7 @@ import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import AppLayout from '../components/AppLayout';
 import CambiarContrasena from './components/CambiarContrasena';
+import SuccessToast from '../components/SuccessToast';
 import { useAuth } from '../context/AuthContext';
 import {
   updatePerfil as updatePerfilAPI,
@@ -76,7 +77,8 @@ const errMsg      = 'text-xs text-error-fg mt-1 animate-slide-down';
 export default function Ajustes() {
   const { perfil, usuario, updatePerfil: updatePerfilCtx } = useAuth();
 
-  const [modalContrasena, setModalContrasena] = useState(false);
+  const [modalContrasena,   setModalContrasena]   = useState(false);
+  const [toastContrasena,   setToastContrasena]   = useState(false);
   const [fotoPreview, setFotoPreview]   = useState(perfil?.foto_url ?? null);
   const [fotoLoading, setFotoLoading]   = useState(false);
   const [fotoError,   setFotoError]     = useState('');
@@ -315,7 +317,6 @@ export default function Ajustes() {
             </div>
             <div className="flex-1">
               <div className="text-sm font-medium text-ink">Contraseña</div>
-              <div className="text-xs text-muted">última actualización: hace 3 meses</div>
             </div>
             <button
               type="button"
@@ -331,6 +332,13 @@ export default function Ajustes() {
       <CambiarContrasena
         open={modalContrasena}
         onClose={() => setModalContrasena(false)}
+        onSuccess={() => setToastContrasena(true)}
+      />
+
+      <SuccessToast
+        message="Contraseña actualizada correctamente"
+        show={toastContrasena}
+        onClose={() => setToastContrasena(false)}
       />
     </AppLayout>
   );
