@@ -9,6 +9,9 @@ import LandingPage           from '../pages/LandingPage';
 /* ── Compartidas ── */
 import Ajustes           from '../pages/Ajustes';
 
+/* ── Módulo Comerciantes ── */
+import MisComerciantess from '../pages/MisComerciantess';
+
 /* ── Módulo Administrador ── */
 import DashboardGerente from '../pages/administrador/DashboardGerente';
 import GestionUsuarios  from '../pages/administrador/GestionUsuarios';
@@ -71,7 +74,6 @@ export default function AppRouter() {
           <Route path="/reportes"                element={<Reportes />} />
           <Route path="/cierres-caja"            element={<HistorialCierres />} />
           <Route path="/cierres-caja/:id"        element={<DetalleCierre />} />
-          <Route path="/comerciantes"            element={<EnConstruccion modulo="Comerciantes" />} />
           {/* Ajustes del admin — mantiene SidebarAdministrador */}
           <Route path="/ajustes"                 element={<Ajustes />} />
         </Route>
@@ -96,7 +98,7 @@ export default function AppRouter() {
           <Route path="/ventas/pedidos-rurales"  element={<PedidoRural />} />
           <Route path="/ventas/pedidos-ventanilla" element={<PedidoVentanilla />} />
           <Route path="/ventas/reportes"         element={<EnConstruccion modulo="Reportes de Ventas" />} />
-          <Route path="/ventas/comerciantes"     element={<EnConstruccion modulo="Comerciantes" />} />
+          <Route path="/ventas/comerciantes"     element={<MisComerciantess />} />
           {/* Ajustes del módulo ventas — mantiene SidebarVentas */}
           <Route path="/ventas/ajustes"          element={<Ajustes />} />
         </Route>
