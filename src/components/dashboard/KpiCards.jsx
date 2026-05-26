@@ -35,7 +35,15 @@ function formatCOP(n) {
 }
 
 function Badge({ valor, tipo }) {
-  if (tipo === 'porcentaje') {
+    if (tipo === 'porcentaje') {
+    // null → sin dato anterior con qué comparar
+    if (valor === null || valor === undefined) {
+      return (
+        <span className="text-xs font-bold px-2 py-1 rounded-full font-inter bg-[#f5f5f4] text-[#a8a29e]">
+          — sin dato ant.
+        </span>
+      );
+    }
     const positivo = valor >= 0;
     return (
       <span className={`text-xs font-bold px-2 py-1 rounded-full font-inter ${
