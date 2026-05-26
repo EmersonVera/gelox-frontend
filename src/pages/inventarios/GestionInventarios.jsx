@@ -1,7 +1,11 @@
-// src/pages/inventarios/GestionInventarios.jsx — RF17 + RF24
+// src/pages/inventarios/GestionInventarios.jsx — RF17 + RF24 + RF26 + RF27
 import { useState, useEffect, useMemo } from 'react';
 import AppLayout from '../../components/AppLayout';
-import { getProductosInventario, getAlertasStock } from '../../services/inventarioService';
+import {
+  getProductosInventario,
+  getAlertasStock,
+  buscarProductosInventario,
+} from '../../services/inventarioService';
 
 /* ─── Mock data (fallback si el backend no responde) ─── */
 const MOCK_PRODUCTOS = [
@@ -17,9 +21,9 @@ const MOCK_ALERTAS = [
 const PAGE_SIZE = 10;
 const CATEGORIAS = ['Todos', 'Paletas', 'Conos', 'Familiares'];
 const ESTADOS_FILTRO = [
-  { value: '', label: 'Todos los estados' },
-  { value: 'NORMAL', label: 'Normal' },
-  { value: 'BAJO_STOCK', label: 'Bajo Stock' },
+  { value: '',            label: 'Todos los estados' },
+  { value: 'NORMAL',      label: 'Normal' },
+  { value: 'BAJO_STOCK',  label: 'Bajo Stock' },
   { value: 'STOCK_MEDIO', label: 'Stock Medio' },
 ];
 
@@ -139,17 +143,25 @@ function PageBtn({ children, onClick, active, disabled }) {
    PÁGINA PRINCIPAL
 ══════════════════════════════════════════════════ */
 export default function GestionInventarios() {
+  /*
+   * productosBase: lista completa cargada al montar la página (RF26 — datos
+   *   siempre frescos, reflejo del inventario tras ventas/despachos del backend).
+   * productos: subconjunto devuelto por /buscar cuando hay filtro de estado activo,
+   *   o igual a productosBase cuando no hay filtro (RF27).
+   */
+  const [productosBase, setProductosBase] = useState([]);
   const [productos, setProductos]         = useState([]);
   const [alertas, setAlertas]             = useState([]);
   const [cargando, setCargando]           = useState(true);
+  const [buscando, setBuscando]           = useState(false); // spinner filtro estado
   const [error, setError]                 = useState(false);
 
-  const [busqueda, setBusqueda]           = useState('');
-  const [categoriaActiva, setCatActiva]   = useState('Todos');
-  const [filtroEstado, setFiltroEstado]   = useState('');
-  const [page, setPage]                   = useState(1);
+  const [busqueda, setBusqueda]         = useState('');
+  const [categoriaActiva, setCatActiva] = useState('Todos');
+  const [filtroEstado, setFiltroEstado] = useState('');
+  const [page, setPage]                 = useState(1);
 
-  /* ── Fetch datos ── */
+  /* ── RF26: carga inicial — el backend ya descontó stock de ventas/despachos ── */
   useEffect(() => {
     let cancelled = false;
     async function cargar() {
@@ -161,15 +173,17 @@ export default function GestionInventarios() {
           getAlertasStock(),
         ]);
         if (!cancelled) {
-          setProductos(Array.isArray(prods) ? prods : MOCK_PRODUCTOS);
-          setAlertas(Array.isArray(alts)  ? alts  : MOCK_ALERTAS);
+          const lista = Array.isArray(prods) ? prods : MOCK_PRODUCTOS;
+          setProductosBase(lista);
+          setProductos(lista);
+          setAlertas(Array.isArray(alts) ? alts : MOCK_ALERTAS);
         }
       } catch {
         if (!cancelled) {
-          // Usar mock en caso de error (entorno desarrollo sin backend)
+          setProductosBase(MOCK_PRODUCTOS);
           setProductos(MOCK_PRODUCTOS);
           setAlertas(MOCK_ALERTAS);
-          setError(false); // con mock no mostramos error
+          setError(false); // con mock no mostramos error en dev
         }
       } finally {
         if (!cancelled) setCargando(false);
@@ -179,35 +193,69 @@ export default function GestionInventarios() {
     return () => { cancelled = true; };
   }, []);
 
-  /* ── Filtrado combinado (local, sin fetch) ── */
+  /* ── RF27: filtro por estado → llama a GET /api/inventario/buscar ── */
+  useEffect(() => {
+    if (cargando) return; // esperar a que termine la carga inicial
+
+    let cancelled = false;
+
+    async function aplicarFiltroEstado() {
+      // Sin filtro de estado → restaurar la lista completa sin llamada extra
+      if (!filtroEstado) {
+        setProductos(productosBase);
+        setPage(1);
+        return;
+      }
+
+      setBuscando(true);
+      try {
+        const result = await buscarProductosInventario({ estado: filtroEstado });
+        if (!cancelled) {
+          setProductos(Array.isArray(result) ? result : []);
+          setPage(1);
+        }
+      } catch {
+        // Fallback local si el endpoint aún no está disponible
+        if (!cancelled) {
+          setProductos(productosBase.filter((p) => p.estado === filtroEstado));
+          setPage(1);
+        }
+      } finally {
+        if (!cancelled) setBuscando(false);
+      }
+    }
+
+    aplicarFiltroEstado();
+    return () => { cancelled = true; };
+  // productosBase es estable; cargando solo importa en el guard de entrada
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtroEstado, cargando]);
+
+  /* ── RF27: filtro local por nombre / código técnico (instantáneo) ── */
   const productosFiltrados = useMemo(() => {
     const q = busqueda.trim().toLowerCase();
-    return productos.filter((p) => {
-      // Filtro texto (nombre o código técnico)
-      if (q) {
-        const matchNombre = p.nombre?.toLowerCase().includes(q);
-        const matchCodigo = p.codigoTecnico?.toLowerCase().includes(q);
-        if (!matchNombre && !matchCodigo) return false;
-      }
-      // Filtro categoría — no viene en InventarioProductoDTO, se omite
-      // Filtro estado — backend retorna 'NORMAL' | 'BAJO_STOCK'
-      if (filtroEstado && p.estado !== filtroEstado) return false;
-      return true;
-    });
-  }, [productos, busqueda, categoriaActiva, filtroEstado]);
+    if (!q) return productos;
+    return productos.filter((p) =>
+      p.nombre?.toLowerCase().includes(q) ||
+      p.codigoTecnico?.toLowerCase().includes(q)
+    );
+  }, [productos, busqueda]);
 
-  // Resetear página al cambiar filtros
-  useEffect(() => { setPage(1); }, [busqueda, categoriaActiva, filtroEstado]);
+  // Resetear página al cambiar texto de búsqueda o categoría
+  useEffect(() => { setPage(1); }, [busqueda, categoriaActiva]);
 
   /* ── Paginación ── */
   const totalPages = Math.max(1, Math.ceil(productosFiltrados.length / PAGE_SIZE));
   const paginados  = productosFiltrados.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  // ¿Algún producto tiene el campo categoria? → mostramos pills
-  const hayCategoria = productos.some((p) => Boolean(p.categoria));
+  // Mostrar pills de categoría solo si el backend devuelve el campo
+  const hayCategoria = productosBase.some((p) => Boolean(p.categoria));
 
-  /* ── Alertas de bajo stock ── */
+  // Conteo de alertas de bajo stock
   const bajoStockCount = alertas.filter((a) => a.estado === 'BAJO_STOCK').length;
+
+  // ¿Hay algún filtro activo?
+  const hayFiltros = busqueda.trim() !== '' || filtroEstado !== '';
 
   return (
     <AppLayout>
@@ -258,42 +306,92 @@ export default function GestionInventarios() {
         {/* ── Sección tabla ── */}
         <div className="bg-white border border-zinc-200 rounded-2xl shadow-sm overflow-hidden">
 
-          {/* Encabezado de sección */}
+          {/* Encabezado de sección con selector de estado (RF27) */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-100">
             <h2 className="font-['Manrope'] font-bold text-lg text-zinc-900">Existencias Actuales</h2>
+
             <div className="flex items-center gap-3">
               <span className="font-['Inter'] text-[11px] uppercase tracking-wider font-bold text-zinc-500">
                 Filtro por Estado
               </span>
-              <select
-                value={filtroEstado}
-                onChange={(e) => setFiltroEstado(e.target.value)}
-                className="bg-zinc-100 border border-transparent focus:border-red-700 focus:ring-2 focus:ring-red-700/20
-                  rounded-xl px-3 py-2 outline-none transition-all text-zinc-900 text-sm font-['Inter'] cursor-pointer"
-              >
-                {ESTADOS_FILTRO.map((e) => (
-                  <option key={e.value} value={e.value}>{e.label}</option>
-                ))}
-              </select>
+
+              {/* Selector de estado — llama a /api/inventario/buscar (RF27) */}
+              <div className="relative">
+                <select
+                  value={filtroEstado}
+                  onChange={(e) => setFiltroEstado(e.target.value)}
+                  disabled={cargando || buscando}
+                  className="bg-zinc-100 border border-transparent focus:border-red-700 focus:ring-2
+                    focus:ring-red-700/20 rounded-xl px-3 py-2 pr-8 outline-none transition-all
+                    text-zinc-900 text-sm font-['Inter'] cursor-pointer appearance-none
+                    disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {ESTADOS_FILTRO.map((e) => (
+                    <option key={e.value} value={e.value}>{e.label}</option>
+                  ))}
+                </select>
+
+                {/* Spinner mientras el backend responde */}
+                {buscando ? (
+                  <span className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
+                    <svg className="animate-spin w-3.5 h-3.5 text-red-600" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10"
+                        stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                  </span>
+                ) : (
+                  // Chevron decorativo cuando no hay spinner
+                  <span className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-400">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" strokeWidth="2.5">
+                      <polyline points="6 9 12 15 18 9" />
+                    </svg>
+                  </span>
+                )}
+              </div>
             </div>
           </div>
 
-          {/* Barra de búsqueda */}
+          {/* Barra de búsqueda por nombre / código (RF27 — filtro local) */}
           <div className="px-6 py-3 border-b border-zinc-100">
-            <div className="relative max-w-sm">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
-                <SearchIcon />
-              </span>
-              <input
-                type="text"
-                placeholder="Buscar producto..."
-                value={busqueda}
-                onChange={(e) => setBusqueda(e.target.value)}
-                className="w-full pl-9 pr-4 py-2.5 bg-zinc-100 border border-transparent
-                  focus:border-red-700 focus:ring-2 focus:ring-red-700/20 rounded-xl
-                  outline-none transition-all text-sm text-zinc-900 placeholder:text-zinc-400
-                  font-['Inter']"
-              />
+            <div className="flex items-center gap-3">
+              <div className="relative max-w-sm flex-1">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                  <SearchIcon />
+                </span>
+                <input
+                  type="text"
+                  placeholder="Buscar por nombre o código técnico…"
+                  value={busqueda}
+                  onChange={(e) => setBusqueda(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2.5 bg-zinc-100 border border-transparent
+                    focus:border-red-700 focus:ring-2 focus:ring-red-700/20 rounded-xl
+                    outline-none transition-all text-sm text-zinc-900 placeholder:text-zinc-400
+                    font-['Inter']"
+                />
+              </div>
+
+              {/* Contador de resultados cuando hay filtros activos */}
+              {hayFiltros && !cargando && !buscando && (
+                <span className="font-['Inter'] text-xs text-zinc-500 whitespace-nowrap">
+                  {productosFiltrados.length === 0
+                    ? 'Sin resultados'
+                    : `${productosFiltrados.length} resultado${productosFiltrados.length !== 1 ? 's' : ''}`}
+                </span>
+              )}
+
+              {/* Limpiar filtros */}
+              {hayFiltros && (
+                <button
+                  onClick={() => { setBusqueda(''); setFiltroEstado(''); }}
+                  className="font-['Inter'] text-xs font-semibold text-red-600
+                    hover:text-red-800 transition-colors whitespace-nowrap"
+                >
+                  Limpiar filtros
+                </button>
+              )}
             </div>
           </div>
 
@@ -312,7 +410,7 @@ export default function GestionInventarios() {
                 </tr>
               </thead>
               <tbody>
-                {cargando ? (
+                {cargando || buscando ? (
                   <SkeletonRows />
                 ) : error ? (
                   <tr>
@@ -323,7 +421,9 @@ export default function GestionInventarios() {
                 ) : paginados.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="px-6 py-16 text-center font-['Inter'] text-sm text-zinc-400">
-                      No hay productos en esta categoría.
+                      {hayFiltros
+                        ? 'No hay productos que coincidan con los filtros aplicados.'
+                        : 'No hay productos en esta categoría.'}
                     </td>
                   </tr>
                 ) : (
@@ -379,7 +479,7 @@ export default function GestionInventarios() {
           </div>
 
           {/* Paginación */}
-          {!cargando && !error && productosFiltrados.length > 0 && (
+          {!cargando && !buscando && !error && productosFiltrados.length > 0 && (
             <div className="flex items-center justify-between px-6 py-4 border-t border-zinc-100">
               <p className="font-['Inter'] text-sm text-zinc-500">
                 Mostrando {Math.min((page - 1) * PAGE_SIZE + 1, productosFiltrados.length)}–
@@ -395,7 +495,6 @@ export default function GestionInventarios() {
                 </PageBtn>
 
                 {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
-                  // Lógica de ventana deslizante para muchas páginas
                   let pageNum;
                   if (totalPages <= 7) {
                     pageNum = i + 1;
