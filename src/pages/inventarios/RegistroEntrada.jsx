@@ -9,15 +9,24 @@ import CustomSelect from '../../components/ui/CustomSelect';
 const CATEGORIAS = ['Todos', 'Paletas', 'Conos', 'Vaso', 'Litros'];
 const base = import.meta.env.VITE_API_BASE_URL ?? '';
 
+const MESES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+function formatFecha(fecha) {
+  if (!fecha) return '—';
+  const [año, mes, dia] = String(fecha).split('-').map(Number);
+  return `${dia} ${MESES[mes - 1]} ${año}`;
+}
+
 export default function RegistroEntrada() {
   const { token }   = useAuth();
   const navigate    = useNavigate();
   const [pedidos, setPedidos]                       = useState([]);
   const [pedidoSeleccionado, setPedidoSeleccionado] = useState('');
   const [categoriaActiva, setCategoriaActiva]       = useState('Todos');
+  const [busqueda, setBusqueda]                     = useState('');
   const [productos, setProductos]                   = useState([]);
   const [carrito, setCarrito]                       = useState([]);
   const [cargando, setCargando]                     = useState(true);
+  const [cargandoPedido, setCargandoPedido]         = useState(false);
   const [confirmando, setConfirmando]               = useState(false);
   const [resumen, setResumen]                       = useState(null);
 
@@ -63,6 +72,38 @@ export default function RegistroEntrada() {
   }, [token, categoriaActiva]);
 
   useEffect(() => { fetchProductos(); }, [fetchProductos]);
+
+  // Cuando se selecciona un pedido, cargar sus ítems en el carrito automáticamente
+  useEffect(() => {
+    if (!pedidoSeleccionado) {
+      setCarrito([]);
+      return;
+    }
+    setCargandoPedido(true);
+    fetch(`${base}/api/inventario/pedidos/${pedidoSeleccionado}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(r => (r.ok ? r.json() : null))
+      .then(data => {
+        if (data?.items?.length) {
+          setCarrito(
+            data.items.map(item => ({
+              producto: {
+                id:             item.productoId,
+                nombre:         item.nombre,
+                codigoTecnico:  item.codigoTecnico,
+              },
+              cajas:    item.cantidadSolicitada,
+              unidades: 0,
+            }))
+          );
+        } else {
+          setCarrito([]);
+        }
+      })
+      .catch(() => setCarrito([]))
+      .finally(() => setCargandoPedido(false));
+  }, [pedidoSeleccionado, token]);
 
   const toggleSeleccionar = (p) => {
     const enCarrito = carrito.find(i => i.producto.id === p.id);
@@ -196,9 +237,12 @@ export default function RegistroEntrada() {
             onChange={setPedidoSeleccionado}
             options={[
               { value: '', label: '-- Seleccionar pedido --' },
-              ...pedidos.map(p => ({ value: String(p.id), label: p.nombre ?? p.id_pedido ?? String(p.id) })),
+              ...pedidos.map(p => ({
+                value: String(p.id),
+                label: `${formatFecha(p.fecha)}${p.notas ? ' — ' + p.notas : ''}  #${p.id.toString().substring(0, 8).toUpperCase()}`,
+              })),
             ]}
-            className="min-w-[220px]"
+            className="min-w-[280px]"
             size="sm"
           />
         </div>
@@ -206,6 +250,29 @@ export default function RegistroEntrada() {
         <div className="flex gap-6 items-start">
           {/* ── Catálogo izquierda ── */}
           <div className="flex-1 flex flex-col gap-5">
+
+            {/* Barra de búsqueda */}
+            <div className="relative">
+              <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-[#a8a29e]" width="16" height="16" fill="none" viewBox="0 0 16 16">
+                <circle cx="7" cy="7" r="5" stroke="currentColor" strokeWidth="1.3"/>
+                <path d="M11 11l3 3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+              </svg>
+              <input
+                value={busqueda}
+                onChange={e => setBusqueda(e.target.value)}
+                placeholder="Buscar producto..."
+                className="bg-[#f6f3f3] border-none rounded-[8px] pl-10 pr-4 py-2.5 w-full font-['Inter'] text-[14px] text-[#1b1b1c] outline-none focus:ring-2 focus:ring-[#9e2016]/20"
+              />
+              {busqueda && (
+                <button
+                  onClick={() => setBusqueda('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#a8a29e] hover:text-[#78716c] cursor-pointer transition-colors"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+
             {/* Pills */}
             <div className="flex gap-2 flex-wrap">
               {CATEGORIAS.map(cat => (
@@ -224,7 +291,11 @@ export default function RegistroEntrada() {
             </div>
 
             {/* Grid productos */}
-            {cargando ? (
+            {(() => {
+              const productosFiltrados = busqueda
+                ? productos.filter(p => p.nombre?.toLowerCase().includes(busqueda.toLowerCase()))
+                : productos;
+              return cargando ? (
               <div className="grid grid-cols-3 gap-4">
                 {[1, 2, 3, 4, 5].map(i => (
                   <div
@@ -233,9 +304,13 @@ export default function RegistroEntrada() {
                   />
                 ))}
               </div>
+            ) : productosFiltrados.length === 0 ? (
+              <p className="font-['Inter'] text-[14px] text-[#a8a29e] text-center py-12">
+                {busqueda ? `Sin resultados para "${busqueda}"` : 'No hay productos en esta categoría.'}
+              </p>
             ) : (
               <div className="grid grid-cols-3 gap-4">
-                {productos.map(p => {
+                {productosFiltrados.map(p => {
                   const enCarrito = !!carrito.find(i => i.producto.id === p.id);
                   return (
                     <div
@@ -281,11 +356,11 @@ export default function RegistroEntrada() {
                   );
                 })}
               </div>
-            )}
+            );})()}
           </div>
 
           {/* ── Panel carrito entrada ── */}
-          <div className="w-[280px] shrink-0 sticky top-8 flex flex-col gap-4">
+          <div className="w-[340px] shrink-0 sticky top-8 flex flex-col gap-4">
             <div className="bg-white rounded-[12px] border border-[#f5f5f4] p-5 flex flex-col gap-4">
               {/* Header */}
               <div className="flex items-center justify-between">
@@ -302,13 +377,20 @@ export default function RegistroEntrada() {
                 )}
               </div>
 
-              {carrito.length === 0 ? (
+              {cargandoPedido ? (
+                <div className="flex flex-col items-center gap-2 py-6">
+                  <div className="w-6 h-6 border-2 border-[#9e2016] border-t-transparent rounded-full animate-spin" />
+                  <p className="font-['Inter'] font-normal text-[12px] text-[#a8a29e]">
+                    Cargando items del pedido…
+                  </p>
+                </div>
+              ) : carrito.length === 0 ? (
                 <p className="font-['Inter'] font-normal text-[13px] text-[#a8a29e] text-center py-6">
                   Selecciona productos a ingresar
                 </p>
               ) : (
                 <>
-                  <div className="flex flex-col gap-4 max-h-[360px] overflow-y-auto">
+                  <div className="flex flex-col gap-4 max-h-[360px] overflow-y-auto pr-1">
                     {carrito.map(item => (
                       <div
                         key={item.producto.id}
@@ -356,22 +438,22 @@ export default function RegistroEntrada() {
                   </div>
 
                   {/* Totales */}
-                  <div className="flex justify-between items-end pt-1">
-                    <div>
-                      <p className="font-['Inter'] font-semibold text-[10px] uppercase tracking-[0.5px] text-[#a8a29e]">
-                        Total Ingreso
+                  <div className="bg-[#fafaf9] rounded-[8px] p-3 flex items-center">
+                    <div className="flex-1 text-center">
+                      <p className="font-['Manrope'] font-bold text-[22px] text-[#1b1b1c] leading-none">
+                        {totalCajas}
                       </p>
-                      <p className="font-['Manrope'] font-bold text-[24px] text-[#1b1b1c] leading-none">
-                        {totalCajas}{' '}
-                        <span className="font-['Inter'] font-normal text-[12px] text-[#a8a29e]">CAJAS</span>
+                      <p className="font-['Inter'] font-semibold text-[10px] uppercase tracking-[0.5px] text-[#a8a29e] mt-1">
+                        Cajas
                       </p>
                     </div>
-                    <div className="text-right">
-                      <p className="font-['Inter'] font-semibold text-[10px] uppercase tracking-[0.5px] text-[#a8a29e]">
-                        Total Unidades
+                    <div className="w-px h-9 bg-[#e7e5e4] shrink-0" />
+                    <div className="flex-1 text-center">
+                      <p className="font-['Manrope'] font-bold text-[22px] text-[#1b1b1c] leading-none">
+                        {totalUnidades}
                       </p>
-                      <p className="font-['Manrope'] font-bold text-[20px] text-[#1b1b1c] leading-none">
-                        {totalUnidades.toLocaleString()}
+                      <p className="font-['Inter'] font-semibold text-[10px] uppercase tracking-[0.5px] text-[#a8a29e] mt-1">
+                        Unidades
                       </p>
                     </div>
                   </div>
