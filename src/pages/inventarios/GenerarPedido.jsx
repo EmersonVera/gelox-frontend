@@ -75,10 +75,10 @@ export default function GenerarPedido() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          productos: carrito.map(i => ({
-            producto_id:       i.producto.id,
-            cantidad_cajas:    i.cajas,
-            cantidad_unidades: i.unidades,
+          // RF21 — CrearPedidoRequest: items[].productoId + cantidadSolicitada
+          items: carrito.map(i => ({
+            productoId:         i.producto.id,
+            cantidadSolicitada: i.cajas + i.unidades,
           })),
         }),
       });

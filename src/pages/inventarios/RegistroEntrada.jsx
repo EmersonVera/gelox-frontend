@@ -22,19 +22,23 @@ export default function RegistroEntrada() {
   const [resumen, setResumen]                       = useState(null);
 
   // Cargar pedidos PENDIENTES
+  // Nota: GET /api/inventario/pedidos aún no está implementado en el backend.
+  // El pedidoId es opcional en RegistrarEntradaRequest — si no se selecciona,
+  // la entrada se registra como entrada directa sin asociar pedido (RF23).
   useEffect(() => {
     fetch(`${base}/api/inventario/pedidos?estado=PENDIENTE`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(r => {
-        if (!r.ok) { console.warn('pedidos PENDIENTES:', r.status); return []; }
+        // 500/404/405 = endpoint no implementado aún en el backend → lista vacía silenciosa
+        if (!r.ok) return [];
         return r.json();
       })
       .then(d => {
         const list = d.pedidos ?? d.content ?? d;
         setPedidos(Array.isArray(list) ? list : []);
       })
-      .catch(e => { console.error('fetchPedidosPendientes:', e); });
+      .catch(() => { /* endpoint no disponible, continuar sin pedidos */ });
   }, [token]);
 
   // Cargar catálogo según categoría
@@ -80,18 +84,18 @@ export default function RegistroEntrada() {
     );
 
   const handleConfirmar = async () => {
-    if (!pedidoSeleccionado || carrito.length === 0) return;
+    if (carrito.length === 0) return;
     setConfirmando(true);
     try {
       const res = await fetch(`${base}/api/inventario/entradas`, {
         method:  'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
         body:    JSON.stringify({
-          pedido_id: pedidoSeleccionado,
-          productos: carrito.map(i => ({
-            producto_id:       i.producto.id,
-            cantidad_cajas:    i.cajas,
-            cantidad_unidades: i.unidades,
+          // RF22+RF23 — RegistrarEntradaRequest: pedidoId (opcional) + items[].productoId + cantidadRecibida
+          pedidoId: pedidoSeleccionado || null,
+          items: carrito.map(i => ({
+            productoId:       i.producto.id,
+            cantidadRecibida: i.cajas + i.unidades,
           })),
         }),
       });
@@ -124,16 +128,35 @@ export default function RegistroEntrada() {
             <p className="font-['Inter'] font-normal text-[14px] text-[#78716c]">
               El stock ha sido actualizado automáticamente en el sistema.
             </p>
-            {resumen.productos?.map(p => (
+            {/* RF22 — comparacion por producto (si se vinculó un pedido) */}
+            {resumen.comparacion?.map(c => (
               <div
-                key={p.id}
+                key={c.productoId}
                 className="flex items-center justify-between py-2 border-b border-[#fafaf9]"
               >
                 <span className="font-['Inter'] font-medium text-[14px] text-[#1b1b1c]">
-                  {p.nombre}
+                  {c.nombre}
+                </span>
+                <span className={`font-['Inter'] font-semibold text-[13px] px-2 py-0.5 rounded-full ${
+                  c.estado === 'CORRECTO'  ? 'bg-[#f0fdf4] text-[#16a34a]' :
+                  c.estado === 'FALTANTE'  ? 'bg-[#fef2f2] text-[#dc2626]' :
+                                             'bg-[#fefce8] text-[#ca8a04]'
+                }`}>
+                  {c.cantidadRecibida} / {c.cantidadSolicitada} — {c.estado}
+                </span>
+              </div>
+            ))}
+            {/* RF23 — stock actualizado por producto */}
+            {!resumen.comparacion && resumen.stockActualizado?.map(s => (
+              <div
+                key={s.productoId}
+                className="flex items-center justify-between py-2 border-b border-[#fafaf9]"
+              >
+                <span className="font-['Inter'] font-medium text-[14px] text-[#1b1b1c]">
+                  {s.nombre}
                 </span>
                 <span className="font-['Inter'] font-semibold text-[14px] text-[#16a34a]">
-                  +{p.stock_agregado} → {p.stock_nuevo}
+                  Stock: {s.nuevoStock}
                 </span>
               </div>
             ))}
@@ -353,10 +376,10 @@ export default function RegistroEntrada() {
                     </div>
                   </div>
 
-                  {/* Botón confirmar */}
+                  {/* Botón confirmar — pedidoId es opcional en el backend (RF23 sin pedido asociado) */}
                   <button
                     onClick={handleConfirmar}
-                    disabled={confirmando || !pedidoSeleccionado}
+                    disabled={confirmando || carrito.length === 0}
                     className="w-full bg-[#9e2016] hover:bg-[#c0392b] disabled:opacity-70 text-white font-['Manrope'] font-bold text-[16px] rounded-[8px] py-3 flex items-center justify-center gap-2 cursor-pointer transition-colors"
                   >
                     {confirmando ? 'Confirmando...' : 'Confirmar Ingreso ✓'}
