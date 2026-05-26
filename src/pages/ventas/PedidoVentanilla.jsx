@@ -8,11 +8,18 @@ import { useNavigate } from 'react-router-dom';
 import AppLayout from '../../components/AppLayout';
 import { getCatalogoVenta, calcularVenta, confirmarVenta } from '../../services/ventasService';
 
+const UNIDADES_POR_CAJA = 24;
+
 /* ──────────────────────────── UTILIDADES ──────────────────────────────── */
-const formatCOP  = (n) => '$' + Number(n || 0).toLocaleString('es-CO', { minimumFractionDigits: 0 });
+const formatCOP = (n) =>
+  '$' + Number(n || 0).toLocaleString('es-CO', { minimumFractionDigits: 0 });
+
 const formatFecha = (iso) => {
   if (!iso) return null;
-  return new Date(iso).toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  return new Date(iso).toLocaleDateString('es-CO', {
+    day: '2-digit', month: '2-digit', year: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  });
 };
 
 /* ──────────────────────────── ÍCONOS SVG ──────────────────────────────── */
@@ -72,27 +79,34 @@ export default function PedidoVentanilla() {
   const [cargandoProd, setCargandoProd] = useState(true);
   const [busquedaProd, setBusquedaProd] = useState('');
 
-  /* ── Carrito ── */
-  const [cartItems, setCartItems]       = useState([]);
+  /* ── Carrito ──
+   * Estructura de cada ítem: { id, nombre, precioVenta, imagenUrl, cajas, unidades }
+   * "unidades" = unidades sueltas (campo que el backend espera como "unidades")
+   */
+  const [cartItems, setCartItems] = useState([]);
+
+  /* ── Resultado de cálculo (backend) ──
+   * { items: [{ productoId, cajas, unidades, precioUnitario, subtotal }], total }
+   */
+  const [calcResult, setCalcResult] = useState(null);
 
   /* ── Pago ── */
-  const [metodoPago, setMetodoPago]     = useState('EFECTIVO');
+  const [metodoPago, setMetodoPago] = useState('EFECTIVO');
 
   /* ── UI ── */
-  const [enviando, setEnviando]         = useState(false);
-  const [errorGlobal, setErrorGlobal]   = useState('');
-  const [stockErr, setStockErr]         = useState(null);
-  const [showConfirm, setShowConfirm]   = useState(false);
+  const [enviando, setEnviando]       = useState(false);
+  const [errorGlobal, setErrorGlobal] = useState('');
+  const [stockErr, setStockErr]       = useState(null);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   /**
-   * ventaConfirmada: datos reales devueltos por el backend al confirmar.
-   * Estructura esperada (se adapta a lo que devuelva el backend):
-   *   { id, codigo, total, fecha, metodoPago, canal }
-   * Mientras sea null, se muestra el formulario de venta.
+   * ventaConfirmada: respuesta real del backend al confirmar.
+   * Estructura exacta: { ventaId, canal, fecha, estado, items, total, metodoPago }
+   * Mientras sea null se muestra el formulario.
    */
   const [ventaConfirmada, setVentaConfirmada] = useState(null);
 
-  /* ── Total sincronizado con backend ── */
+  /* ── Total visible en UI (backend cuando llega, estimación local mientras) ── */
   const [totalCalculado, setTotalCalculado] = useState(0);
   const calcTimerRef = useRef(null);
 
@@ -103,17 +117,15 @@ export default function PedidoVentanilla() {
     getCatalogoVenta()
       .then((data) => {
         if (!vivo) return;
+        // Mapeo exacto con los campos reales que devuelve el backend.
         setProductos(data.map((p) => ({
-          id:              p.id,
-          codigoTecnico:   p.codigo ?? '',
-          nombre:          p.nombre,
-          descripcion:     p.descripcion       ?? '',
-          // precio en unidades — obligatorio desde API, sin fallback inventado
-          precioVenta:     Number(p.precioUnitario ?? 0),
-          stockActual:     Number(p.stock    ?? p.stock  ?? 0),
-          imagenUrl:       p.imagen  ?? null,
-          // unidades por caja — obligatorio desde API; 0 si el backend no lo envía
-          unidadesPorCaja: Number(p.unidades_por_caja ?? p.unidadesPorCaja ?? 0),
+          id:            p.id,
+          codigoTecnico: p.codigo,
+          nombre:        p.nombre,
+          imagenUrl:     p.imagen ?? null,
+          precioVenta:   Number(p.precioUnitario),
+          stockActual:   Number(p.stock),
+          disponible:    p.disponible,
         })));
       })
       .catch((err) => {
@@ -125,51 +137,67 @@ export default function PedidoVentanilla() {
     return () => { vivo = false; };
   }, []);
 
-  /* ── Cálculo de subtotales por item (basado en datos API) ── */
-  const calcSubCajas    = (it) => it.cajas          * it.unidadesPorCaja * it.precioVenta;
-  const calcSubUnidades = (it) => it.unidadesSueltas *                  1 * it.precioVenta;
-  const calcSub         = (it) => calcSubCajas(it) + calcSubUnidades(it);
+  /* ── Estimación local de subtotal (solo para UX inmediata antes de respuesta backend) ──
+   * Usa UNIDADES_POR_CAJA = 24, constante fijada por el backend.
+   */
+  const calcSubLocal = (it) =>
+    (it.cajas * UNIDADES_POR_CAJA + it.unidades) * (Number(it.precioVenta) || 0);
 
-  /* ── Total: cálculo local inmediato para UX + validación backend ── */
+  /* ── Subtotal de ítem: usa valor backend cuando está disponible, local como fallback ── */
+  const getItemSubtotal = (itemId) => {
+    if (calcResult?.items) {
+      const found = calcResult.items.find((r) => r.productoId === itemId);
+      if (found) return Number(found.subtotal);
+    }
+    const local = cartItems.find((i) => i.id === itemId);
+    return local ? calcSubLocal(local) : 0;
+  };
+
+  /* ── Total: estimación local inmediata + sincronización con backend (debounce 500ms) ── */
   useEffect(() => {
-    const localTotal = cartItems.reduce((acc, i) => acc + calcSub(i), 0);
-    setTotalCalculado(localTotal);
+    // Estimación local inmediata para UX fluida — siempre número válido
+    const localTotal = cartItems.reduce((acc, i) => acc + calcSubLocal(i), 0);
+    setTotalCalculado(Number.isFinite(localTotal) ? localTotal : 0);
+    setCalcResult(null); // invalida resultado anterior al cambiar carrito
 
     if (cartItems.length === 0) return;
     if (calcTimerRef.current) clearTimeout(calcTimerRef.current);
 
     calcTimerRef.current = setTimeout(async () => {
       try {
-        const items = cartItems.map((i) => ({
-          productoId:       i.id,
-          cajas:            i.cajas,
-          unidadesSueltas:  i.unidadesSueltas,
+        const payload = cartItems.map((i) => ({
+          productoId: i.id,
+          cajas:      i.cajas,
+          unidades:   i.unidades,
         }));
-        const resp = await calcularVenta(items);
-        // El valor definitivo válido es el del backend
+        const resp = await calcularVenta(payload);
+        // resp = { items: [...], total: ... } — el total definitivo es del backend
+        setCalcResult(resp);
         if (resp?.total !== undefined) setTotalCalculado(Number(resp.total));
-      } catch { /* mantener cálculo local hasta que el backend responda */ }
+      } catch {
+        /* conservar estimación local hasta que el backend responda */
+      }
     }, 500);
 
     return () => { if (calcTimerRef.current) clearTimeout(calcTimerRef.current); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cartItems]);
 
   /* ── Acciones de carrito ── */
   const addToCart = useCallback((producto) => {
-    if (producto.stockActual === 0) return;
+    if (!producto.disponible || producto.stockActual === 0) return;
     setCartItems((prev) => {
       const existe = prev.find((i) => i.id === producto.id);
-      if (existe) return prev.map((i) => i.id === producto.id ? { ...i, cajas: i.cajas + 1 } : i);
+      if (existe) return prev.map((i) =>
+        i.id === producto.id ? { ...i, cajas: i.cajas + 1 } : i
+      );
       return [...prev, {
-        id:              producto.id,
-        nombre:          producto.nombre,
-        descripcion:     producto.descripcion,
-        precioVenta:     producto.precioVenta,
-        unidadesPorCaja: producto.unidadesPorCaja, // valor real desde API
-        imagenUrl:       producto.imagenUrl,
-        cajas:           1,
-        unidadesSueltas: 0,
+        id:          producto.id,
+        nombre:      producto.nombre,
+        precioVenta: producto.precioVenta,
+        imagenUrl:   producto.imagenUrl,
+        cajas:       1,
+        unidades:    0,
       }];
     });
     setStockErr(null);
@@ -185,32 +213,34 @@ export default function PedidoVentanilla() {
     setCartItems((prev) => prev.filter((i) => i.id !== id));
   }, []);
 
-  /* ── Búsqueda local (sobre datos reales ya cargados) ── */
+  /* ── Búsqueda local sobre datos reales del catálogo ── */
   const productosFiltrados = useMemo(() => {
     if (!busquedaProd.trim()) return productos;
     const q = busquedaProd.toLowerCase();
     return productos.filter((p) =>
-      p.nombre.toLowerCase().includes(q) || p.codigoTecnico.toLowerCase().includes(q)
+      p.nombre.toLowerCase().includes(q) ||
+      p.codigoTecnico.toLowerCase().includes(q)
     );
   }, [productos, busquedaProd]);
 
   /* ── Confirmar venta ── */
   const confirmarPedido = async () => {
-    setEnviando(true); setErrorGlobal(''); setStockErr(null);
+    setEnviando(true);
+    setErrorGlobal('');
+    setStockErr(null);
     try {
       const respuesta = await confirmarVenta({
         canal:      'VENTANILLA',
         metodoPago: metodoPago,
         items: cartItems
-          .filter((i) => i.cajas > 0 || i.unidadesSueltas > 0)
+          .filter((i) => i.cajas > 0 || i.unidades > 0)
           .map((i) => ({
-            productoId:      i.id,
-            cajas:           i.cajas,
-            unidadesSueltas: i.unidadesSueltas,
+            productoId: i.id,
+            cajas:      i.cajas,
+            unidades:   i.unidades,
           })),
       });
-
-      // Guardar la respuesta real del backend — no inventar ningún campo
+      // respuesta exacta: { ventaId, canal, fecha, estado, items, total, metodoPago }
       setVentaConfirmada(respuesta);
       setShowConfirm(false);
     } catch (err) {
@@ -222,12 +252,19 @@ export default function PedidoVentanilla() {
         setErrorGlobal(data?.mensaje ?? data?.message ?? 'Error al registrar la venta.');
       }
       setShowConfirm(false);
-    } finally { setEnviando(false); }
+    } finally {
+      setEnviando(false);
+    }
   };
 
   const reiniciar = () => {
-    setCartItems([]); setMetodoPago('EFECTIVO');
-    setErrorGlobal(''); setStockErr(null); setVentaConfirmada(null);
+    setCartItems([]);
+    setCalcResult(null);
+    setTotalCalculado(0);
+    setMetodoPago('EFECTIVO');
+    setErrorGlobal('');
+    setStockErr(null);
+    setVentaConfirmada(null);
   };
 
   const totalItemsBadge = cartItems.length;
@@ -237,9 +274,13 @@ export default function PedidoVentanilla() {
     <AppLayout>
       <div className="max-w-7xl mx-auto animate-fade-in-up">
 
-        {/* ══════════════ PANTALLA DE ÉXITO (datos 100% desde backend) ══════════════ */}
+        {/* ══════════════ PANTALLA DE ÉXITO ══════════════
+         * Usa exclusivamente campos de ConfirmarVentaResponse:
+         * ventaId, canal, fecha, estado, items, total, metodoPago
+         */}
         {ventaConfirmada && (
           <div className="space-y-4 animate-scale-in">
+
             {/* Banner principal */}
             <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 flex items-center gap-4">
               <div className="w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
@@ -257,51 +298,82 @@ export default function PedidoVentanilla() {
               </button>
             </div>
 
-            {/* Detalle de la venta confirmada — datos exclusivamente del backend */}
+            {/* Resumen — campos exactos del DTO */}
             <div className="bg-white border border-zinc-200 rounded-2xl shadow-sm p-6 space-y-4">
               <p className={labelCls}>Resumen de la Venta</p>
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                {/* N° de venta */}
-                {(ventaConfirmada.codigo ?? ventaConfirmada.id) && (
-                  <div className="bg-zinc-50 rounded-xl p-4">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 font-inter mb-1">N° Venta</p>
-                    <p className="text-sm font-extrabold text-zinc-900 font-display">
-                      {ventaConfirmada.codigo ?? `#${ventaConfirmada.id}`}
-                    </p>
-                  </div>
-                )}
 
-                {/* Total backend */}
-                {ventaConfirmada.total !== undefined && (
-                  <div className="bg-zinc-50 rounded-xl p-4">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 font-inter mb-1">Total</p>
-                    <p className="text-sm font-extrabold text-[#9e2016] font-display">
-                      {formatCOP(ventaConfirmada.total)}
-                    </p>
-                  </div>
-                )}
+                {/* ID de venta */}
+                <div className="bg-zinc-50 rounded-xl p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 font-inter mb-1">N° Venta</p>
+                  <p className="text-sm font-extrabold text-zinc-900 font-display break-all">
+                    {String(ventaConfirmada.ventaId).slice(0, 8).toUpperCase()}
+                  </p>
+                </div>
+
+                {/* Total */}
+                <div className="bg-zinc-50 rounded-xl p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 font-inter mb-1">Total</p>
+                  <p className="text-sm font-extrabold text-[#9e2016] font-display">
+                    {formatCOP(ventaConfirmada.total)}
+                  </p>
+                </div>
 
                 {/* Método de pago */}
-                {(ventaConfirmada.metodoPago ?? ventaConfirmada.metodo_pago) && (
-                  <div className="bg-zinc-50 rounded-xl p-4">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 font-inter mb-1">Pago</p>
-                    <p className="text-sm font-bold text-zinc-900 font-display capitalize">
-                      {(ventaConfirmada.metodoPago ?? ventaConfirmada.metodo_pago).toLowerCase()}
-                    </p>
-                  </div>
-                )}
+                <div className="bg-zinc-50 rounded-xl p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 font-inter mb-1">Pago</p>
+                  <p className="text-sm font-bold text-zinc-900 font-display capitalize">
+                    {ventaConfirmada.metodoPago.toLowerCase()}
+                  </p>
+                </div>
 
-                {/* Fecha backend */}
-                {(ventaConfirmada.fecha ?? ventaConfirmada.fechaCreacion ?? ventaConfirmada.created_at) && (
-                  <div className="bg-zinc-50 rounded-xl p-4">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 font-inter mb-1">Fecha</p>
-                    <p className="text-sm font-bold text-zinc-900 font-display">
-                      {formatFecha(ventaConfirmada.fecha ?? ventaConfirmada.fechaCreacion ?? ventaConfirmada.created_at)}
-                    </p>
-                  </div>
+                {/* Fecha */}
+                <div className="bg-zinc-50 rounded-xl p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 font-inter mb-1">Fecha</p>
+                  <p className="text-sm font-bold text-zinc-900 font-display">
+                    {formatFecha(ventaConfirmada.fecha)}
+                  </p>
+                </div>
+              </div>
+
+              {/* Canal — siempre presente; estado — solo si el backend lo devuelve */}
+              <div className="flex items-center gap-3 flex-wrap">
+                <span className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 text-[11px] font-bold px-3 py-1 rounded-full font-inter uppercase tracking-wide border border-emerald-200">
+                  <CheckIcon /> {ventaConfirmada.estado ?? 'CONFIRMADA'}
+                </span>
+                {ventaConfirmada.canal && (
+                  <span className="inline-flex items-center gap-1.5 bg-zinc-100 text-zinc-600 text-[11px] font-semibold px-3 py-1 rounded-full font-inter uppercase tracking-wide">
+                    <WindowIcon size={12} /> {ventaConfirmada.canal}
+                  </span>
                 )}
               </div>
+
+              {/* Ítems de la venta — campos exactos de ItemVentaResponseDTO */}
+              {ventaConfirmada.items?.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 font-inter">
+                    Productos ({ventaConfirmada.items.length})
+                  </p>
+                  {ventaConfirmada.items.map((it) => (
+                    <div key={it.productoId}
+                      className="flex items-center justify-between bg-zinc-50 rounded-xl px-4 py-2.5">
+                      <div>
+                        <p className="text-sm font-semibold text-zinc-800 font-display">{it.nombre}</p>
+                        <p className="text-[11px] text-zinc-400 font-inter">
+                          {it.cajas > 0 && `${it.cajas} caja${it.cajas > 1 ? 's' : ''}`}
+                          {it.cajas > 0 && it.unidades > 0 && ' + '}
+                          {it.unidades > 0 && `${it.unidades} unidad${it.unidades > 1 ? 'es' : ''}`}
+                          {' · '}{formatCOP(it.precioUnitario)} c/u
+                        </p>
+                      </div>
+                      <span className="text-sm font-bold text-zinc-800 font-display">
+                        {formatCOP(it.subtotal)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -314,7 +386,9 @@ export default function PedidoVentanilla() {
               <p className="text-sm font-bold text-red-800 font-display">Stock insuficiente</p>
               <p className="text-sm text-red-700 font-inter mt-0.5">{stockErr}</p>
             </div>
-            <button onClick={() => setStockErr(null)} className="text-red-300 hover:text-red-500 p-1"><XIcon size={14} /></button>
+            <button onClick={() => setStockErr(null)} className="text-red-300 hover:text-red-500 p-1">
+              <XIcon size={14} />
+            </button>
           </div>
         )}
 
@@ -323,7 +397,9 @@ export default function PedidoVentanilla() {
           <div className="mb-4 bg-red-50 border border-red-200 rounded-2xl p-4 flex items-start gap-3 animate-scale-in">
             <span className="text-red-500 shrink-0 mt-0.5"><AlertIcon /></span>
             <p className="text-sm text-red-700 font-inter flex-1">{errorGlobal}</p>
-            <button onClick={() => setErrorGlobal('')} className="text-red-300 hover:text-red-500 p-1"><XIcon size={14} /></button>
+            <button onClick={() => setErrorGlobal('')} className="text-red-300 hover:text-red-500 p-1">
+              <XIcon size={14} />
+            </button>
           </div>
         )}
 
@@ -356,7 +432,7 @@ export default function PedidoVentanilla() {
                 </div>
               </section>
 
-              {/* § CATÁLOGO (datos desde API) */}
+              {/* § CATÁLOGO — datos exactos desde API */}
               <section className="bg-white border border-zinc-200 rounded-2xl shadow-sm p-6 space-y-4">
                 <p className={labelCls + ' flex items-center gap-2 mb-0'}><PackageIcon /> Productos</p>
 
@@ -382,7 +458,7 @@ export default function PedidoVentanilla() {
                 ) : (
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     {productosFiltrados.map((p) => {
-                      const sinStock  = p.stockActual === 0;
+                      const sinStock  = !p.disponible || p.stockActual === 0;
                       const enCarrito = cartItems.some((i) => i.id === p.id);
                       return (
                         <div key={p.id}
@@ -397,7 +473,9 @@ export default function PedidoVentanilla() {
                           <div className="relative aspect-square bg-zinc-100 flex items-center justify-center overflow-hidden">
                             {p.imagenUrl
                               ? <img src={p.imagenUrl} alt={p.nombre} className="w-full h-full object-cover" />
-                              : <span className="text-4xl font-extrabold text-zinc-200 font-display select-none">{p.nombre?.charAt(0)?.toUpperCase()}</span>
+                              : <span className="text-4xl font-extrabold text-zinc-200 font-display select-none">
+                                  {p.nombre?.charAt(0)?.toUpperCase()}
+                                </span>
                             }
                             {sinStock && (
                               <span className="absolute top-2 left-2 bg-zinc-700 text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase font-inter">
@@ -407,11 +485,10 @@ export default function PedidoVentanilla() {
                           </div>
                           <div className="p-3">
                             <p className="text-sm font-bold text-zinc-800 font-display leading-tight">{p.nombre}</p>
-                            {p.descripcion && (
-                              <p className="text-[11px] text-zinc-400 font-inter mt-0.5 leading-tight line-clamp-1">{p.descripcion}</p>
-                            )}
                             <div className="flex items-center justify-between mt-2.5">
-                              <span className="text-sm font-extrabold text-[#9e2016] font-display">{formatCOP(p.precioVenta)}</span>
+                              <span className="text-sm font-extrabold text-[#9e2016] font-display">
+                                {formatCOP(p.precioVenta)}
+                              </span>
                               {!sinStock && (
                                 <button type="button"
                                   onClick={(e) => { e.stopPropagation(); addToCart(p); }}
@@ -433,7 +510,7 @@ export default function PedidoVentanilla() {
             <div className="lg:col-span-2 lg:sticky lg:top-0">
               <div className="bg-white border border-zinc-200 rounded-2xl shadow-sm overflow-hidden flex flex-col">
 
-                {/* Header — sin ID generado localmente */}
+                {/* Header */}
                 <div className="px-6 py-4 border-b border-zinc-100">
                   <div className="flex items-center justify-between">
                     <h2 className="text-base font-extrabold text-zinc-900 font-display">Carrito de Ventas</h2>
@@ -443,7 +520,7 @@ export default function PedidoVentanilla() {
                       </span>
                     )}
                   </div>
-                  {/* El N° de transacción real se asigna al confirmar — no se genera localmente */}
+                  {/* N° de venta se asigna al confirmar — no se genera localmente */}
                   <p className="text-[11px] text-zinc-400 font-inter mt-0.5">Canal: Ventanilla</p>
                 </div>
 
@@ -454,56 +531,66 @@ export default function PedidoVentanilla() {
                       <div className="text-4xl mb-2">🛒</div>
                       Agrega productos desde el catálogo
                     </div>
-                  ) : cartItems.map((item) => (
-                    <div key={item.id} className="space-y-2.5">
+                  ) : cartItems.map((item) => {
+                    // Precio unitario: viene del calcResult backend si ya llegó, o del catálogo como estimación local
+                    const backendItem   = calcResult?.items?.find((r) => r.productoId === item.id);
+                    const precioUnit    = Number(backendItem?.precioUnitario ?? item.precioVenta) || 0;
+                    const subtotalCajas = item.cajas * UNIDADES_POR_CAJA * precioUnit;
+                    const subtotalUnidades = item.unidades * precioUnit;
 
-                      {/* Info producto */}
-                      <div className="flex items-start gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-zinc-100 flex items-center justify-center shrink-0 overflow-hidden border border-zinc-200">
-                          {item.imagenUrl
-                            ? <img src={item.imagenUrl} alt={item.nombre} className="w-full h-full object-cover" />
-                            : <span className="text-zinc-300 text-lg font-bold font-display">{item.nombre?.charAt(0)?.toUpperCase()}</span>
-                          }
+                    return (
+                      <div key={item.id} className="space-y-2.5">
+
+                        {/* Info producto */}
+                        <div className="flex items-start gap-3">
+                          <div className="w-10 h-10 rounded-lg bg-zinc-100 flex items-center justify-center shrink-0 overflow-hidden border border-zinc-200">
+                            {item.imagenUrl
+                              ? <img src={item.imagenUrl} alt={item.nombre} className="w-full h-full object-cover" />
+                              : <span className="text-zinc-300 text-lg font-bold font-display">{item.nombre?.charAt(0)?.toUpperCase()}</span>
+                            }
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-bold text-zinc-900 font-display leading-tight truncate">{item.nombre}</p>
+                            <p className="text-[11px] text-zinc-400 font-inter">
+                              Unitario: {formatCOP(item.precioVenta)}
+                            </p>
+                          </div>
+                          <button type="button" onClick={() => removeFromCart(item.id)}
+                            className="text-zinc-300 hover:text-red-400 transition-colors p-0.5 shrink-0">
+                            <XIcon size={14} />
+                          </button>
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-bold text-zinc-900 font-display leading-tight truncate">{item.nombre}</p>
-                          <p className="text-[11px] text-zinc-400 font-inter">Unitario: {formatCOP(item.precioVenta)}</p>
+
+                        {/* Fila Cajas */}
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs text-zinc-500 font-inter w-14 shrink-0">Caja</span>
+                          <div className="flex items-center gap-2">
+                            <QtyBtn onClick={() => updateCart(item.id, 'cajas', item.cajas - 1)}>−</QtyBtn>
+                            <span className="text-sm font-bold text-zinc-800 w-5 text-center font-display">{item.cajas}</span>
+                            <QtyBtn onClick={() => updateCart(item.id, 'cajas', item.cajas + 1)}>+</QtyBtn>
+                          </div>
+                          <span className="text-sm font-bold text-zinc-800 font-display text-right min-w-[60px]">
+                            {formatCOP(subtotalCajas)}
+                          </span>
                         </div>
-                        <button type="button" onClick={() => removeFromCart(item.id)}
-                          className="text-zinc-300 hover:text-red-400 transition-colors p-0.5 shrink-0">
-                          <XIcon size={14} />
-                        </button>
+
+                        {/* Fila Unidades (unidades sueltas — campo "unidades" en el backend) */}
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs text-zinc-500 font-inter w-14 shrink-0">Unidad</span>
+                          <div className="flex items-center gap-2">
+                            <QtyBtn onClick={() => updateCart(item.id, 'unidades', item.unidades - 1)}>−</QtyBtn>
+                            <span className="text-sm font-bold text-zinc-800 w-5 text-center font-display">{item.unidades}</span>
+                            <QtyBtn onClick={() => updateCart(item.id, 'unidades', item.unidades + 1)}>+</QtyBtn>
+                          </div>
+                          <span className="text-sm font-bold text-zinc-800 font-display text-right min-w-[60px]">
+                            {formatCOP(subtotalUnidades)}
+                          </span>
+                        </div>
+
+                        <div className="border-b border-zinc-100" />
                       </div>
-
-                      {/* Fila Caja — subtotal = cajas × unidadesPorCaja × precioVenta */}
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-xs text-zinc-500 font-inter w-14 shrink-0">Caja</span>
-                        <div className="flex items-center gap-2">
-                          <QtyBtn onClick={() => updateCart(item.id, 'cajas', item.cajas - 1)}>−</QtyBtn>
-                          <span className="text-sm font-bold text-zinc-800 w-5 text-center font-display">{item.cajas}</span>
-                          <QtyBtn onClick={() => updateCart(item.id, 'cajas', item.cajas + 1)}>+</QtyBtn>
-                        </div>
-                        <span className="text-sm font-bold text-zinc-800 font-display text-right min-w-[60px]">
-                          {formatCOP(calcSubCajas(item))}
-                        </span>
-                      </div>
-
-                      {/* Fila Unidad — subtotal = unidadesSueltas × precioVenta */}
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-xs text-zinc-500 font-inter w-14 shrink-0">Unidad</span>
-                        <div className="flex items-center gap-2">
-                          <QtyBtn onClick={() => updateCart(item.id, 'unidadesSueltas', item.unidadesSueltas - 1)}>−</QtyBtn>
-                          <span className="text-sm font-bold text-zinc-800 w-5 text-center font-display">{item.unidadesSueltas}</span>
-                          <QtyBtn onClick={() => updateCart(item.id, 'unidadesSueltas', item.unidadesSueltas + 1)}>+</QtyBtn>
-                        </div>
-                        <span className="text-sm font-bold text-zinc-800 font-display text-right min-w-[60px]">
-                          {formatCOP(calcSubUnidades(item))}
-                        </span>
-                      </div>
-
-                      <div className="border-b border-zinc-100" />
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 {/* Footer */}
@@ -531,17 +618,17 @@ export default function PedidoVentanilla() {
                     </div>
                   </div>
 
-                  {/* Subtotal (calculado localmente, validado por backend) */}
+                  {/* Subtotal */}
                   <div className="flex justify-between items-center text-sm font-inter text-zinc-500">
                     <span>Subtotal</span>
                     <span className="font-semibold text-zinc-700">{formatCOP(totalCalculado)}</span>
                   </div>
 
-                  {/* Total (valor definitivo: backend si respondió, local si no) */}
+                  {/* Total */}
                   <div className="flex justify-between items-center pt-1 border-t border-zinc-200">
                     <span className="text-sm font-bold text-zinc-900 font-display">Total General</span>
                     <span className="text-xl font-extrabold text-[#9e2016] font-display">
-                      COP {Number(totalCalculado || 0).toLocaleString('es-CO')}
+                      COP {Number(totalCalculado).toLocaleString('es-CO')}
                     </span>
                   </div>
 
@@ -563,9 +650,9 @@ export default function PedidoVentanilla() {
       {/* ══════════════ MODAL CONFIRMAR ══════════════ */}
       {showConfirm && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
-          <div className="bg-white rounded-2xl shadow-xl border border-zinc-200 w-full max-w-md animate-scale-in">
+          <div className="bg-white rounded-2xl shadow-xl border border-zinc-200 w-full max-w-md flex flex-col max-h-[90vh] animate-scale-in">
 
-            <div className="flex items-center justify-between px-6 py-5 border-b border-zinc-100">
+            <div className="flex items-center justify-between px-6 py-5 border-b border-zinc-100 shrink-0">
               <h3 className="text-base font-bold text-zinc-900 font-display flex items-center gap-2">
                 <WindowIcon size={18} /> Confirmar Venta — Ventanilla
               </h3>
@@ -575,7 +662,7 @@ export default function PedidoVentanilla() {
               </button>
             </div>
 
-            <div className="p-6 space-y-4 max-h-[55vh] overflow-y-auto">
+            <div className="p-6 space-y-4 overflow-y-auto flex-1">
 
               {/* Método de pago seleccionado */}
               <div className="bg-zinc-50 rounded-xl px-4 py-3 flex items-center gap-3">
@@ -590,7 +677,7 @@ export default function PedidoVentanilla() {
                 </div>
               </div>
 
-              {/* Productos (cantidades reales del carrito) */}
+              {/* Productos con cantidades reales del carrito */}
               <div className="space-y-2">
                 <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 font-inter">
                   Productos ({cartItems.length})
@@ -601,17 +688,19 @@ export default function PedidoVentanilla() {
                       <p className="text-sm font-semibold text-zinc-800 font-display">{it.nombre}</p>
                       <p className="text-[11px] text-zinc-400 font-inter">
                         {it.cajas > 0 && `${it.cajas} caja${it.cajas > 1 ? 's' : ''}`}
-                        {it.cajas > 0 && it.unidadesSueltas > 0 && ' + '}
-                        {it.unidadesSueltas > 0 && `${it.unidadesSueltas} ud${it.unidadesSueltas > 1 ? 's' : ''} sueltas`}
-                        {it.cajas === 0 && it.unidadesSueltas === 0 && '—'}
+                        {it.cajas > 0 && it.unidades > 0 && ' + '}
+                        {it.unidades > 0 && `${it.unidades} unidad${it.unidades > 1 ? 'es' : ''}`}
+                        {it.cajas === 0 && it.unidades === 0 && '—'}
                       </p>
                     </div>
-                    <span className="text-sm font-bold text-zinc-800 font-display">{formatCOP(calcSub(it))}</span>
+                    <span className="text-sm font-bold text-zinc-800 font-display">
+                      {formatCOP(getItemSubtotal(it.id))}
+                    </span>
                   </div>
                 ))}
               </div>
 
-              {/* Total (validado por backend) */}
+              {/* Total validado por backend */}
               <div className="border-t border-zinc-100 pt-3">
                 <div className="flex justify-between items-center">
                   <span className="font-bold text-zinc-900 font-display">Total</span>
@@ -620,7 +709,7 @@ export default function PedidoVentanilla() {
               </div>
             </div>
 
-            <div className="flex gap-3 px-6 py-5 border-t border-zinc-100">
+            <div className="flex gap-3 px-6 py-5 border-t border-zinc-100 shrink-0">
               <button onClick={() => setShowConfirm(false)}
                 className="flex-1 bg-zinc-100 hover:bg-zinc-200 text-zinc-800 rounded-xl py-3 text-sm font-semibold transition-all active:scale-95 font-inter">
                 Editar
