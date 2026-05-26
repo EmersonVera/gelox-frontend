@@ -272,7 +272,7 @@ export default function PedidoRural() {
                   ].map(({ id, icon, label }) => (
                     <button key={id} type="button"
                       onClick={() => {
-                        if (id === 'ventanilla') { navigate('/ventas/nueva'); return; }
+                        if (id === 'ventanilla') { navigate('/ventas/pedidos-ventanilla'); return; }
                         setTipoCliente(id);
                       }}
                       className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all duration-200 ${

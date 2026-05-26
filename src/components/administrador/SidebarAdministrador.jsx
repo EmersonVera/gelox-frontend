@@ -109,7 +109,7 @@ const LINKS = [
   { icon: <UsersIcon />,   label: 'Usuarios',        to: '/usuarios' },
   { icon: <BoxIcon />,     label: 'Inventarios',     to: '/inventarios/gestion' },
   { icon: <StoreIcon />,   label: 'Comerciantes',    to: '/comerciantes' },
-  { icon: <CartIcon />,    label: 'Ventas',          to: '/ventas/pedidos-rurales' },
+  { icon: <CartIcon />,    label: 'Ventas',          to: '/ventas/pedidos-ventanilla' },
 ];
 
 const navItemBase =
