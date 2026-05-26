@@ -105,13 +105,13 @@ export default function PedidoVentanilla() {
         if (!vivo) return;
         setProductos(data.map((p) => ({
           id:              p.id,
-          codigoTecnico:   p.codigo_tecnico    ?? p.codigoTecnico   ?? '',
+          codigoTecnico:   p.codigo ?? '',
           nombre:          p.nombre,
           descripcion:     p.descripcion       ?? '',
           // precio en unidades — obligatorio desde API, sin fallback inventado
-          precioVenta:     Number(p.precio_venta   ?? p.precioVenta   ?? 0),
-          stockActual:     Number(p.stock_actual    ?? p.stockActual   ?? 0),
-          imagenUrl:       p.imagen_url        ?? p.imagenUrl       ?? null,
+          precioVenta:     Number(p.precioUnitario ?? 0),
+          stockActual:     Number(p.stock    ?? p.stock  ?? 0),
+          imagenUrl:       p.imagen  ?? null,
           // unidades por caja — obligatorio desde API; 0 si el backend no lo envía
           unidadesPorCaja: Number(p.unidades_por_caja ?? p.unidadesPorCaja ?? 0),
         })));
