@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import AppLayout from '../components/AppLayout';
 import NuevoComerciante from '../components/comerciantes/NuevoComerciante';
+import SuccessToast from '../components/SuccessToast';
 
 export default function MisComerciantess() {
   const { token } = useAuth();
@@ -11,6 +12,7 @@ export default function MisComerciantess() {
   const [busqueda, setBusqueda]         = useState('');
   const [cargando, setCargando]         = useState(true);
   const [modalAbierto, setModalAbierto] = useState(false);
+  const [toast, setToast]               = useState({ show: false, message: '' });
 
   const fetchComerciantess = useCallback(async () => {
     setCargando(true);
@@ -156,9 +158,20 @@ export default function MisComerciantess() {
       {modalAbierto && (
         <NuevoComerciante
           onClose={() => setModalAbierto(false)}
-          onSuccess={() => { setModalAbierto(false); fetchComerciantess(); }}
+          onSuccess={(msg) => {
+            setModalAbierto(false);
+            fetchComerciantess();
+            if (msg) setToast({ show: true, message: msg });
+          }}
         />
       )}
+
+      {/* Toast de éxito */}
+      <SuccessToast
+        message={toast.message}
+        show={toast.show}
+        onClose={() => setToast({ show: false, message: '' })}
+      />
     </AppLayout>
   );
 }
