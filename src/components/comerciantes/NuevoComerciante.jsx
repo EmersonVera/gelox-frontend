@@ -1,6 +1,7 @@
 // src/components/comerciantes/NuevoComerciante.jsx
 import { useState, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import CustomSelect from '../ui/CustomSelect';
 
 const MUNICIPIOS = ['Ocaña', 'Cúcuta', 'Villa del Rosario', 'Los Patios', 'El Zulia', 'Tibú', 'Otro'];
 const TALLAS = ['S', 'M', 'L', 'XL'];
@@ -39,14 +40,25 @@ export default function NuevoComerciante({ onClose, onSuccess }) {
 
     setGuardando(true);
     try {
-      const formData = new FormData();
-      Object.entries(form).forEach(([k, v]) => formData.append(k, v));
-      if (foto) formData.append('foto', foto);
+      // Mapeamos los campos snake_case del formulario al camelCase que espera el backend
+      const payload = {
+        nombre:                       form.nombre,
+        municipio:                    form.municipio,
+        direccion:                    form.direccion,
+        telefono:                     form.telefono,
+        contactoEmergenciaNombre:     form.contacto_emergencia_nombre,
+        contactoEmergenciaParentesco: form.contacto_emergencia_parentesco,
+        tallaUniforme:                form.talla_uniforme,
+        fotoUrl:                      null, // pendiente: subida de foto (ver reporte backend)
+      };
 
       const res = await fetch('/api/comerciantes', {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData,
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
       });
       if (!res.ok) {
         const data = await res.json();
@@ -105,19 +117,11 @@ export default function NuevoComerciante({ onClose, onSuccess }) {
 
               <div>
                 <label className={labelClass}>Ubicación (Municipio)</label>
-                <div className="relative">
-                  <select
-                    name="municipio"
-                    value={form.municipio}
-                    onChange={handleChange}
-                    className={`${inputClass} appearance-none pr-10`}
-                  >
-                    {MUNICIPIOS.map(m => <option key={m}>{m}</option>)}
-                  </select>
-                  <svg className="absolute right-4 top-1/2 -translate-y-1/2 text-[#a8a29e] pointer-events-none" width="14" height="14" fill="none" viewBox="0 0 14 14">
-                    <path d="M3 5l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </div>
+                <CustomSelect
+                  value={form.municipio}
+                  onChange={(val) => setForm(prev => ({ ...prev, municipio: val }))}
+                  options={MUNICIPIOS}
+                />
               </div>
 
               <div>
