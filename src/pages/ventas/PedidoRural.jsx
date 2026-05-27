@@ -4,6 +4,7 @@
  * Carrito lateral con controles − Caja/Unidad +
  */
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import AppLayout from '../../components/AppLayout';
 import api from '../../api/axiosConfig';
@@ -66,6 +67,7 @@ export default function PedidoRural() {
   const [showConfirm, setShowConfirm]         = useState(false);
   const [errores, setErrores]                 = useState({});
   const [showNuevo, setShowNuevo]             = useState(false);
+  const [isClosingNuevo, setIsClosingNuevo]   = useState(false);
   const [nuevoCliente, setNuevoCliente]       = useState(EMPTY_NUEVO);
   const [guardando, setGuardando]             = useState(false);
   const [errNuevo, setErrNuevo]               = useState('');
@@ -108,6 +110,17 @@ export default function PedidoRural() {
     }
   }, [clientes]);
 
+  const handleCloseNuevo = () => {
+    if (isClosingNuevo) return;
+    setIsClosingNuevo(true);
+    setTimeout(() => {
+      setIsClosingNuevo(false);
+      setShowNuevo(false);
+      setNuevoCliente(EMPTY_NUEVO);
+      setErrNuevo('');
+    }, 200);
+  };
+
   const guardarNuevoCliente = async (e) => {
     e.preventDefault();
     setErrNuevo('');
@@ -120,14 +133,14 @@ export default function PedidoRural() {
       setClientes((prev) => [...prev, data]);
       setClienteIdSel(String(data.id));
       setDestinatario({ nombre: data.nombre ?? '', telefono: data.telefono ?? '', direccion: data.direccion ?? '', correo: data.correo ?? '' });
-      setShowNuevo(false);
-      setNuevoCliente(EMPTY_NUEVO);
+      handleCloseNuevo();
     } catch (err) {
       setErrNuevo(err.response?.data?.mensaje ?? err.response?.data?.message ?? 'No se pudo registrar el cliente.');
     } finally { setGuardando(false); }
   };
 
   const addToCart = useCallback((producto) => {
+    if ((producto.stockActual ?? 0) === 0) return;
     setCartItems((prev) => {
       const existe = prev.find((i) => i.productoId === producto.id);
       if (existe) return prev.map((i) => i.productoId === producto.id ? { ...i, cajas: i.cajas + 1 } : i);
@@ -135,9 +148,9 @@ export default function PedidoRural() {
         productoId:      producto.id,
         nombre:          producto.nombre,
         descripcion:     producto.descripcion ?? '',
-        precioUnitario:  producto.precioUnitario ?? producto.precio ?? 0,
+        precioUnitario:  producto.precioVenta ?? 0,
         unidadesPorCaja: producto.unidadesPorCaja ?? 12,
-        imagen:          producto.imagen ?? producto.imagenUrl ?? null,
+        imagen:          producto.imagenUrl ?? null,
         cajas:           1,
         unidadesSueltas: 0,
       }];
@@ -379,19 +392,38 @@ export default function PedidoRural() {
                     ) : (
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                         {productosFiltrados.map((p) => {
+                          const sinStock  = (p.stockActual ?? 0) === 0;
                           const enCarrito = cartItems.some((i) => i.productoId === p.id);
                           return (
                             <div key={p.id}
-                              className={`bg-white border rounded-2xl overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 ${
-                                enCarrito ? 'border-[#9e2016]/40 ring-1 ring-[#9e2016]/20' : 'border-zinc-200'
+                              onClick={() => !sinStock && addToCart(p)}
+                              className={`bg-white border rounded-2xl overflow-hidden transition-all duration-200 ${
+                                sinStock
+                                  ? 'opacity-40 cursor-not-allowed'
+                                  : enCarrito
+                                    ? 'border-[#9e2016]/40 ring-1 ring-[#9e2016]/20 hover:shadow-md hover:-translate-y-0.5 cursor-pointer'
+                                    : 'border-zinc-200 hover:shadow-md hover:-translate-y-0.5 cursor-pointer'
                               }`}>
                               {/* Imagen / placeholder */}
-                              <div className="aspect-square bg-zinc-100 flex items-center justify-center overflow-hidden">
-                                {(p.imagen || p.imagenUrl) ? (
-                                  <img src={p.imagen ?? p.imagenUrl} alt={p.nombre} className="w-full h-full object-cover" />
+                              <div className="relative aspect-square bg-zinc-100 flex items-center justify-center overflow-hidden">
+                                {p.imagenUrl ? (
+                                  <img src={p.imagenUrl} alt={p.nombre} className="w-full h-full object-cover" />
                                 ) : (
                                   <span className="text-4xl font-extrabold text-zinc-200 font-display select-none">
                                     {p.nombre?.charAt(0)?.toUpperCase()}
+                                  </span>
+                                )}
+                                {sinStock ? (
+                                  <span className="absolute top-2 left-2 bg-zinc-700 text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase font-inter">
+                                    Sin stock
+                                  </span>
+                                ) : (
+                                  <span className={`absolute top-1.5 right-1.5 text-[10px] font-bold px-1.5 py-0.5 rounded-md font-inter leading-none ${
+                                    (p.stockActual ?? 0) <= (p.stockMinimo ?? 0)
+                                      ? 'bg-red-100 text-red-700'
+                                      : 'bg-zinc-100 text-zinc-500'
+                                  }`}>
+                                    {p.stockActual ?? 0}u
                                   </span>
                                 )}
                               </div>
@@ -402,12 +434,15 @@ export default function PedidoRural() {
                                 )}
                                 <div className="flex items-center justify-between mt-2.5">
                                   <span className="text-sm font-extrabold text-[#9e2016] font-display">
-                                    {formatCOP(p.precioUnitario ?? p.precio ?? 0)}
+                                    {formatCOP(p.precioVenta ?? 0)}
                                   </span>
-                                  <button type="button" onClick={() => addToCart(p)}
-                                    className="w-7 h-7 rounded-full bg-[#9e2016] hover:bg-[#7c0202] text-white flex items-center justify-center text-lg font-bold transition-all duration-200 active:scale-90 shadow-sm shadow-[#9e2016]/30">
-                                    +
-                                  </button>
+                                  {!sinStock && (
+                                    <button type="button"
+                                      onClick={(e) => { e.stopPropagation(); addToCart(p); }}
+                                      className="w-7 h-7 rounded-full bg-[#9e2016] hover:bg-[#7c0202] text-white flex items-center justify-center text-lg font-bold transition-all duration-200 active:scale-90 shadow-sm shadow-[#9e2016]/30">
+                                      +
+                                    </button>
+                                  )}
                                 </div>
                               </div>
                             </div>
@@ -592,53 +627,78 @@ export default function PedidoRural() {
       )}
 
       {/* ── Modal nuevo cliente (RF33) ── */}
-      {showNuevo && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
-          <div className="bg-white rounded-2xl shadow-xl border border-zinc-200 w-full max-w-md animate-scale-in">
-            <div className="flex items-center justify-between px-6 py-5 border-b border-zinc-100">
-              <h3 className="text-base font-bold text-zinc-900 font-display flex items-center gap-2">
-                <UserPlusIcon /> Registrar Nuevo Cliente
-              </h3>
-              <button onClick={() => { setShowNuevo(false); setErrNuevo(''); }}
-                className="p-1.5 rounded-lg text-zinc-400 hover:bg-zinc-100 transition-all"><XIcon /></button>
+      {showNuevo && createPortal(
+        <div
+          className={`fixed inset-0 z-[9999] flex items-center justify-center px-4 bg-black/45 backdrop-blur-sm ${isClosingNuevo ? 'animate-fade-out' : 'animate-fade-in'}`}
+          onClick={handleCloseNuevo}
+        >
+          <div
+            className={`w-full max-w-md bg-white rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.18)] p-7 sm:p-8 ${isClosingNuevo ? 'animate-scale-out' : 'animate-scale-in'}`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Badge ícono */}
+            <div className="w-12 h-12 rounded-2xl bg-[#9e2016]/10 text-[#9e2016] flex items-center justify-center mx-auto mb-4">
+              <UserPlusIcon />
             </div>
-            <form onSubmit={guardarNuevoCliente}>
-              <div className="p-6 space-y-4">
-                {errNuevo && (
-                  <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 flex items-start gap-2">
-                    <span className="text-red-500 shrink-0 mt-0.5"><AlertIcon /></span>
-                    <p className="text-sm text-red-700 font-inter">{errNuevo}</p>
-                  </div>
-                )}
-                {[
-                  { label: 'Nombre',    key: 'nombre',    type: 'text',  ph: 'Nombre completo',            req: true  },
-                  { label: 'Teléfono',  key: 'telefono',  type: 'tel',   ph: 'Ej: 3001234567',             req: true  },
-                  { label: 'Dirección', key: 'direccion', type: 'text',  ph: 'Vereda, finca…',             req: false },
-                  { label: 'Correo',    key: 'correo',    type: 'email', ph: 'correo@ejemplo.com',         req: false },
-                ].map(({ label, key, type, ph, req }) => (
-                  <div key={key}>
-                    <label className={labelCls}>
-                      {label} {req && <span className="text-red-500 normal-case font-normal tracking-normal">*</span>}
-                    </label>
-                    <input type={type} placeholder={ph} value={nuevoCliente[key]}
-                      onChange={(e) => setNuevoCliente((p) => ({ ...p, [key]: e.target.value }))}
-                      className={inputCls} required={req} />
-                  </div>
-                ))}
+
+            <h2 className="font-display text-xl font-bold text-zinc-900 text-center mb-1">
+              Registrar Nuevo Cliente
+            </h2>
+            <p className="text-sm text-zinc-500 font-inter text-center mb-6 leading-relaxed">
+              Completa los datos del cliente para autocompletar futuros pedidos rurales.
+            </p>
+
+            {errNuevo && (
+              <div className="mb-4 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm font-inter flex items-start gap-2">
+                <span className="shrink-0 mt-0.5"><AlertIcon /></span>
+                {errNuevo}
               </div>
-              <div className="flex gap-3 px-6 py-5 border-t border-zinc-100">
-                <button type="button" onClick={() => { setShowNuevo(false); setErrNuevo(''); }}
-                  className="flex-1 bg-zinc-100 hover:bg-zinc-200 text-zinc-800 rounded-xl py-3 text-sm font-semibold transition-all active:scale-95 font-inter">
-                  Cancelar
-                </button>
-                <button type="submit" disabled={guardando}
-                  className="flex-1 bg-[#9e2016] hover:bg-[#7c0202] text-white rounded-xl py-3 text-sm font-bold transition-all active:scale-95 shadow-lg shadow-[#9e2016]/25 font-display disabled:opacity-60 flex items-center justify-center gap-2">
-                  {guardando ? <><SpinIcon /> Guardando…</> : <><UserPlusIcon /> Registrar</>}
-                </button>
-              </div>
+            )}
+
+            <form onSubmit={guardarNuevoCliente} noValidate className="flex flex-col gap-4">
+              {[
+                { label: 'Nombre',    key: 'nombre',    type: 'text',  ph: 'Nombre completo',    req: true  },
+                { label: 'Teléfono',  key: 'telefono',  type: 'tel',   ph: 'Ej: 3001234567',     req: true  },
+                { label: 'Dirección', key: 'direccion', type: 'text',  ph: 'Vereda, finca…',     req: false },
+                { label: 'Correo',    key: 'correo',    type: 'email', ph: 'correo@ejemplo.com', req: false },
+              ].map(({ label, key, type, ph, req }) => (
+                <div key={key} className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider font-inter">
+                    {label}{req && <span className="text-red-500 ml-0.5 normal-case font-normal tracking-normal"> *</span>}
+                  </label>
+                  <input
+                    type={type}
+                    placeholder={ph}
+                    value={nuevoCliente[key]}
+                    onChange={(e) => setNuevoCliente((p) => ({ ...p, [key]: e.target.value }))}
+                    required={req}
+                    className="w-full px-4 py-3 border border-zinc-200 rounded-xl text-sm outline-none transition duration-300 bg-white text-zinc-900 placeholder:text-zinc-400 focus:border-[#9e2016] focus:ring-2 focus:ring-[#9e2016]/20 font-inter"
+                  />
+                </div>
+              ))}
+
+              <button
+                type="submit"
+                disabled={guardando}
+                className="flex items-center justify-center gap-2 w-full py-3 bg-[#9e2016] hover:bg-[#7c0202] text-white text-sm font-semibold rounded-xl transition duration-300 active:scale-[0.97] disabled:opacity-60 shadow-[0_2px_8px_rgba(158,32,22,0.25)] mt-1 font-display"
+              >
+                {guardando
+                  ? <><span className="w-4 h-4 rounded-full border-2 border-white/40 border-t-white animate-spin" /> Guardando…</>
+                  : <><UserPlusIcon /> Registrar Cliente</>
+                }
+              </button>
+
+              <button
+                type="button"
+                onClick={handleCloseNuevo}
+                className="w-full py-2.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-800 text-sm font-medium rounded-xl transition duration-300 active:scale-[0.97] font-inter"
+              >
+                Cancelar
+              </button>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </AppLayout>
   );
