@@ -2,14 +2,14 @@ import { useState, useRef, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
-import AppLayout from '../components/AppLayout';
-import CambiarContrasena from './components/CambiarContrasena';
-import SuccessToast from '../components/SuccessToast';
-import { useAuth } from '../context/AuthContext';
+import AppLayout from '../../components/AppLayout';
+import CambiarContrasena from './CambiarContrasena';
+import SuccessToast from '../../components/SuccessToast';
+import { useAuth } from '../../context/AuthContext';
 import {
   updatePerfil as updatePerfilAPI,
   updateFotoPerfil,
-} from '../services/perfilService';
+} from '../../services/perfilService';
 
 /* ── Icons ── */
 function CameraIcon() {
