@@ -1,9 +1,9 @@
-// src/pages/MisComerciantess.jsx
+// src/pages/ventas/MisComerciantess.jsx
 import { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '../context/AuthContext';
-import AppLayout from '../components/AppLayout';
-import NuevoComerciante from '../components/comerciantes/NuevoComerciante';
-import SuccessToast from '../components/SuccessToast';
+import { useAuth } from '../../context/AuthContext';
+import AppLayout from '../../components/AppLayout';
+import NuevoComerciante from '../../components/comerciantes/NuevoComerciante';
+import SuccessToast from '../../components/SuccessToast';
 
 export default function MisComerciantess() {
   const { token } = useAuth();

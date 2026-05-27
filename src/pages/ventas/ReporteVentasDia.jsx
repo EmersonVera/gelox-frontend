@@ -1,8 +1,8 @@
-// src/pages/ReporteVentasDia.jsx — RF40 + RF41 + RF42
+// src/pages/ventas/ReporteVentasDia.jsx — RF40 + RF41 + RF42
 import { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '../context/AuthContext';
-import AppLayout from '../components/AppLayout';
-import CustomSelect from '../components/ui/CustomSelect';
+import { useAuth } from '../../context/AuthContext';
+import AppLayout from '../../components/AppLayout';
+import CustomSelect from '../../components/ui/CustomSelect';
 
 const BASE_API = import.meta.env.VITE_API_BASE_URL ?? '';
 
@@ -47,6 +47,24 @@ function parseHora(horaRaw) {
 }
 
 /* ── Sub-componentes ─────────────────────────────────────────────────── */
+
+function VariacionBadge({ valor }) {
+  if (valor === null || valor === undefined) return null;
+  const positivo = valor >= 0;
+  const abs      = Math.abs(valor);
+  const texto    = `${positivo ? '+' : '-'}${Number.isInteger(abs) ? abs : abs.toFixed(1)}%`;
+  return (
+    <span
+      className={`font-['Inter'] font-semibold text-[12px] px-1.5 py-0.5 rounded-[6px] ${
+        positivo
+          ? 'text-[#16a34a] bg-[#dcfce7]'
+          : 'text-[#dc2626] bg-[#fee2e2]'
+      }`}
+    >
+      {texto}
+    </span>
+  );
+}
 
 function BtnPagina({ children, onClick, disabled }) {
   return (
@@ -147,6 +165,7 @@ export default function ReporteVentasDia() {
       label: 'Ventanilla',
       valor: resumen.ingresoVentanilla ?? 0,
       count: resumen.transaccionesVentanilla ?? 0,
+      variacion: resumen.variacionVentanilla ?? null,
       icono: (
         <svg width="18" height="18" fill="none" viewBox="0 0 18 18" className="text-[#9e2016]">
           <rect x="1" y="5" width="16" height="12" rx="2" stroke="currentColor" strokeWidth="1.4"/>
@@ -159,6 +178,7 @@ export default function ReporteVentasDia() {
       label: 'Rural',
       valor: resumen.ingresoRural ?? 0,
       count: resumen.transaccionesRural ?? 0,
+      variacion: resumen.variacionRural ?? null,
       icono: (
         <svg width="18" height="18" fill="none" viewBox="0 0 18 18" className="text-[#9e2016]">
           <rect x="1" y="6" width="16" height="9" rx="2" stroke="currentColor" strokeWidth="1.4"/>
@@ -173,6 +193,7 @@ export default function ReporteVentasDia() {
       label: 'Comerciantes',
       valor: resumen.ingresoComerciantes ?? 0,
       count: resumen.transaccionesComerciantes ?? 0,
+      variacion: resumen.variacionComerciantes ?? null,
       icono: (
         <svg width="18" height="18" fill="none" viewBox="0 0 18 18" className="text-[#9e2016]">
           <path d="M2 7h14l-1.5 9H3.5L2 7z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/>
@@ -231,9 +252,7 @@ export default function ReporteVentasDia() {
                     <div className="w-9 h-9 bg-[#f6f3f3] rounded-[8px] flex items-center justify-center">
                       {c.icono}
                     </div>
-                    <span className="font-['Inter'] text-[12px] text-[#a8a29e]">
-                      {c.count} tx
-                    </span>
+                    <VariacionBadge valor={c.variacion} />
                   </div>
                   <span className="font-['Inter'] font-semibold text-[11px] uppercase tracking-[0.55px] text-[#a8a29e] mt-4">
                     {c.label}
@@ -415,9 +434,15 @@ export default function ReporteVentasDia() {
 
                 {/* Cliente + badge de canal */}
                 <div>
-                  <p className="font-['Manrope'] font-semibold text-[15px] text-[#1b1b1c] leading-[20px]">
-                    {tx.clienteOComerciante ?? '—'}
-                  </p>
+                  {tx.clienteOComerciante ? (
+                    <p className="font-['Manrope'] font-semibold text-[15px] text-[#1b1b1c] leading-[20px]">
+                      {tx.clienteOComerciante}
+                    </p>
+                  ) : tx.tipo !== 'VENTANILLA' && (
+                    <p className="font-['Manrope'] font-semibold text-[15px] text-[#1b1b1c] leading-[20px]">
+                      —
+                    </p>
+                  )}
                   {tipoLabel && (
                     <span className={`font-['Inter'] font-bold text-[11px] uppercase ${
                       tx.tipo === 'VENTANILLA' ? 'text-[#9e2016]' : 'text-[#57534e]'
@@ -427,14 +452,20 @@ export default function ReporteVentasDia() {
                   )}
                 </div>
 
-                {/* Productos — nombres + total de unidades del pedido */}
-                <div>
-                  <p className="font-['Inter'] font-normal text-[14px] text-[#57534e] leading-[20px]">
-                    {tx.productos || '—'}
-                  </p>
-                  {tx.cantidad > 0 && (
-                    <p className="font-['Inter'] text-[12px] text-[#a8a29e] mt-0.5">
-                      x{tx.cantidad} unidades
+                {/* Productos — detalle por producto con cantidad y tipo */}
+                <div className="flex flex-col gap-0.5">
+                  {tx.detallesProductos?.length ? (
+                    tx.detallesProductos.map((d, i) => (
+                      <p key={i} className="font-['Inter'] font-normal text-[14px] text-[#57534e] leading-[20px]">
+                        {d.nombre}{' '}
+                        <span className="text-[#a8a29e] text-[12px]">
+                          (x{d.cantidad}{d.tipoUnidad === 'CAJA' ? 'c' : 'u'})
+                        </span>
+                      </p>
+                    ))
+                  ) : (
+                    <p className="font-['Inter'] font-normal text-[14px] text-[#57534e] leading-[20px]">
+                      {tx.productos || '—'}
                     </p>
                   )}
                 </div>
@@ -444,7 +475,7 @@ export default function ReporteVentasDia() {
                   {formatCOP(tx.total)}
                 </span>
 
-                {/* Método — pendiente en backend (la query SQL no incluye metodo_pago) */}
+                {/* Método de pago */}
                 <span className="pt-0.5">
                   {tx.metodoPago ? (
                     <span className="inline-flex items-center bg-[#f6f3f3] text-[#57534e]
