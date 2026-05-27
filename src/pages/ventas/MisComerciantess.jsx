@@ -1,8 +1,9 @@
-// src/pages/MisComerciantess.jsx
+// src/pages/ventas/MisComerciantess.jsx
 import { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '../context/AuthContext';
-import AppLayout from '../components/AppLayout';
-import NuevoComerciante from '../components/comerciantes/NuevoComerciante';
+import { useAuth } from '../../context/AuthContext';
+import AppLayout from '../../components/AppLayout';
+import NuevoComerciante from '../../components/comerciantes/NuevoComerciante';
+import SuccessToast from '../../components/SuccessToast';
 
 export default function MisComerciantess() {
   const { token } = useAuth();
@@ -11,6 +12,7 @@ export default function MisComerciantess() {
   const [busqueda, setBusqueda]         = useState('');
   const [cargando, setCargando]         = useState(true);
   const [modalAbierto, setModalAbierto] = useState(false);
+  const [toast, setToast]               = useState({ show: false, message: '' });
 
   const fetchComerciantess = useCallback(async () => {
     setCargando(true);
@@ -21,8 +23,10 @@ export default function MisComerciantess() {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
-      setComerciantess(data.comerciantes ?? []);
-      setTotal(data.total ?? 0);
+      // El backend devuelve un array plano; preparado también para wrapper { comerciantes, total }
+      const list = Array.isArray(data) ? data : (data.comerciantes ?? []);
+      setComerciantess(list);
+      setTotal(Array.isArray(data) ? list.length : (data.total ?? list.length));
     } catch (e) { console.error(e); }
     finally { setCargando(false); }
   }, [token, busqueda]);
@@ -95,8 +99,8 @@ export default function MisComerciantess() {
                 </div>
 
                 {/* Foto */}
-                {c.foto_url ? (
-                  <img src={c.foto_url} alt={c.nombre}
+                {c.fotoUrl ? (
+                  <img src={c.fotoUrl} alt={c.nombre}
                     className="w-[64px] h-[64px] rounded-full object-cover" />
                 ) : (
                   <div className="w-[64px] h-[64px] rounded-full bg-[#f6f3f3] flex items-center justify-center">
@@ -154,9 +158,20 @@ export default function MisComerciantess() {
       {modalAbierto && (
         <NuevoComerciante
           onClose={() => setModalAbierto(false)}
-          onSuccess={() => { setModalAbierto(false); fetchComerciantess(); }}
+          onSuccess={(msg) => {
+            setModalAbierto(false);
+            fetchComerciantess();
+            if (msg) setToast({ show: true, message: msg });
+          }}
         />
       )}
+
+      {/* Toast de éxito */}
+      <SuccessToast
+        message={toast.message}
+        show={toast.show}
+        onClose={() => setToast({ show: false, message: '' })}
+      />
     </AppLayout>
   );
 }

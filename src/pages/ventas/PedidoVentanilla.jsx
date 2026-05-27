@@ -196,6 +196,7 @@ export default function PedidoVentanilla() {
         nombre:      producto.nombre,
         precioVenta: producto.precioVenta,
         imagenUrl:   producto.imagenUrl,
+        stockActual: producto.stockActual, // necesario para validación local
         cajas:       1,
         unidades:    0,
       }];
@@ -243,6 +244,7 @@ export default function PedidoVentanilla() {
       // respuesta exacta: { ventaId, canal, fecha, estado, items, total, metodoPago }
       setVentaConfirmada(respuesta);
       setShowConfirm(false);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err) {
       const status = err?.response?.status;
       const data   = err?.response?.data;
@@ -252,6 +254,7 @@ export default function PedidoVentanilla() {
         setErrorGlobal(data?.mensaje ?? data?.message ?? 'Error al registrar la venta.');
       }
       setShowConfirm(false);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } finally {
       setEnviando(false);
     }
@@ -268,6 +271,22 @@ export default function PedidoVentanilla() {
   };
 
   const totalItemsBadge = cartItems.length;
+
+  /* ── Validación local del carrito (previene confirm si hay errores) ── */
+  const erroresCarrito = useMemo(() => {
+    const errs = {};
+    cartItems.forEach((it) => {
+      const totalUnidades = it.cajas * UNIDADES_POR_CAJA + it.unidades;
+      if (it.cajas === 0 && it.unidades === 0) {
+        errs[it.id] = 'Agrega al menos 1 caja o 1 unidad.';
+      } else if (totalUnidades > (it.stockActual ?? Infinity)) {
+        errs[it.id] = `Supera el stock disponible (${it.stockActual} u. en total).`;
+      }
+    });
+    return errs;
+  }, [cartItems]);
+
+  const hayErroresCarrito = Object.keys(erroresCarrito).length > 0;
 
   /* ═══════════════════════════ RENDER ═══════════════════════════════════ */
   return (
@@ -477,9 +496,17 @@ export default function PedidoVentanilla() {
                                   {p.nombre?.charAt(0)?.toUpperCase()}
                                 </span>
                             }
-                            {sinStock && (
+                            {sinStock ? (
                               <span className="absolute top-2 left-2 bg-zinc-700 text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase font-inter">
                                 Sin stock
+                              </span>
+                            ) : (
+                              <span className={`absolute top-1.5 right-1.5 text-[10px] font-bold px-1.5 py-0.5 rounded-md font-inter leading-none ${
+                                p.stockActual <= 5
+                                  ? 'bg-red-100 text-red-700'
+                                  : 'bg-zinc-100 text-zinc-500'
+                              }`}>
+                                {p.stockActual}u
                               </span>
                             )}
                           </div>
@@ -538,12 +565,13 @@ export default function PedidoVentanilla() {
                     const subtotalCajas = item.cajas * UNIDADES_POR_CAJA * precioUnit;
                     const subtotalUnidades = item.unidades * precioUnit;
 
+                    const errItem = erroresCarrito[item.id];
                     return (
                       <div key={item.id} className="space-y-2.5">
 
                         {/* Info producto */}
                         <div className="flex items-start gap-3">
-                          <div className="w-10 h-10 rounded-lg bg-zinc-100 flex items-center justify-center shrink-0 overflow-hidden border border-zinc-200">
+                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 overflow-hidden border ${errItem ? 'border-red-300 bg-red-50' : 'bg-zinc-100 border-zinc-200'}`}>
                             {item.imagenUrl
                               ? <img src={item.imagenUrl} alt={item.nombre} className="w-full h-full object-cover" />
                               : <span className="text-zinc-300 text-lg font-bold font-display">{item.nombre?.charAt(0)?.toUpperCase()}</span>
@@ -553,7 +581,17 @@ export default function PedidoVentanilla() {
                             <p className="text-sm font-bold text-zinc-900 font-display leading-tight truncate">{item.nombre}</p>
                             <p className="text-[11px] text-zinc-400 font-inter">
                               Unitario: {formatCOP(item.precioVenta)}
+                              {item.stockActual != null && (
+                                <span className={`ml-1.5 font-semibold ${item.stockActual <= 5 ? 'text-red-500' : 'text-zinc-400'}`}>
+                                  · stock: {item.stockActual}u
+                                </span>
+                              )}
                             </p>
+                            {errItem && (
+                              <p className="text-[10px] text-red-500 font-inter mt-0.5 font-semibold">
+                                ⚠ {errItem}
+                              </p>
+                            )}
                           </div>
                           <button type="button" onClick={() => removeFromCart(item.id)}
                             className="text-zinc-300 hover:text-red-400 transition-colors p-0.5 shrink-0">
@@ -632,10 +670,17 @@ export default function PedidoVentanilla() {
                     </span>
                   </div>
 
+                  {/* Mensaje de error de validación del carrito */}
+                  {hayErroresCarrito && cartItems.length > 0 && (
+                    <p className="text-[11px] text-red-500 font-inter text-center">
+                      Corrige los errores en el carrito antes de continuar.
+                    </p>
+                  )}
+
                   {/* Botón */}
                   <button type="button"
-                    onClick={() => { if (cartItems.length > 0) setShowConfirm(true); }}
-                    disabled={enviando || cartItems.length === 0}
+                    onClick={() => { if (cartItems.length > 0 && !hayErroresCarrito) setShowConfirm(true); }}
+                    disabled={enviando || cartItems.length === 0 || hayErroresCarrito}
                     className="w-full bg-[#9e2016] hover:bg-[#7c0202] disabled:bg-zinc-300 disabled:cursor-not-allowed text-white rounded-xl py-3.5 text-sm font-bold tracking-wide font-display transition-all duration-200 active:scale-[0.98] shadow-lg shadow-[#9e2016]/25 flex items-center justify-center gap-2">
                     {enviando ? <><SpinIcon /> Procesando…</> : 'COMPLETAR VENTA →'}
                   </button>

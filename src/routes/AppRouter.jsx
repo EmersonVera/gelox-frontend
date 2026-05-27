@@ -7,10 +7,11 @@ import RestablecerContrasena from '../pages/RestablecerContrasena';
 import LandingPage           from '../pages/LandingPage';
 
 /* ── Compartidas ── */
-import Ajustes           from '../pages/Ajustes';
+import Ajustes           from '../pages/components/Ajustes';
 
-/* ── Módulo Comerciantes ── */
-import MisComerciantess from '../pages/MisComerciantess';
+/* ── Módulo Ventas ── */
+import MisComerciantess  from '../pages/ventas/MisComerciantess';
+import ReporteVentasDia  from '../pages/ventas/ReporteVentasDia';
 
 /* ── Módulo Administrador ── */
 import DashboardGerente from '../pages/administrador/DashboardGerente';
@@ -73,6 +74,7 @@ export default function AppRouter() {
           <Route path="/usuarios/nuevo"          element={<NuevoUsuario />} />
           <Route path="/usuarios/:id/editar"     element={<EditarUsuario />} />
           <Route path="/reportes"                element={<Reportes />} />
+          <Route path="/reportes/ventas-dia"    element={<ReporteVentasDia />} />
           <Route path="/cierres-caja"            element={<HistorialCierres />} />
           <Route path="/cierres-caja/:id"        element={<DetalleCierre />} />
           {/* Ajustes del admin — mantiene SidebarAdministrador */}
@@ -98,8 +100,7 @@ export default function AppRouter() {
           <Route path="/ventas"                  element={<Navigate to="/ventas/pedido-ventanilla" replace />} />
           <Route path="/ventas/pedidos-rurales"  element={<PedidoRural />} />
           <Route path="/ventas/pedidos-ventanilla" element={<PedidoVentanilla />} />
-          <Route path="/ventas/planilla-diaria"   element={<PlanillaDiaria />} />
-          <Route path="/ventas/reportes"         element={<EnConstruccion modulo="Reportes de Ventas" />} />
+          <Route path="/ventas/reportes"         element={<ReporteVentasDia />} />
           <Route path="/ventas/comerciantes"     element={<MisComerciantess />} />
           {/* Ajustes del módulo ventas — mantiene SidebarVentas */}
           <Route path="/ventas/ajustes"          element={<Ajustes />} />
