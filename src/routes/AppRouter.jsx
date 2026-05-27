@@ -7,11 +7,11 @@ import RestablecerContrasena from '../pages/RestablecerContrasena';
 import LandingPage           from '../pages/LandingPage';
 
 /* ── Compartidas ── */
-import Ajustes           from '../pages/Ajustes';
+import Ajustes           from '../pages/components/Ajustes';
 
-/* ── Módulo Comerciantes ── */
-import MisComerciantess  from '../pages/MisComerciantess';
-import ReporteVentasDia  from '../pages/ReporteVentasDia';
+/* ── Módulo Ventas ── */
+import MisComerciantess  from '../pages/ventas/MisComerciantess';
+import ReporteVentasDia  from '../pages/ventas/ReporteVentasDia';
 
 /* ── Módulo Administrador ── */
 import DashboardGerente from '../pages/administrador/DashboardGerente';
