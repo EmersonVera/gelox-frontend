@@ -1,5 +1,6 @@
 // src/components/comerciantes/NuevoComerciante.jsx
 import { useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useAuth } from '../../context/AuthContext';
 import CustomSelect from '../ui/CustomSelect';
 
@@ -21,7 +22,17 @@ export default function NuevoComerciante({ onClose, onSuccess }) {
   const [preview, setPreview]     = useState(null);
   const [guardando, setGuardando] = useState(false);
   const [error, setError]         = useState('');
+  const [isClosing, setIsClosing] = useState(false);
   const inputFileRef = useRef();
+
+  const handleClose = () => {
+    if (isClosing) return;
+    setIsClosing(true);
+    setTimeout(() => {
+      setIsClosing(false);
+      onClose();
+    }, 200);
+  };
 
   const handleChange = (e) => setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
 
@@ -34,13 +45,11 @@ export default function NuevoComerciante({ onClose, onSuccess }) {
     e.preventDefault();
     setError('');
 
-    // Validaciones mínimas
     if (!form.nombre.trim()) { setError('El nombre es requerido.'); return; }
     if (!form.telefono.trim()) { setError('El teléfono es requerido.'); return; }
 
     setGuardando(true);
     try {
-      // Mapeamos los campos snake_case del formulario al camelCase que espera el backend
       const payload = {
         nombre:                       form.nombre,
         municipio:                    form.municipio,
@@ -49,7 +58,7 @@ export default function NuevoComerciante({ onClose, onSuccess }) {
         contactoEmergenciaNombre:     form.contacto_emergencia_nombre,
         contactoEmergenciaParentesco: form.contacto_emergencia_parentesco,
         tallaUniforme:                form.talla_uniforme,
-        fotoUrl:                      null, // pendiente: subida de foto (ver reporte backend)
+        fotoUrl:                      null,
       };
 
       const res = await fetch('/api/comerciantes', {
@@ -64,7 +73,7 @@ export default function NuevoComerciante({ onClose, onSuccess }) {
         const data = await res.json();
         throw new Error(data.message ?? 'Error al guardar el comerciante.');
       }
-      onSuccess();
+      onSuccess('¡Comerciante creado exitosamente!');
     } catch (err) {
       setError(err.message);
     } finally {
@@ -75,12 +84,21 @@ export default function NuevoComerciante({ onClose, onSuccess }) {
   const inputClass = "bg-[#f6f3f3] border-none rounded-[10px] px-4 py-3.5 font-['Inter'] text-[16px] text-[#1b1b1c] outline-none focus:ring-2 focus:ring-[#9e2016]/20 w-full placeholder-[rgba(168,162,158,0.8)]";
   const labelClass = "font-['Inter'] font-semibold text-[11px] uppercase tracking-[0.55px] text-[#a8a29e] mb-2 block";
 
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-[20px] w-[760px] max-h-[90vh] overflow-y-auto shadow-2xl">
-
+  return createPortal(
+    <div
+      className={`fixed inset-0 z-[9999] flex items-center justify-center px-4 bg-black/45 backdrop-blur-sm ${
+        isClosing ? 'animate-fade-out' : 'animate-fade-in'
+      }`}
+      onClick={handleClose}
+    >
+      <div
+        className={`bg-white rounded-[20px] w-full max-w-[760px] max-h-[90vh] overflow-y-auto shadow-[0_20px_60px_rgba(0,0,0,0.18)] ${
+          isClosing ? 'animate-scale-out' : 'animate-scale-in'
+        }`}
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header rojo */}
-        <div className="bg-[#9e2016] px-8 py-7 relative">
+        <div className="bg-[#9e2016] px-8 py-7 relative rounded-t-[20px]">
           <h2 className="font-['Manrope'] font-bold text-[28px] text-white leading-[34px]">
             Agregar Nuevo Comerciante
           </h2>
@@ -89,7 +107,7 @@ export default function NuevoComerciante({ onClose, onSuccess }) {
           </p>
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             className="absolute top-6 right-6 w-8 h-8 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center cursor-pointer transition-colors"
           >
             <svg width="14" height="14" fill="none" viewBox="0 0 14 14">
@@ -229,7 +247,7 @@ export default function NuevoComerciante({ onClose, onSuccess }) {
           <div className="px-8 pb-7 flex gap-4">
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleClose}
               className="flex-1 bg-[#f6f3f3] hover:bg-[#e7e5e4] text-[#57534e] font-['Manrope'] font-semibold text-[16px] rounded-[10px] px-8 py-3.5 cursor-pointer transition-colors"
             >
               Cancelar
@@ -244,6 +262,7 @@ export default function NuevoComerciante({ onClose, onSuccess }) {
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
