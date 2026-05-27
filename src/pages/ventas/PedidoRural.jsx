@@ -13,8 +13,8 @@ import CustomSelect from '../../components/ui/CustomSelect';
 const formatCOP = (n) => '$' + Number(n || 0).toLocaleString('es-CO', { minimumFractionDigits: 0 });
 const fechaHoy  = () => new Date().toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' });
 const genTx     = () => `GLX-${Math.floor(1000 + Math.random() * 9000)}`;
-const EMPTY_DEST  = { nombre: '', telefono: '', direccion: '', correo: '' };
-const EMPTY_NUEVO = { nombre: '', telefono: '', direccion: '', correo: '' };
+const EMPTY_DEST   = { nombre: '', telefono: '', direccion: '', correo: '', corregimiento: '' };
+const EMPTY_FORM   = { nombre: '', telefono: '', direccion: '', correo: '', corregimiento: '' };
 
 /* ── Icons ── */
 function WindowIcon() {
@@ -34,7 +34,10 @@ function AlertIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" fi
 function CheckIcon() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>; }
 function SpinIcon() { return <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>; }
 function PackageIcon() { return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>; }
-const inputCls = 'w-full bg-white border border-zinc-200 rounded-xl px-4 py-2.5 text-sm font-inter outline-none focus:border-[#9e2016] focus:ring-2 focus:ring-[#9e2016]/15 transition-all duration-200 text-zinc-900 placeholder:text-zinc-400';
+function EditIcon() { return <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>; }
+function LandmarkIcon() { return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="22" x2="21" y2="22"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12 2 20 7 4 7"/></svg>; }
+const inputCls       = 'w-full bg-white border border-zinc-200 rounded-xl px-4 py-2.5 text-sm font-inter outline-none focus:border-[#9e2016] focus:ring-2 focus:ring-[#9e2016]/15 transition-all duration-200 text-zinc-900 placeholder:text-zinc-400 disabled:bg-zinc-50 disabled:text-zinc-500 disabled:cursor-not-allowed';
+const inputLockedCls = 'w-full bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-2.5 text-sm font-inter outline-none text-zinc-500 cursor-not-allowed';
 const labelCls = 'block text-[10px] font-bold uppercase tracking-widest text-zinc-500 font-inter mb-1.5';
 
 function QtyBtn({ onClick, children }) {
@@ -68,9 +71,16 @@ export default function PedidoRural() {
   const [errores, setErrores]                 = useState({});
   const [showNuevo, setShowNuevo]             = useState(false);
   const [isClosingNuevo, setIsClosingNuevo]   = useState(false);
-  const [nuevoCliente, setNuevoCliente]       = useState(EMPTY_NUEVO);
+  const [nuevoCliente, setNuevoCliente]       = useState(EMPTY_FORM);
   const [guardando, setGuardando]             = useState(false);
   const [errNuevo, setErrNuevo]               = useState('');
+  const [showEditar, setShowEditar]           = useState(false);
+  const [isClosingEditar, setIsClosingEditar] = useState(false);
+  const [editandoCliente, setEditandoCliente] = useState(EMPTY_FORM);
+  const [guardandoEditar, setGuardandoEditar] = useState(false);
+  const [errEditar, setErrEditar]             = useState('');
+  const [toast, setToast]                     = useState({ msg: '', type: '' });
+  const [isLeavingFields, setIsLeavingFields] = useState(false);
 
   /* Cargar catálogo */
   useEffect(() => {
@@ -84,30 +94,47 @@ export default function PedidoRural() {
     })();
   }, []);
 
-  /* Cargar clientes */
+  /* Cargar clientes rurales */
   useEffect(() => {
     (async () => {
       setLoadingClientes(true);
       try {
-        const { data } = await api.get('/api/clientes', { params: { page: 0, size: 100 } });
-        setClientes(Array.isArray(data.content) ? data.content : Array.isArray(data) ? data : []);
+        const { data } = await api.get('/api/ventas/clientes-rurales');
+        setClientes(Array.isArray(data) ? data : (data.content ?? []));
       } catch {
         try {
-          const { data } = await api.get('/api/clientes/buscar', { params: { telefono: '' } });
-          setClientes(Array.isArray(data) ? data : (data.content ?? []));
+          const { data } = await api.get('/api/clientes', { params: { page: 0, size: 200 } });
+          setClientes(Array.isArray(data.content) ? data.content : Array.isArray(data) ? data : []);
         } catch { setClientes([]); }
       } finally { setLoadingClientes(false); }
     })();
   }, []);
 
+  const handleDeselectCliente = () => {
+    setIsLeavingFields(true);
+    setTimeout(() => {
+      setIsLeavingFields(false);
+      setClienteIdSel('');
+      setDestinatario(EMPTY_DEST);
+      setErrores({});
+    }, 500);
+  };
+
   const handleSelectCliente = useCallback((id) => {
+    if (!id) { handleDeselectCliente(); return; }
     setClienteIdSel(id);
-    if (!id) { setDestinatario(EMPTY_DEST); return; }
     const cli = clientes.find((c) => String(c.id) === String(id));
     if (cli) {
-      setDestinatario({ nombre: cli.nombre ?? '', telefono: cli.telefono ?? '', direccion: cli.direccion ?? '', correo: cli.correo ?? cli.email ?? '' });
+      setDestinatario({
+        nombre:        cli.nombre        ?? '',
+        telefono:      cli.telefono      ?? '',
+        direccion:     cli.direccion     ?? '',
+        correo:        cli.correo        ?? cli.email ?? '',
+        corregimiento: cli.corregimiento ?? '',
+      });
       setErrores({});
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clientes]);
 
   const handleCloseNuevo = () => {
@@ -116,9 +143,30 @@ export default function PedidoRural() {
     setTimeout(() => {
       setIsClosingNuevo(false);
       setShowNuevo(false);
-      setNuevoCliente(EMPTY_NUEVO);
+      setNuevoCliente(EMPTY_FORM);
       setErrNuevo('');
     }, 200);
+  };
+
+  const handleCloseEditar = () => {
+    if (isClosingEditar) return;
+    setIsClosingEditar(true);
+    setTimeout(() => {
+      setIsClosingEditar(false);
+      setShowEditar(false);
+      setErrEditar('');
+    }, 200);
+  };
+
+  const showToast = (msg, type = 'success') => {
+    setToast({ msg, type });
+    setTimeout(() => setToast({ msg: '', type: '' }), 3500);
+  };
+
+  const abrirEditar = () => {
+    setEditandoCliente({ ...destinatario });
+    setErrEditar('');
+    setShowEditar(true);
   };
 
   const guardarNuevoCliente = async (e) => {
@@ -129,14 +177,46 @@ export default function PedidoRural() {
     }
     setGuardando(true);
     try {
-      const { data } = await api.post('/api/clientes', nuevoCliente);
+      const { data } = await api.post('/api/ventas/clientes-rurales', nuevoCliente);
       setClientes((prev) => [...prev, data]);
       setClienteIdSel(String(data.id));
-      setDestinatario({ nombre: data.nombre ?? '', telefono: data.telefono ?? '', direccion: data.direccion ?? '', correo: data.correo ?? '' });
+      setDestinatario({
+        nombre: data.nombre ?? '', telefono: data.telefono ?? '',
+        direccion: data.direccion ?? '', correo: data.correo ?? '',
+        corregimiento: data.corregimiento ?? '',
+      });
       handleCloseNuevo();
+      showToast(`Cliente "${data.nombre}" registrado correctamente.`);
     } catch (err) {
-      setErrNuevo(err.response?.data?.mensaje ?? err.response?.data?.message ?? 'No se pudo registrar el cliente.');
+      const status = err.response?.status;
+      if (status === 409) setErrNuevo('El teléfono ya está registrado en otro cliente.');
+      else setErrNuevo(err.response?.data?.mensaje ?? err.response?.data?.message ?? 'No se pudo registrar el cliente.');
     } finally { setGuardando(false); }
+  };
+
+  const guardarEditarCliente = async (e) => {
+    e.preventDefault();
+    setErrEditar('');
+    if (!editandoCliente.nombre.trim() || !editandoCliente.telefono.trim()) {
+      setErrEditar('Nombre y teléfono son obligatorios.'); return;
+    }
+    setGuardandoEditar(true);
+    try {
+      const { data } = await api.put(`/api/clientes/${clienteIdSel}`, editandoCliente);
+      setClientes((prev) => prev.map((c) => String(c.id) === String(clienteIdSel) ? { ...c, ...data } : c));
+      setDestinatario({
+        nombre: data.nombre ?? '', telefono: data.telefono ?? '',
+        direccion: data.direccion ?? '', correo: data.correo ?? '',
+        corregimiento: data.corregimiento ?? '',
+      });
+      handleCloseEditar();
+      showToast(`Datos de "${data.nombre}" actualizados correctamente.`);
+    } catch (err) {
+      const status = err.response?.status;
+      if (status === 409) setErrEditar('El teléfono ya pertenece a otro cliente.');
+      else if (status === 404) setErrEditar('Cliente no encontrado.');
+      else setErrEditar(err.response?.data?.mensaje ?? err.response?.data?.message ?? 'No se pudo actualizar el cliente.');
+    } finally { setGuardandoEditar(false); }
   };
 
   const addToCart = useCallback((producto) => {
@@ -201,10 +281,11 @@ export default function PedidoRural() {
     const body = {
       clienteId: clienteObj?.id ?? null,
       destinatario: {
-        nombre:    destinatario.nombre.trim(),
-        telefono:  destinatario.telefono.trim(),
-        direccion: destinatario.direccion.trim(),
-        correo:    destinatario.correo.trim() || null,
+        nombre:        destinatario.nombre.trim(),
+        telefono:      destinatario.telefono.trim(),
+        direccion:     destinatario.direccion.trim() || null,
+        correo:        destinatario.correo.trim() || null,
+        corregimiento: destinatario.corregimiento.trim() || null,
       },
       items: cartItems
         .filter((it) => it.cajas > 0 || it.unidadesSueltas > 0)
@@ -214,6 +295,7 @@ export default function PedidoRural() {
     try {
       await api.post('/api/ventas/rural', body);
       setPedidoOk(true); setShowConfirm(false);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err) {
       const status = err.response?.status;
       const data   = err.response?.data;
@@ -223,6 +305,7 @@ export default function PedidoRural() {
         setErrorGlobal(data?.mensaje ?? data?.message ?? 'Error al registrar el pedido.');
       }
       setShowConfirm(false);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } finally { setEnviando(false); }
   };
 
@@ -245,6 +328,21 @@ export default function PedidoRural() {
               <p className="text-sm text-emerald-700 font-inter mt-0.5">El pedido fue enviado correctamente y el stock fue descontado.</p>
             </div>
             <button onClick={reiniciar} className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl px-4 py-2 text-sm font-semibold transition-all active:scale-95 shrink-0">Nueva venta</button>
+          </div>
+        )}
+
+        {/* Toast cliente */}
+        {toast.msg && (
+          <div className={`mb-4 rounded-2xl p-4 flex items-center gap-3 animate-slide-down ${
+            toast.type === 'success'
+              ? 'bg-emerald-50 border border-emerald-200'
+              : 'bg-red-50 border border-red-200'
+          }`}>
+            <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${toast.type === 'success' ? 'bg-emerald-100' : 'bg-red-100'}`}>
+              {toast.type === 'success' ? <CheckIcon /> : <AlertIcon />}
+            </div>
+            <p className={`text-sm font-inter flex-1 ${toast.type === 'success' ? 'text-emerald-700' : 'text-red-700'}`}>{toast.msg}</p>
+            <button onClick={() => setToast({ msg: '', type: '' })} className={`p-1 ${toast.type === 'success' ? 'text-emerald-300 hover:text-emerald-500' : 'text-red-300 hover:text-red-500'}`}><XIcon size={14} /></button>
           </div>
         )}
 
@@ -315,55 +413,68 @@ export default function PedidoRural() {
                     {/* Dropdown clientes guardados */}
                     <div>
                       <p className={labelCls}>Clientes Guardados</p>
-                      <CustomSelect
-                        value={clienteIdSel}
-                        onChange={handleSelectCliente}
-                        options={[
-                          { value: '', label: 'Seleccionar cliente guardado...' },
-                          ...clientes.map(c => ({ value: String(c.id), label: `${c.nombre} · ${c.telefono}` })),
-                        ]}
-                        disabled={loadingClientes}
-                        searchable
-                      />
-                      <p className="text-[11px] text-zinc-400 font-inter mt-1.5">
-                        Al seleccionar, los campos se autocompletán automáticamente.
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1">
+                          <CustomSelect
+                            value={clienteIdSel}
+                            onChange={handleSelectCliente}
+                            options={[
+                              { value: '', label: 'Seleccionar cliente guardado...' },
+                              ...clientes.map(c => ({ value: String(c.id), label: c.nombre })),
+                            ]}
+                            disabled={loadingClientes || isLeavingFields}
+                            searchable
+                          />
+                        </div>
+                        {(clienteIdSel || isLeavingFields) && (
+                          <button
+                            type="button"
+                            onClick={handleDeselectCliente}
+                            disabled={isLeavingFields}
+                            className="shrink-0 w-9 h-[46px] flex items-center justify-center text-zinc-400 hover:text-[#9e2016] border border-zinc-200 hover:border-[#9e2016]/30 rounded-xl transition-all duration-200 active:scale-90 disabled:opacity-40"
+                          >
+                            <XIcon size={14} />
+                          </button>
+                        )}
+                      </div>
+                      {!clienteIdSel && !isLeavingFields && (
+                        <p className="text-[11px] text-zinc-400 font-inter mt-1.5">
+                          Al seleccionar, los campos se autocompletán automáticamente.
+                        </p>
+                      )}
                     </div>
 
-                    {/* Campos del destinatario */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label className={labelCls}><span className="flex items-center gap-1.5"><UserIcon /> Nombre completo</span></label>
-                        <input type="text" placeholder="María Elena Gómez" value={destinatario.nombre}
-                          onChange={(e) => { setDestinatario((p) => ({ ...p, nombre: e.target.value })); setErrores((p) => ({ ...p, nombre: '' })); }}
-                          className={`${inputCls} ${errores.nombre ? 'border-red-400 focus:ring-red-400/20' : ''}`} />
-                        {errores.nombre && <p className="text-xs text-red-500 mt-1 font-inter">{errores.nombre}</p>}
+                    {/* Campos del destinatario — aparece/desaparece con animación */}
+                    {(clienteIdSel || isLeavingFields) && (
+                      <div className={`space-y-4 ${isLeavingFields ? 'animate-scale-out' : 'animate-slide-down'}`}>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div>
+                            <label className={labelCls}><span className="flex items-center gap-1.5"><UserIcon /> Nombre completo</span></label>
+                            <input type="text" value={destinatario.nombre} disabled className={inputLockedCls} />
+                          </div>
+                          <div>
+                            <label className={labelCls}><span className="flex items-center gap-1.5"><PhoneIcon /> Teléfono</span></label>
+                            <input type="tel" value={destinatario.telefono} disabled className={inputLockedCls} />
+                          </div>
+                          <div>
+                            <label className={labelCls}><span className="flex items-center gap-1.5"><MapPinIcon /> Dirección / Vereda</span></label>
+                            <input type="text" value={destinatario.direccion} disabled className={inputLockedCls} />
+                          </div>
+                          <div>
+                            <label className={labelCls}><span className="flex items-center gap-1.5"><LandmarkIcon /> Corregimiento</span></label>
+                            <input type="text" value={destinatario.corregimiento} disabled className={inputLockedCls} />
+                          </div>
+                          <div className="sm:col-span-2">
+                            <label className={labelCls}><span className="flex items-center gap-1.5"><MailIcon /> Correo electrónico</span></label>
+                            <input type="email" value={destinatario.correo} disabled className={inputLockedCls} />
+                          </div>
+                        </div>
+                        <button type="button" onClick={abrirEditar}
+                          className="flex items-center justify-center gap-2 w-full py-2.5 border border-zinc-200 hover:border-[#9e2016]/40 bg-zinc-50 hover:bg-[#9e2016]/5 text-zinc-600 hover:text-[#9e2016] rounded-xl text-xs font-semibold font-inter transition-all duration-200 active:scale-[0.98]">
+                          <EditIcon /> Editar datos del cliente
+                        </button>
                       </div>
-                      <div>
-                        <label className={labelCls}><span className="flex items-center gap-1.5"><PhoneIcon /> Teléfono</span></label>
-                        <input type="tel" placeholder="312 456 7890" value={destinatario.telefono}
-                          onChange={(e) => { setDestinatario((p) => ({ ...p, telefono: e.target.value })); setErrores((p) => ({ ...p, telefono: '' })); }}
-                          className={`${inputCls} ${errores.telefono ? 'border-red-400 focus:ring-red-400/20' : ''}`} />
-                        {errores.telefono && <p className="text-xs text-red-500 mt-1 font-inter">{errores.telefono}</p>}
-                      </div>
-                      <div>
-                        <label className={labelCls}><span className="flex items-center gap-1.5"><MapPinIcon /> Dirección / Vereda</span></label>
-                        <input type="text" placeholder="Vereda La Linda" value={destinatario.direccion}
-                          onChange={(e) => { setDestinatario((p) => ({ ...p, direccion: e.target.value })); setErrores((p) => ({ ...p, direccion: '' })); }}
-                          className={`${inputCls} ${errores.direccion ? 'border-red-400 focus:ring-red-400/20' : ''}`} />
-                        {errores.direccion && <p className="text-xs text-red-500 mt-1 font-inter">{errores.direccion}</p>}
-                      </div>
-                      <div>
-                        <label className={labelCls}>
-                          <span className="flex items-center gap-1.5">
-                            <MailIcon /> Correo electrónico
-                            <span className="text-zinc-400 normal-case font-normal tracking-normal text-[10px]">(opc.)</span>
-                          </span>
-                        </label>
-                        <input type="email" placeholder="maria.gomez@ruralmail.com" value={destinatario.correo}
-                          onChange={(e) => setDestinatario((p) => ({ ...p, correo: e.target.value }))} className={inputCls} />
-                      </div>
-                    </div>
+                    )}
                   </section>
 
                   {/* § PRODUCTOS */}
@@ -656,26 +767,43 @@ export default function PedidoRural() {
             )}
 
             <form onSubmit={guardarNuevoCliente} noValidate className="flex flex-col gap-4">
-              {[
-                { label: 'Nombre',    key: 'nombre',    type: 'text',  ph: 'Nombre completo',    req: true  },
-                { label: 'Teléfono',  key: 'telefono',  type: 'tel',   ph: 'Ej: 3001234567',     req: true  },
-                { label: 'Dirección', key: 'direccion', type: 'text',  ph: 'Vereda, finca…',     req: false },
-                { label: 'Correo',    key: 'correo',    type: 'email', ph: 'correo@ejemplo.com', req: false },
-              ].map(({ label, key, type, ph, req }) => (
-                <div key={key} className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider font-inter">
-                    {label}{req && <span className="text-red-500 ml-0.5 normal-case font-normal tracking-normal"> *</span>}
-                  </label>
-                  <input
-                    type={type}
-                    placeholder={ph}
-                    value={nuevoCliente[key]}
-                    onChange={(e) => setNuevoCliente((p) => ({ ...p, [key]: e.target.value }))}
-                    required={req}
-                    className="w-full px-4 py-3 border border-zinc-200 rounded-xl text-sm outline-none transition duration-300 bg-white text-zinc-900 placeholder:text-zinc-400 focus:border-[#9e2016] focus:ring-2 focus:ring-[#9e2016]/20 font-inter"
-                  />
-                </div>
-              ))}
+              {/* Fila 1: Nombre | Teléfono */}
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { label: 'Nombre',   key: 'nombre',   type: 'text', ph: 'Nombre completo', req: true },
+                  { label: 'Teléfono', key: 'telefono', type: 'tel',  ph: 'Ej: 3001234567',  req: true },
+                ].map(({ label, key, type, ph, req }) => (
+                  <div key={key} className="flex flex-col gap-1.5">
+                    <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider font-inter">
+                      {label}<span className="text-red-500 ml-0.5 normal-case font-normal tracking-normal"> *</span>
+                    </label>
+                    <input type={type} placeholder={ph} value={nuevoCliente[key]} required
+                      onChange={(e) => setNuevoCliente((p) => ({ ...p, [key]: e.target.value }))}
+                      className="w-full px-3 py-2.5 border border-zinc-200 rounded-xl text-sm outline-none transition duration-300 bg-white text-zinc-900 placeholder:text-zinc-400 focus:border-[#9e2016] focus:ring-2 focus:ring-[#9e2016]/20 font-inter" />
+                  </div>
+                ))}
+              </div>
+              {/* Fila 2: Dirección | Corregimiento */}
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { label: 'Dirección',     key: 'direccion',     type: 'text', ph: 'Vereda, finca…'  },
+                  { label: 'Corregimiento', key: 'corregimiento', type: 'text', ph: 'Ej: San Faustino' },
+                ].map(({ label, key, type, ph }) => (
+                  <div key={key} className="flex flex-col gap-1.5">
+                    <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider font-inter">{label}</label>
+                    <input type={type} placeholder={ph} value={nuevoCliente[key]}
+                      onChange={(e) => setNuevoCliente((p) => ({ ...p, [key]: e.target.value }))}
+                      className="w-full px-3 py-2.5 border border-zinc-200 rounded-xl text-sm outline-none transition duration-300 bg-white text-zinc-900 placeholder:text-zinc-400 focus:border-[#9e2016] focus:ring-2 focus:ring-[#9e2016]/20 font-inter" />
+                  </div>
+                ))}
+              </div>
+              {/* Fila 3: Correo (completo) */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider font-inter">Correo <span className="normal-case font-normal tracking-normal text-zinc-400">(opcional)</span></label>
+                <input type="email" placeholder="correo@ejemplo.com" value={nuevoCliente.correo}
+                  onChange={(e) => setNuevoCliente((p) => ({ ...p, correo: e.target.value }))}
+                  className="w-full px-3 py-2.5 border border-zinc-200 rounded-xl text-sm outline-none transition duration-300 bg-white text-zinc-900 placeholder:text-zinc-400 focus:border-[#9e2016] focus:ring-2 focus:ring-[#9e2016]/20 font-inter" />
+              </div>
 
               <button
                 type="submit"
@@ -691,6 +819,95 @@ export default function PedidoRural() {
               <button
                 type="button"
                 onClick={handleCloseNuevo}
+                className="w-full py-2.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-800 text-sm font-medium rounded-xl transition duration-300 active:scale-[0.97] font-inter"
+              >
+                Cancelar
+              </button>
+            </form>
+          </div>
+        </div>,
+        document.body
+      )}
+      {/* ── Modal editar cliente ── */}
+      {showEditar && createPortal(
+        <div
+          className={`fixed inset-0 z-[9999] flex items-center justify-center px-4 bg-black/45 backdrop-blur-sm ${isClosingEditar ? 'animate-fade-out' : 'animate-fade-in'}`}
+          onClick={handleCloseEditar}
+        >
+          <div
+            className={`w-full max-w-md bg-white rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.18)] p-7 sm:p-8 ${isClosingEditar ? 'animate-scale-out' : 'animate-scale-in'}`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="w-12 h-12 rounded-2xl bg-[#9e2016]/10 text-[#9e2016] flex items-center justify-center mx-auto mb-4">
+              <EditIcon />
+            </div>
+            <h2 className="font-display text-xl font-bold text-zinc-900 text-center mb-1">
+              Editar Cliente
+            </h2>
+            <p className="text-sm text-zinc-500 font-inter text-center mb-6 leading-relaxed">
+              Actualiza los datos del cliente. Los cambios se reflejarán en el pedido actual.
+            </p>
+
+            {errEditar && (
+              <div className="mb-4 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm font-inter flex items-start gap-2">
+                <span className="shrink-0 mt-0.5"><AlertIcon /></span>
+                {errEditar}
+              </div>
+            )}
+
+            <form onSubmit={guardarEditarCliente} noValidate className="flex flex-col gap-4">
+              {/* Fila 1: Nombre | Teléfono */}
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { label: 'Nombre',   key: 'nombre',   type: 'text', ph: 'Nombre completo', req: true },
+                  { label: 'Teléfono', key: 'telefono', type: 'tel',  ph: 'Ej: 3001234567',  req: true },
+                ].map(({ label, key, type, ph }) => (
+                  <div key={key} className="flex flex-col gap-1.5">
+                    <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider font-inter">
+                      {label}<span className="text-red-500 ml-0.5 normal-case font-normal tracking-normal"> *</span>
+                    </label>
+                    <input type={type} placeholder={ph} value={editandoCliente[key] ?? ''} required
+                      onChange={(e) => setEditandoCliente((p) => ({ ...p, [key]: e.target.value }))}
+                      className="w-full px-3 py-2.5 border border-zinc-200 rounded-xl text-sm outline-none transition duration-300 bg-white text-zinc-900 placeholder:text-zinc-400 focus:border-[#9e2016] focus:ring-2 focus:ring-[#9e2016]/20 font-inter" />
+                  </div>
+                ))}
+              </div>
+              {/* Fila 2: Dirección | Corregimiento */}
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { label: 'Dirección',     key: 'direccion',     type: 'text', ph: 'Vereda, finca…'  },
+                  { label: 'Corregimiento', key: 'corregimiento', type: 'text', ph: 'Ej: San Faustino' },
+                ].map(({ label, key, type, ph }) => (
+                  <div key={key} className="flex flex-col gap-1.5">
+                    <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider font-inter">{label}</label>
+                    <input type={type} placeholder={ph} value={editandoCliente[key] ?? ''}
+                      onChange={(e) => setEditandoCliente((p) => ({ ...p, [key]: e.target.value }))}
+                      className="w-full px-3 py-2.5 border border-zinc-200 rounded-xl text-sm outline-none transition duration-300 bg-white text-zinc-900 placeholder:text-zinc-400 focus:border-[#9e2016] focus:ring-2 focus:ring-[#9e2016]/20 font-inter" />
+                  </div>
+                ))}
+              </div>
+              {/* Fila 3: Correo (completo) */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider font-inter">Correo <span className="normal-case font-normal tracking-normal text-zinc-400">(opcional)</span></label>
+                <input type="email" placeholder="correo@ejemplo.com" value={editandoCliente.correo ?? ''}
+                  onChange={(e) => setEditandoCliente((p) => ({ ...p, correo: e.target.value }))}
+                  className="w-full px-3 py-2.5 border border-zinc-200 rounded-xl text-sm outline-none transition duration-300 bg-white text-zinc-900 placeholder:text-zinc-400 focus:border-[#9e2016] focus:ring-2 focus:ring-[#9e2016]/20 font-inter" />
+              </div>
+
+              <button
+                type="submit"
+                disabled={guardandoEditar}
+                className="flex items-center justify-center gap-2 w-full py-3 bg-[#9e2016] hover:bg-[#7c0202] text-white text-sm font-semibold rounded-xl transition duration-300 active:scale-[0.97] disabled:opacity-60 shadow-[0_2px_8px_rgba(158,32,22,0.25)] mt-1 font-display"
+              >
+                {guardandoEditar
+                  ? <><span className="w-4 h-4 rounded-full border-2 border-white/40 border-t-white animate-spin" /> Guardando…</>
+                  : <><CheckIcon /> Guardar Cambios</>
+                }
+              </button>
+
+              <button
+                type="button"
+                onClick={handleCloseEditar}
                 className="w-full py-2.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-800 text-sm font-medium rounded-xl transition duration-300 active:scale-[0.97] font-inter"
               >
                 Cancelar
