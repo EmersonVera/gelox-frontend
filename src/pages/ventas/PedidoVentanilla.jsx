@@ -244,6 +244,7 @@ export default function PedidoVentanilla() {
       // respuesta exacta: { ventaId, canal, fecha, estado, items, total, metodoPago }
       setVentaConfirmada(respuesta);
       setShowConfirm(false);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err) {
       const status = err?.response?.status;
       const data   = err?.response?.data;
@@ -253,6 +254,7 @@ export default function PedidoVentanilla() {
         setErrorGlobal(data?.mensaje ?? data?.message ?? 'Error al registrar la venta.');
       }
       setShowConfirm(false);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } finally {
       setEnviando(false);
     }
