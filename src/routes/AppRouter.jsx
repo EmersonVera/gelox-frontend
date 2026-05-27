@@ -22,8 +22,9 @@ import HistorialCierres from '../pages/administrador/HistorialCierres';
 import DetalleCierre    from '../pages/administrador/DetalleCierre';
 
 /* ── Módulo Ventas ── */
-import PedidoVentanilla      from '../pages/ventas/PedidoVentanilla';
-import PedidoRural     from '../pages/ventas/PedidoRural';
+import PedidoVentanilla from '../pages/ventas/PedidoVentanilla';
+import PedidoRural      from '../pages/ventas/PedidoRural';
+import PlanillaDiaria   from '../pages/ventas/PlanillaDiaria';
 
 /* ── Módulo Inventarios ── */
 import GestionInventarios from '../pages/inventarios/GestionInventarios';
@@ -97,6 +98,7 @@ export default function AppRouter() {
           <Route path="/ventas"                  element={<Navigate to="/ventas/pedido-ventanilla" replace />} />
           <Route path="/ventas/pedidos-rurales"  element={<PedidoRural />} />
           <Route path="/ventas/pedidos-ventanilla" element={<PedidoVentanilla />} />
+          <Route path="/ventas/planilla-diaria"   element={<PlanillaDiaria />} />
           <Route path="/ventas/reportes"         element={<EnConstruccion modulo="Reportes de Ventas" />} />
           <Route path="/ventas/comerciantes"     element={<MisComerciantess />} />
           {/* Ajustes del módulo ventas — mantiene SidebarVentas */}
