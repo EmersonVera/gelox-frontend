@@ -25,6 +25,11 @@ api.interceptors.request.use(async (config) => {
     const token = await user.getIdToken();
     config.headers.Authorization = `Bearer ${token}`;
   }
+  // Cuando el body es FormData, dejar que el navegador genere el Content-Type
+  // con el boundary correcto. Poner Content-Type manual rompe el upload.
+  if (config.data instanceof FormData) {
+    delete config.headers['Content-Type'];
+  }
   return config;
 });
 

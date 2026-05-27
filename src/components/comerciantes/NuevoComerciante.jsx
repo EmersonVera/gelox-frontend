@@ -46,31 +46,29 @@ export default function NuevoComerciante({ onClose, onSuccess }) {
     setError('');
 
     if (!form.nombre.trim()) { setError('El nombre es requerido.'); return; }
-    if (!form.telefono.trim()) { setError('El teléfono es requerido.'); return; }
 
     setGuardando(true);
     try {
-      const payload = {
-        nombre:                       form.nombre,
-        municipio:                    form.municipio,
-        direccion:                    form.direccion,
-        telefono:                     form.telefono,
-        contactoEmergenciaNombre:     form.contacto_emergencia_nombre,
-        contactoEmergenciaParentesco: form.contacto_emergencia_parentesco,
-        tallaUniforme:                form.talla_uniforme,
-        fotoUrl:                      null,
-      };
+      // Siempre FormData para que el backend pueda recibir la foto como archivo
+      const fd = new FormData();
+      fd.append('nombre', form.nombre);
+      if (form.municipio)                        fd.append('municipio',                    form.municipio);
+      if (form.direccion)                        fd.append('direccion',                    form.direccion);
+      if (form.telefono)                         fd.append('telefono',                     form.telefono);
+      if (form.contacto_emergencia_nombre)       fd.append('contactoEmergenciaNombre',     form.contacto_emergencia_nombre);
+      if (form.contacto_emergencia_parentesco)   fd.append('contactoEmergenciaParentesco', form.contacto_emergencia_parentesco);
+      if (form.talla_uniforme)                   fd.append('tallaUniforme',                form.talla_uniforme);
+      if (foto)                                  fd.append('foto',                         foto);
+      // ⚠️ NO poner Content-Type — el interceptor de axios lo maneja automáticamente
 
-      const res = await fetch('/api/comerciantes', {
+      const base = import.meta.env.VITE_API_BASE_URL ?? '';
+      const res = await fetch(`${base}/api/comerciantes`, {
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
+        headers: { Authorization: `Bearer ${token}` },
+        body: fd,
       });
       if (!res.ok) {
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
         throw new Error(data.message ?? 'Error al guardar el comerciante.');
       }
       onSuccess('¡Comerciante creado exitosamente!');

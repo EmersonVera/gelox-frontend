@@ -4,9 +4,8 @@ import { useForm, Controller } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import { useState, useRef } from 'react';
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import app from '../../auth/firebase';
 import { useAuth } from '../../context/AuthContext';
+import api from '../../api/axiosConfig';
 import ModalConfirmarEliminar from './ModalConfirmarEliminar';
 import CustomSelect from '../ui/CustomSelect';
 
@@ -27,7 +26,7 @@ const schema = yup.object({
 });
 
 export default function EditarProducto({ producto, onClose, onSuccess }) {
-  const { token, perfil } = useAuth();
+  const { perfil } = useAuth();
   const esAdmin = perfil?.rol === 'ADMINISTRADOR';
   const [preview, setPreview]                     = useState(producto.imagenUrl || null);
   const [imagenNueva, setImagenNueva]             = useState(null);
@@ -61,47 +60,28 @@ export default function EditarProducto({ producto, onClose, onSuccess }) {
     }
   };
 
-  const subirImagen = async (file) => {
-    const storage    = getStorage(app);
-    const nombre     = `catalogo/${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
-    const storageRef = ref(storage, nombre);
-    await uploadBytes(storageRef, file);
-    return await getDownloadURL(storageRef);
-  };
-
   const onSubmit = async (data) => {
     setGuardando(true);
     setErrorApi('');
     try {
-      let imagenUrl = producto.imagenUrl ?? null;
-      if (imagenNueva) imagenUrl = await subirImagen(imagenNueva);
+      const fd = new FormData();
+      fd.append('codigoTecnico', data.codigoTecnico);
+      fd.append('nombre',        data.nombre);
+      fd.append('categoria',     data.categoria.toUpperCase());
+      fd.append('precioVenta',   data.precioVenta);
+      if (data.precioCosto != null) fd.append('precioCosto', data.precioCosto);
+      if (data.descripcion)         fd.append('descripcion', data.descripcion);
+      if (data.stockMinimo != null) fd.append('stockMinimo', data.stockMinimo);
+      if (imagenNueva) fd.append('imagen', imagenNueva); // ← campo "imagen", no "foto"
 
-      const body = {
-        codigoTecnico: data.codigoTecnico,
-        nombre:        data.nombre,
-        categoria:     data.categoria.toUpperCase(),
-        precioVenta:   data.precioVenta,
-        precioCosto:   data.precioCosto,
-        descripcion:   data.descripcion,
-        stockMinimo:   data.stockMinimo,
-        imagenUrl,
-      };
-
-      const base = import.meta.env.VITE_API_BASE_URL ?? '';
-      const res = await fetch(`${base}/api/catalogo/productos/${producto.id}`, {
-        method:  'PUT',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body:    JSON.stringify(body),
-      });
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.message || `Error ${res.status}`);
+      const res = await api.put(`/api/catalogo/productos/${producto.id}`, fd);
+      if (res.status < 200 || res.status >= 300) {
+        throw new Error(res.data?.message || `Error ${res.status}`);
       }
       onSuccess();
       onClose();
     } catch (err) {
-      setErrorApi(err.message);
+      setErrorApi(err?.response?.data?.message ?? err.message);
     } finally {
       setGuardando(false);
     }

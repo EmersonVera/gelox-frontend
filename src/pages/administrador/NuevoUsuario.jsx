@@ -139,9 +139,7 @@ export default function NuevoUsuario() {
         fd.append('contrasenaTemporal', data.contrasena);
         fd.append('rol', rolSeleccionado);
         fd.append('foto', foto);
-        await api.post('/api/usuarios', fd, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-        });
+        await api.post('/api/usuarios', fd);
       } else {
         await crearUsuario({
           nombre: data.nombre,
