@@ -21,8 +21,10 @@ export default function MisComerciantess() {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
-      setComerciantess(data.comerciantes ?? []);
-      setTotal(data.total ?? 0);
+      // El backend devuelve un array plano; preparado también para wrapper { comerciantes, total }
+      const list = Array.isArray(data) ? data : (data.comerciantes ?? []);
+      setComerciantess(list);
+      setTotal(Array.isArray(data) ? list.length : (data.total ?? list.length));
     } catch (e) { console.error(e); }
     finally { setCargando(false); }
   }, [token, busqueda]);
@@ -95,8 +97,8 @@ export default function MisComerciantess() {
                 </div>
 
                 {/* Foto */}
-                {c.foto_url ? (
-                  <img src={c.foto_url} alt={c.nombre}
+                {c.fotoUrl ? (
+                  <img src={c.fotoUrl} alt={c.nombre}
                     className="w-[64px] h-[64px] rounded-full object-cover" />
                 ) : (
                   <div className="w-[64px] h-[64px] rounded-full bg-[#f6f3f3] flex items-center justify-center">
