@@ -108,7 +108,6 @@ const LINKS = [
   { icon: <ReceiptIcon />, label: 'Cierres de Caja', to: '/cierres-caja' },
   { icon: <UsersIcon />,   label: 'Usuarios',        to: '/usuarios' },
   { icon: <BoxIcon />,     label: 'Inventarios',     to: '/inventarios/gestion' },
-  { icon: <StoreIcon />,   label: 'Comerciantes',    to: '/ventas/comerciantes' },
   { icon: <CartIcon />,    label: 'Ventas',          to: '/ventas/pedidos-ventanilla' },
 ];
 

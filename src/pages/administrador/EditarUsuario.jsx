@@ -4,6 +4,7 @@ import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import AppLayout from '../../components/AppLayout';
 import api from '../../api/axiosConfig';
 import { deshabilitarUsuario, habilitarUsuario } from '../../services/usuariosService';
+import SuccessToast from '../../components/SuccessToast';
 
 /* ── Icons ── */
 function ArrowLeftIcon() {
@@ -134,9 +135,9 @@ export default function EditarUsuario() {
   const [rolSeleccionado, setRolSeleccionado] = useState(rolInicial);
   const [foto, setFoto]                       = useState(null);
   const [fotoPreview, setFotoPreview]         = useState(usuario.foto_url ?? null);
-  const [errorServidor, setErrorServidor]     = useState('');
   const [guardando, setGuardando]             = useState(false);
   const [cambiandoEstado, setCambiandoEstado] = useState(false);
+  const [toast, setToast]                     = useState({ show: false, msg: '', type: 'success' });
   const fileRef = useRef(null);
 
   const { register, handleSubmit, setError, formState: { errors } } = useForm({
@@ -151,7 +152,6 @@ export default function EditarUsuario() {
   };
 
   const onSubmit = async (data) => {
-    setErrorServidor('');
     setGuardando(true);
     try {
       if (foto) {
@@ -164,15 +164,14 @@ export default function EditarUsuario() {
       } else {
         await api.put(`/api/usuarios/${id}`, { nombre: data.nombre, correo: data.correo, rol: rolSeleccionado });
       }
-      navigate('/usuarios');
+      setToast({ show: true, msg: 'Cambios guardados correctamente.', type: 'success' });
     } catch (err) {
       const msg = err?.response?.data?.mensaje ?? err?.response?.data?.message ?? '';
       const lower = msg.toLowerCase();
       if (lower.includes('correo') || lower.includes('email') || lower.includes('duplicado')) {
         setError('correo', { message: msg || 'El correo ya está en uso.' });
-      } else {
-        setErrorServidor(msg || 'Error al guardar los cambios. Intenta de nuevo.');
       }
+      setToast({ show: true, msg: msg || 'Error al guardar los cambios. Intenta de nuevo.', type: 'error' });
     } finally {
       setGuardando(false);
     }
@@ -186,14 +185,17 @@ export default function EditarUsuario() {
     );
     if (!confirmar) return;
     setCambiandoEstado(true);
-    setErrorServidor('');
     try {
       if (estaDeshabilitado) { await habilitarUsuario(id); }
       else                   { await deshabilitarUsuario(id); }
-      navigate('/usuarios');
+      setToast({
+        show: true,
+        msg: estaDeshabilitado ? 'Usuario habilitado correctamente.' : 'Usuario deshabilitado correctamente.',
+        type: 'success',
+      });
     } catch (err) {
       const msg = err?.response?.data?.mensaje ?? err?.response?.data?.message ?? '';
-      setErrorServidor(msg || 'Error al cambiar estado. Intenta de nuevo.');
+      setToast({ show: true, msg: msg || 'Error al cambiar estado. Intenta de nuevo.', type: 'error' });
     } finally {
       setCambiandoEstado(false);
     }
@@ -215,12 +217,6 @@ export default function EditarUsuario() {
             <span className="font-semibold text-ink">{usuario.nombre ?? '—'}</span>.
           </p>
         </div>
-
-        {errorServidor && (
-          <div className="px-4 py-3 rounded-xl bg-error-bg border border-[#ffb4a9] text-error-fg text-sm animate-slide-down">
-            {errorServidor}
-          </div>
-        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-6">
           <div className="flex flex-col gap-5">
@@ -338,6 +334,17 @@ export default function EditarUsuario() {
         </div>
 
       </form>
+
+      <SuccessToast
+        message={toast.msg}
+        show={toast.show}
+        onClose={() => {
+          setToast(t => ({ ...t, show: false }));
+          if (toast.type === 'success') navigate('/usuarios');
+        }}
+        duration={1500}
+        type={toast.type}
+      />
     </AppLayout>
   );
 }

@@ -34,7 +34,14 @@ export default function EditarProducto({ producto, onClose, onSuccess }) {
   const [guardando, setGuardando]                 = useState(false);
   const [errorApi, setErrorApi]                   = useState('');
   const [confirmarEliminar, setConfirmarEliminar] = useState(false);
+  const [isClosing, setIsClosing]                 = useState(false);
   const inputFileRef = useRef();
+
+  const handleClose = () => {
+    if (isClosing) return;
+    setIsClosing(true);
+    setTimeout(() => { setIsClosing(false); onClose(); }, 200);
+  };
 
   const categoriaDisplay = CAT_LABEL[producto.categoria] ?? producto.categoria ?? '';
 
@@ -98,10 +105,10 @@ export default function EditarProducto({ producto, onClose, onSuccess }) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.message || `Error ${res.status}`);
       }
-      onSuccess();
-      onClose();
+      onSuccess('Producto actualizado correctamente.');
+      handleClose();
     } catch (err) {
-      setErrorApi(err.message);
+      setErrorApi(err.message || 'No se pudo actualizar el producto. Intenta de nuevo.');
     } finally {
       setGuardando(false);
     }
@@ -124,9 +131,15 @@ export default function EditarProducto({ producto, onClose, onSuccess }) {
   }
 
   return createPortal(
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[9999] p-4">
-      <div className="bg-white rounded-[16px] w-[520px] max-h-[90vh] overflow-y-auto shadow-2xl">
-        <div className="p-8 flex flex-col gap-6">
+    <div
+      className={`fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/45 backdrop-blur-sm ${isClosing ? 'animate-fade-out' : 'animate-fade-in'}`}
+      onClick={handleClose}
+    >
+      <div
+        className={`w-full max-w-[520px] bg-white rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.18)] flex flex-col max-h-[calc(100vh-2rem)] ${isClosing ? 'animate-scale-out' : 'animate-scale-in'}`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="p-8 flex flex-col gap-6 overflow-y-auto">
 
           {/* Header — solo título y cierre, sin botón eliminar */}
           <div className="flex items-start justify-between">
@@ -143,7 +156,7 @@ export default function EditarProducto({ producto, onClose, onSuccess }) {
                 </p>
               </div>
             </div>
-            <button onClick={onClose} className="text-[#78716c] hover:text-[#1b1b1c] cursor-pointer">
+            <button onClick={handleClose} className="text-[#78716c] hover:text-[#1b1b1c] cursor-pointer">
               <svg width="20" height="20" fill="none" viewBox="0 0 20 20">
                 <path d="M15 5L5 15M5 5l10 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
               </svg>
@@ -281,13 +294,18 @@ export default function EditarProducto({ producto, onClose, onSuccess }) {
               </div>
             </div>
 
-            {errorApi && <p className={errorClass}>{errorApi}</p>}
+            {errorApi && (
+              <div className="px-4 py-3 rounded-xl bg-[#fef2f2] border border-[#fca5a5] text-[#dc2626] text-sm flex items-start gap-2">
+                <svg width="15" height="15" className="shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                <span>{errorApi}</span>
+              </div>
+            )}
 
             {/* Footer — sin botón Eliminar */}
             <div className="flex items-center justify-end gap-4 pt-2">
               <button
                 type="button"
-                onClick={onClose}
+                onClick={handleClose}
                 className="font-['Inter'] font-semibold text-[14px] text-[#57534e] hover:text-[#1b1b1c] cursor-pointer transition-colors"
               >
                 Cancelar
@@ -295,9 +313,11 @@ export default function EditarProducto({ producto, onClose, onSuccess }) {
               <button
                 type="submit"
                 disabled={guardando}
-                className="bg-[#9e2016] hover:bg-[#c0392b] disabled:opacity-70 text-white font-['Manrope'] font-bold text-[14px] px-6 py-3 rounded-[8px] cursor-pointer transition-colors"
+                className="flex items-center gap-2 bg-[#9e2016] hover:bg-[#c0392b] disabled:opacity-70 text-white font-['Manrope'] font-bold text-[14px] px-6 py-3 rounded-[8px] cursor-pointer transition-colors"
               >
-                {guardando ? 'Guardando...' : 'Actualizar Cambios'}
+                {guardando ? (
+                  <><span className="w-4 h-4 rounded-full border-2 border-white/40 border-t-white animate-spin shrink-0" />Guardando...</>
+                ) : 'Actualizar Cambios'}
               </button>
             </div>
           </form>

@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import AppLayout from '../../components/AppLayout';
 import { crearUsuario } from '../../services/usuariosService';
 import api from '../../api/axiosConfig';
+import SuccessToast from '../../components/SuccessToast';
 
 /* ── Icons ── */
 function PersonIcon() {
@@ -100,9 +101,9 @@ export default function NuevoUsuario() {
   const [mostrarPassword, setMostrarPassword] = useState(false);
   const [foto, setFoto] = useState(null);
   const [fotoPreview, setFotoPreview] = useState(null);
-  const [errorServidor, setErrorServidor] = useState('');
   const [enviando, setEnviando] = useState(false);
   const [rolError, setRolError] = useState('');
+  const [toast, setToast] = useState({ show: false, msg: '', type: 'success' });
   const fileRef = useRef(null);
 
   const {
@@ -129,7 +130,6 @@ export default function NuevoUsuario() {
       setRolError('Selecciona un rol para continuar.');
       return;
     }
-    setErrorServidor('');
     setEnviando(true);
     try {
       if (foto) {
@@ -150,7 +150,7 @@ export default function NuevoUsuario() {
           rol: rolSeleccionado,
         });
       }
-      navigate('/usuarios');
+      setToast({ show: true, msg: 'Usuario creado correctamente.', type: 'success' });
     } catch (err) {
       const data = err?.response?.data;
       const msg =
@@ -164,10 +164,8 @@ export default function NuevoUsuario() {
       const lower = msg.toLowerCase();
       if (lower.includes('correo') || lower.includes('email') || lower.includes('duplicado')) {
         setError('correo', { message: msg || 'El correo ya está en uso.' });
-        setErrorServidor(msg || 'El correo ya está en uso.');
-      } else {
-        setErrorServidor(msg || 'Error al crear el usuario. Intenta de nuevo.');
       }
+      setToast({ show: true, msg: msg || 'Error al crear el usuario. Intenta de nuevo.', type: 'error' });
     } finally {
       setEnviando(false);
     }
@@ -190,12 +188,6 @@ export default function NuevoUsuario() {
             Asigne credenciales y roles para el nuevo personal dentro del ecosistema GELOX.
           </p>
         </div>
-
-        {errorServidor && (
-          <div className="px-4 py-3 rounded-xl bg-error-bg border border-[#ffb4a9] text-error-fg text-sm animate-slide-down">
-            {errorServidor}
-          </div>
-        )}
 
         <form onSubmit={handleSubmit(onSubmit)} noValidate>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -372,6 +364,17 @@ export default function NuevoUsuario() {
         </form>
 
       </div>
+
+      <SuccessToast
+        message={toast.msg}
+        show={toast.show}
+        onClose={() => {
+          setToast(t => ({ ...t, show: false }));
+          if (toast.type === 'success') navigate('/usuarios');
+        }}
+        duration={1500}
+        type={toast.type}
+      />
     </AppLayout>
   );
 }
