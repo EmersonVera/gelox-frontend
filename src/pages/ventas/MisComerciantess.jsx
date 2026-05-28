@@ -1,5 +1,6 @@
 // src/pages/ventas/MisComerciantess.jsx
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import AppLayout from '../../components/AppLayout';
 import NuevoComerciante from '../../components/comerciantes/NuevoComerciante';
@@ -10,6 +11,8 @@ function AlertIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" fi
 function XIcon({ size = 16 }) { return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>; }
 
 export default function MisComerciantess() {
+  const { token } = useAuth();
+  const navigate = useNavigate();
   const [comerciantes, setComerciantess] = useState([]);
   const [total, setTotal]               = useState(0);
   const [busqueda, setBusqueda]         = useState('');
@@ -113,7 +116,11 @@ export default function MisComerciantess() {
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
             {comerciantes.map(c => (
-              <div key={c.id} className="bg-white rounded-[16px] border border-[#f5f5f4] p-5 flex flex-col">
+              <div
+                key={c.id}
+                onClick={() => navigate(`/ventas/comerciantes/${c.id}/informacion`, { state: { comerciante: c } })}
+                className="bg-white rounded-[16px] border border-[#f5f5f4] p-5 flex flex-col cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+              >
                 {/* Badge estado */}
                 <div className="flex justify-end mb-2">
                   <span className={`font-inter font-bold text-[11px] uppercase rounded-full px-3 py-1 ${
