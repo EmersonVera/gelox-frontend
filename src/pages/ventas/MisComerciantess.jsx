@@ -1,5 +1,6 @@
 // src/pages/ventas/MisComerciantess.jsx
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import AppLayout from '../../components/AppLayout';
 import NuevoComerciante from '../../components/comerciantes/NuevoComerciante';
@@ -7,6 +8,7 @@ import SuccessToast from '../../components/SuccessToast';
 
 export default function MisComerciantess() {
   const { token } = useAuth();
+  const navigate = useNavigate();
   const [comerciantes, setComerciantess] = useState([]);
   const [total, setTotal]               = useState(0);
   const [busqueda, setBusqueda]         = useState('');
@@ -26,7 +28,8 @@ export default function MisComerciantess() {
       // El backend devuelve un array plano; preparado también para wrapper { comerciantes, total }
       const list = Array.isArray(data) ? data : (data.comerciantes ?? []);
       setComerciantess(list);
-      setTotal(Array.isArray(data) ? list.length : (data.total ?? list.length));
+      setTotal(Array.isArray(data) ? list.length : 
+      (data.total ?? list.length));
     } catch (e) { console.error(e); }
     finally { setCargando(false); }
   }, [token, busqueda]);
@@ -88,7 +91,11 @@ export default function MisComerciantess() {
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
             {comerciantes.map(c => (
-              <div key={c.id} className="bg-white rounded-[16px] border border-[#f5f5f4] p-5 flex flex-col">
+              <div
+                key={c.id}
+                onClick={() => navigate(`/ventas/comerciantes/${c.id}/informacion`, { state: { comerciante: c } })}
+                className="bg-white rounded-[16px] border border-[#f5f5f4] p-5 flex flex-col cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+              >
                 {/* Badge estado */}
                 <div className="flex justify-end mb-2">
                   <span className={`font-inter font-bold text-[11px] uppercase rounded-full px-3 py-1 ${

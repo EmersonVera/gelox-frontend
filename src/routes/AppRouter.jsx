@@ -10,7 +10,9 @@ import LandingPage           from '../pages/LandingPage';
 import Ajustes           from '../pages/components/Ajustes';
 
 /* ── Módulo Ventas ── */
-import MisComerciantess  from '../pages/ventas/MisComerciantess';
+import MisComerciantess        from '../pages/ventas/MisComerciantess';
+import InformacionComerciante  from '../pages/ventas/InformacionComerciante';
+import PlanillaDetalle         from '../pages/ventas/PlanillaDetalle';
 import ReporteVentasDia  from '../pages/ventas/ReporteVentasDia';
 
 /* ── Módulo Administrador ── */
@@ -102,6 +104,10 @@ export default function AppRouter() {
           <Route path="/ventas/pedidos-ventanilla" element={<PedidoVentanilla />} />
           <Route path="/ventas/reportes"         element={<ReporteVentasDia />} />
           <Route path="/ventas/comerciantes"     element={<MisComerciantess />} />
+          <Route path="/ventas/comerciantes/:id/informacion" element={<InformacionComerciante />} />
+          <Route path="/ventas/planilla/:id"                element={<PlanillaDetalle />} />
+          <Route path="/ventas/comerciantes/:id/planilla-hoy" element={<PlanillaDiaria />} />
+         
           {/* Ajustes del módulo ventas — mantiene SidebarVentas */}
           <Route path="/ventas/ajustes"          element={<Ajustes />} />
         </Route>

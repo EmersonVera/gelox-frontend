@@ -55,3 +55,31 @@ export async function getProductosCatalogo() {
   const { data } = await api.get('/api/ventas/catalogo');
   return data;
 }
+
+// RF38 — Historial de planillas cerradas de un comerciante específico
+export async function getPlanillasComerciante(comercianteId, fechaInicio, fechaFin) {
+  const params = {};
+  if (fechaInicio) params.fechaInicio = fechaInicio;
+  if (fechaFin) params.fechaFin = fechaFin;
+  const { data } = await api.get(`/api/comerciantes/${comercianteId}/planillas`, { params });
+  return data;
+}
+
+// RF36/RF37 — Detalle de planilla específica (busca en la lista del comerciante)
+export async function getPlanillaDetalle(comercianteId, planillaId) {
+  const { data } = await api.get(`/api/comerciantes/${comercianteId}/planillas`);
+  const planillas = Array.isArray(data) ? data : [];
+  return planillas.find((p) => p.planillaId === planillaId) ?? null;
+}
+
+// RF36/RF37 — Datos formateados para impresión
+export async function imprimirPlanilla(planillaId) {
+  const { data } = await api.get(`/api/planillas/${planillaId}/imprimir`);
+  return data;
+}
+
+// RF39 — Productos del inventario con stock disponible
+export async function getProductosEnStock() {
+  const { data } = await api.get('/api/inventario/productos');
+  return Array.isArray(data) ? data.filter(p => (p.cantidadDisponible ?? 0) > 0) : [];
+}
