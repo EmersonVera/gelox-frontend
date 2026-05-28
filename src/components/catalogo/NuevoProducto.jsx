@@ -60,6 +60,7 @@ export default function NuevoProducto({ onClose, onSuccess }) {
       fd.append('nombre',        data.nombre);
       fd.append('categoria',     data.categoria.toUpperCase());
       fd.append('precioVenta',   data.precioVenta);
+      fd.append('unidadMedida',  data.unidadMedida);
       fd.append('precioCosto', data.precioCosto ?? 0);
       if (data.descripcion)         fd.append('descripcion', data.descripcion);
       if (data.stockMinimo != null) fd.append('stockMinimo', data.stockMinimo);
