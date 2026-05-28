@@ -103,10 +103,18 @@ export default function GestionUsuarios() {
     try {
       const { data } = await getUsuarios();
       setUsuarios(Array.isArray(data) ? data : (data?.usuarios ?? []));
-    } catch {
-      setError(
-        "No se pudo cargar la lista de usuarios. Verifica tu conexión e intenta de nuevo.",
-      );
+    } catch (err) {
+      const status = err?.response?.status;
+      if (!err?.response || err instanceof TypeError)
+        setError("Sin conexión a internet. No se pudo cargar la lista de usuarios.");
+      else if (status === 401)
+        setError("Tu sesión ha expirado. Vuelve a iniciar sesión.");
+      else if (status === 403)
+        setError("No tienes permisos para ver la lista de usuarios.");
+      else if (status >= 500)
+        setError("Error en el servidor al cargar los usuarios. Intenta más tarde.");
+      else
+        setError(err?.response?.data?.mensaje ?? err?.response?.data?.message ?? "No se pudo cargar la lista de usuarios.");
     } finally {
       setLoading(false);
     }
@@ -183,8 +191,9 @@ export default function GestionUsuarios() {
 
           {error && (
             <div className="px-6 py-4">
-              <div className="px-4 py-3 rounded-xl bg-error-bg border border-[#ffb4a9] text-error-fg text-sm animate-slide-down">
-                {error}
+              <div className="px-4 py-3 rounded-xl bg-error-bg border border-[#ffb4a9] text-error-fg text-sm animate-slide-down flex items-start gap-2">
+                <svg width="15" height="15" className="shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                <span>{error}</span>
               </div>
             </div>
           )}

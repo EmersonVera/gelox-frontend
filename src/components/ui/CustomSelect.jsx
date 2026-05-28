@@ -14,6 +14,9 @@
 import { createPortal } from 'react-dom';
 import { useState, useRef, useEffect, useCallback } from 'react';
 
+const CLOSE_MS = 120; // duración animación de cierre
+const SAVED_MS = 700; // duración anillo verde guardado
+
 export default function CustomSelect({
   value,
   onChange,
@@ -24,12 +27,21 @@ export default function CustomSelect({
   searchable = false,
   size = 'md',
 }) {
-  const [open, setOpen]   = useState(false);
-  const [query, setQuery] = useState('');
-  const [pos, setPos]     = useState({ top: 0, left: 0, width: 0 });
-  const triggerRef = useRef(null);
-  const dropRef    = useRef(null);
-  const searchRef  = useRef(null);
+  const [open,       setOpen]       = useState(false);
+  const [isClosing,  setIsClosing]  = useState(false);
+  const [query,      setQuery]      = useState('');
+  const [pos,        setPos]        = useState({ top: 0, left: 0, width: 0 });
+  const [justSaved,  setJustSaved]  = useState(false);
+  const triggerRef  = useRef(null);
+  const dropRef     = useRef(null);
+  const searchRef   = useRef(null);
+  const savedTimer  = useRef(null);
+  const closeTimer  = useRef(null);
+
+  useEffect(() => () => {
+    if (savedTimer.current) clearTimeout(savedTimer.current);
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+  }, []);
 
   /* ── Normalizar opciones a { value, label } ── */
   const normalized = options.map(o =>
@@ -40,37 +52,52 @@ export default function CustomSelect({
     : normalized;
   const selected = normalized.find(o => o.value === value);
 
+  /* ── Cierre con animación ── */
+  const closeDropdown = useCallback(() => {
+    setIsClosing(true);
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+    closeTimer.current = setTimeout(() => {
+      setOpen(false);
+      setIsClosing(false);
+    }, CLOSE_MS);
+  }, []);
+
   /* ── Abrir / posicionar ── */
   const openDropdown = useCallback(() => {
     if (disabled) return;
+    // Si está abierto (o cerrándose), cerrar con animación
+    if (open) { closeDropdown(); return; }
     const rect = triggerRef.current?.getBoundingClientRect();
     if (!rect) return;
 
-    // Detectar si hay espacio debajo, si no abrir arriba
     const estHeight = Math.min(filtered.length * 44 + (searchable ? 52 : 12) + 12, 260);
     const spaceBelow = window.innerHeight - rect.bottom;
     const openAbove  = spaceBelow < estHeight + 8 && rect.top > estHeight;
 
     setPos({
-      top:   openAbove ? undefined : rect.bottom + 6,
+      top:    openAbove ? undefined : rect.bottom + 6,
       bottom: openAbove ? window.innerHeight - rect.top + 6 : undefined,
-      left:  rect.left,
-      width: rect.width,
+      left:   rect.left,
+      width:  rect.width,
     });
     setQuery('');
-    setOpen(v => !v);
-  }, [disabled, filtered.length, searchable]);
+    setIsClosing(false);
+    setOpen(true);
+  }, [disabled, open, closeDropdown, filtered.length, searchable]);
 
-  /* ── Cerrar al click fuera o scroll (ignorar scroll interno del panel) ── */
+  /* ── Cerrar al click fuera o scroll ── */
   useEffect(() => {
     if (!open) return;
     const onDown = (e) => {
       if (!triggerRef.current?.contains(e.target) && !dropRef.current?.contains(e.target))
-        setOpen(false);
+        closeDropdown();
     };
     const onScroll = (e) => {
       if (dropRef.current?.contains(e.target)) return;
+      // Cierre inmediato en scroll externo (posición ya incorrecta)
+      if (closeTimer.current) clearTimeout(closeTimer.current);
       setOpen(false);
+      setIsClosing(false);
     };
     document.addEventListener('mousedown', onDown);
     window.addEventListener('scroll', onScroll, true);
@@ -78,16 +105,24 @@ export default function CustomSelect({
       document.removeEventListener('mousedown', onDown);
       window.removeEventListener('scroll', onScroll, true);
     };
-  }, [open]);
+  }, [open, closeDropdown]);
 
   /* ── Auto-focus del buscador ── */
   useEffect(() => {
-    if (open && searchable) {
+    if (open && !isClosing && searchable) {
       setTimeout(() => searchRef.current?.focus(), 30);
     }
-  }, [open, searchable]);
+  }, [open, isClosing, searchable]);
 
-  const pick = (val) => { onChange(val); setOpen(false); setQuery(''); };
+  /* ── Seleccionar opción ── */
+  const pick = (val) => {
+    onChange(val);
+    closeDropdown();
+    setQuery('');
+    if (savedTimer.current) clearTimeout(savedTimer.current);
+    setJustSaved(true);
+    savedTimer.current = setTimeout(() => setJustSaved(false), SAVED_MS);
+  };
 
   const py = size === 'sm' ? 'py-2.5' : 'py-3';
 
@@ -99,6 +134,7 @@ export default function CustomSelect({
           type="button"
           onClick={openDropdown}
           disabled={disabled}
+          style={justSaved ? { animation: 'saved-ring 0.7s ease-out forwards' } : undefined}
           className={[
             `w-full bg-[#f6f3f3] rounded-[8px] px-4 ${py}`,
             "text-left font-['Inter'] text-[14px] leading-[1.25]",
@@ -111,7 +147,7 @@ export default function CustomSelect({
         >
           <span className="truncate">{selected?.label ?? placeholder}</span>
           <svg
-            className={`shrink-0 text-[#a8a29e] transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+            className={`shrink-0 text-[#a8a29e] transition-transform duration-200 ${open && !isClosing ? 'rotate-180' : ''}`}
             width="16" height="16" viewBox="0 0 16 16" fill="none"
           >
             <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.6"
@@ -132,7 +168,9 @@ export default function CustomSelect({
             width:  pos.width,
             zIndex: 99999,
           }}
-          className="bg-white rounded-[12px] border border-[#f0eded] shadow-2xl overflow-hidden"
+          className={`bg-white rounded-[12px] border border-[#f0eded] shadow-2xl overflow-hidden ${
+            isClosing ? 'animate-dropdown-out' : 'animate-dropdown-in'
+          }`}
         >
           {/* Buscador (opcional) */}
           {searchable && (

@@ -61,6 +61,8 @@ export default function HistorialCierres() {
   const [page, setPage]                         = useState(1);
   const [cargando, setCargando]                 = useState(true);
   const [error, setError]                       = useState(null);
+  const [applied, setApplied]                   = useState(false);
+  const [errorFiltros, setErrorFiltros]         = useState('');
 
   const fetchCierres = useCallback(async () => {
     setCargando(true);
@@ -75,8 +77,17 @@ export default function HistorialCierres() {
       setTotal(data.total ?? 0);
       setTotalPages(data.totalPages ?? 1);
     } catch (e) {
-      console.error(e);
-      setError(e.response?.data?.message ?? e.message ?? 'No se pudo cargar el historial de cierres.');
+      const status = e?.response?.status;
+      if (!e?.response || e instanceof TypeError)
+        setError('Sin conexión a internet. No se pudo cargar el historial de cierres.');
+      else if (status === 401)
+        setError('Tu sesión ha expirado. Vuelve a iniciar sesión.');
+      else if (status === 403)
+        setError('No tienes permisos para ver el historial de cierres.');
+      else if (status >= 500)
+        setError('Error en el servidor al cargar los cierres. Intenta más tarde.');
+      else
+        setError(e.response?.data?.mensaje ?? e.response?.data?.message ?? 'No se pudo cargar el historial de cierres.');
       setCierres([]); setTotal(0); setTotalPages(1);
     } finally {
       setCargando(false);
@@ -85,7 +96,21 @@ export default function HistorialCierres() {
 
   useEffect(() => { fetchCierres(); }, [fetchCierres]);
 
-  const handleAplicar = () => { setFiltrosAplicados({ desde, hasta, estado }); setPage(1); };
+  const handleAplicar = () => {
+    setErrorFiltros('');
+    if (!desde || !hasta) {
+      setErrorFiltros('Debes seleccionar ambas fechas del rango.');
+      return;
+    }
+    if (desde > hasta) {
+      setErrorFiltros('La fecha de inicio no puede ser mayor que la fecha final.');
+      return;
+    }
+    setFiltrosAplicados({ desde, hasta, estado });
+    setPage(1);
+    setApplied(true);
+    setTimeout(() => setApplied(false), 1400);
+  };
 
   const inputClass =
     "bg-[#f6f3f3] border-none rounded-lg px-4 py-3 font-inter text-[14px] text-ink outline-none focus:ring-2 focus:ring-[#9e2016]/20 w-full";
@@ -104,30 +129,53 @@ export default function HistorialCierres() {
         </p>
       </div>
 
-      <div className="bg-white rounded-xl border border-[#f5f5f4] p-6 flex items-end gap-4 flex-wrap">
-        <div className="flex-1 min-w-[260px]">
-          <label className={labelClass}>Rango de Fechas</label>
-          <div className="flex items-center gap-2">
-            <input type="date" value={desde} onChange={(e) => setDesde(e.target.value)} className={inputClass} />
-            <span className="text-[#a8a29e] text-[13px] shrink-0">→</span>
-            <input type="date" value={hasta} onChange={(e) => setHasta(e.target.value)} className={inputClass} />
+      <div className="bg-white rounded-xl border border-[#f5f5f4] p-6 flex flex-col gap-3">
+        <div className="flex items-end gap-4 flex-wrap">
+          <div className="flex-1 min-w-[260px]">
+            <label className={labelClass}>Rango de Fechas</label>
+            <div className="flex items-center gap-2">
+              <input type="date" value={desde} onChange={(e) => { setDesde(e.target.value); setErrorFiltros(''); }} className={inputClass} />
+              <span className="text-[#a8a29e] text-[13px] shrink-0">→</span>
+              <input type="date" value={hasta} onChange={(e) => { setHasta(e.target.value); setErrorFiltros(''); }} className={inputClass} />
+            </div>
           </div>
-        </div>
-        <div className="w-[240px] min-w-[200px]">
-          <label className={labelClass}>Estado (Diferencia)</label>
-          <CustomSelect
-            value={estado}
-            onChange={setEstado}
-            options={ESTADOS}
-          />
-        </div>
-        <button onClick={handleAplicar}
-          className="flex items-center gap-2 bg-[#9e2016] hover:bg-[#c0392b] text-white font-['Manrope'] font-bold text-[14px] rounded-[8px] px-5 py-3 cursor-pointer transition-colors shrink-0">
-          <svg width="16" height="16" fill="none" viewBox="0 0 16 16">
-            <path d="M2 4h12M4 8h8M6 12h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-          </svg>
-          Aplicar Filtros
+          <div className="w-[240px] min-w-[200px]">
+            <label className={labelClass}>Estado (Diferencia)</label>
+            <CustomSelect
+              value={estado}
+              onChange={setEstado}
+              options={ESTADOS}
+            />
+          </div>
+          <button onClick={handleAplicar}
+          className={`flex items-center gap-2 text-white font-['Manrope'] font-bold text-[14px] rounded-[8px] px-5 py-3 cursor-pointer transition-all shrink-0 ${
+            applied
+              ? 'bg-[#16a34a] scale-[0.97]'
+              : 'bg-[#9e2016] hover:bg-[#c0392b]'
+          }`}>
+          {applied ? (
+            <>
+              <svg width="16" height="16" fill="none" viewBox="0 0 16 16">
+                <polyline points="2,8 6,12 14,4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              Aplicado
+            </>
+          ) : (
+            <>
+              <svg width="16" height="16" fill="none" viewBox="0 0 16 16">
+                <path d="M2 4h12M4 8h8M6 12h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+              Aplicar Filtros
+            </>
+          )}
         </button>
+        </div>
+        {errorFiltros && (
+          <div className="bg-[#fef2f2] border border-[#fca5a5] rounded-[8px] px-4 py-2.5 flex items-center gap-2 text-[#dc2626]">
+            <svg width="14" height="14" className="shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <span className="font-['Inter'] font-medium text-[13px]">{errorFiltros}</span>
+          </div>
+        )}
       </div>
 
       {error && (

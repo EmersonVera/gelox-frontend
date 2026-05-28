@@ -30,6 +30,13 @@ export default function NuevoProducto({ onClose, onSuccess }) {
   const [preview, setPreview]     = useState(null);
   const [guardando, setGuardando] = useState(false);
   const [errorApi, setErrorApi]   = useState('');
+  const [isClosing, setIsClosing] = useState(false);
+
+  const handleClose = () => {
+    if (isClosing) return;
+    setIsClosing(true);
+    setTimeout(() => { setIsClosing(false); onClose(); }, 200);
+  };
 
   const { register, handleSubmit, control, formState: { errors } } = useForm({
     resolver: yupResolver(schema),
@@ -62,10 +69,10 @@ export default function NuevoProducto({ onClose, onSuccess }) {
       if (res.status < 200 || res.status >= 300) {
         throw new Error(res.data?.message || `Error ${res.status}`);
       }
-      onSuccess();
-      onClose();
+      onSuccess('Producto registrado correctamente.');
+      handleClose();
     } catch (err) {
-      setErrorApi(err?.response?.data?.message ?? err.message);
+      setErrorApi(err.message || 'No se pudo registrar el producto. Intenta de nuevo.');
     } finally {
       setGuardando(false);
     }
@@ -76,9 +83,15 @@ export default function NuevoProducto({ onClose, onSuccess }) {
   const errorClass  = "font-['Inter'] text-[12px] text-[#dc2626] mt-1";
 
   return createPortal(
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[9999] p-4">
-      <div className="bg-white rounded-[16px] w-[520px] max-h-[90vh] overflow-y-auto shadow-2xl">
-        <div className="p-8 flex flex-col gap-6">
+    <div
+      className={`fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/45 backdrop-blur-sm ${isClosing ? 'animate-fade-out' : 'animate-fade-in'}`}
+      onClick={handleClose}
+    >
+      <div
+        className={`w-full max-w-[520px] bg-white rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.18)] flex flex-col max-h-[calc(100vh-2rem)] ${isClosing ? 'animate-scale-out' : 'animate-scale-in'}`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="p-8 flex flex-col gap-6 overflow-y-auto">
 
           {/* Header */}
           <div className="flex items-start justify-between">
@@ -90,7 +103,7 @@ export default function NuevoProducto({ onClose, onSuccess }) {
                 Ingresa los detalles técnicos y comerciales del helado
               </p>
             </div>
-            <button onClick={onClose} className="text-[#78716c] hover:text-[#1b1b1c] cursor-pointer mt-1">
+            <button onClick={handleClose} className="text-[#78716c] hover:text-[#1b1b1c] cursor-pointer mt-1">
               <svg width="20" height="20" fill="none" viewBox="0 0 20 20">
                 <path d="M15 5L5 15M5 5l10 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
               </svg>
@@ -237,13 +250,18 @@ export default function NuevoProducto({ onClose, onSuccess }) {
               </label>
             </div>
 
-            {errorApi && <p className={errorClass}>{errorApi}</p>}
+            {errorApi && (
+              <div className="px-4 py-3 rounded-xl bg-[#fef2f2] border border-[#fca5a5] text-[#dc2626] text-sm flex items-start gap-2">
+                <svg width="15" height="15" className="shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                <span>{errorApi}</span>
+              </div>
+            )}
 
             {/* Footer */}
             <div className="flex items-center justify-end gap-4 pt-2">
               <button
                 type="button"
-                onClick={onClose}
+                onClick={handleClose}
                 className="font-['Inter'] font-semibold text-[14px] text-[#57534e] hover:text-[#1b1b1c] cursor-pointer transition-colors"
               >
                 Cancelar
@@ -253,7 +271,9 @@ export default function NuevoProducto({ onClose, onSuccess }) {
                 disabled={guardando}
                 className="flex items-center gap-2 bg-[#9e2016] hover:bg-[#c0392b] disabled:opacity-70 text-white font-['Manrope'] font-bold text-[14px] px-6 py-3 rounded-[8px] cursor-pointer transition-colors"
               >
-                {guardando ? 'Guardando...' : '💾 Guardar Producto'}
+                {guardando ? (
+                  <><span className="w-4 h-4 rounded-full border-2 border-white/40 border-t-white animate-spin shrink-0" />Guardando...</>
+                ) : '💾 Guardar Producto'}
               </button>
             </div>
           </form>

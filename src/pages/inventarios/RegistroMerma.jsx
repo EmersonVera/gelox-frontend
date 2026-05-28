@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import AppLayout from '../../components/AppLayout';
 import CustomSelect from '../../components/ui/CustomSelect';
+import SuccessToast from '../../components/SuccessToast';
 
 const MOTIVOS  = ['Merma', 'Degustación', 'Daño', 'Vencimiento', 'Otro'];
 const UNIDADES = ['Unidades', 'Cajas'];
@@ -22,23 +23,46 @@ export default function RegistroMerma() {
     fecha:        new Date().toISOString().split('T')[0],
     observaciones: '',
   });
-  const [guardando, setGuardando] = useState(false);
-  const [error, setError]         = useState('');
-  const [exito, setExito]         = useState(false);
+  const [guardando, setGuardando]           = useState(false);
+  const [error, setError]                   = useState('');
+  const [toast, setToast]                   = useState({ show: false, msg: '', type: 'success' });
+  const [errorProductos, setErrorProductos] = useState('');
+  const [cargandoProd, setCargandoProd]     = useState(true);
 
   useEffect(() => {
+    setCargandoProd(true);
+    setErrorProductos('');
     fetch(`${base}/api/catalogo/productos`, {
       headers: { Authorization: `Bearer ${token}` },
     })
-      .then(r => {
-        if (!r.ok) { console.warn('catalogo productos:', r.status); return { content: [] }; }
+      .then(async r => {
+        if (!r.ok) {
+          if (r.status === 401) throw Object.assign(new Error(), { status: 401 });
+          if (r.status === 403) throw Object.assign(new Error(), { status: 403 });
+          if (r.status >= 500)  throw Object.assign(new Error(), { status: 500 });
+          throw Object.assign(new Error(), { status: r.status });
+        }
         return r.json();
       })
       .then(d => {
         const list = d.productos ?? d.content ?? d;
         setProductos(Array.isArray(list) ? list : []);
       })
-      .catch(console.error);
+      .catch(e => {
+        setProductos([]);
+        const status = e?.status;
+        if (!status || e instanceof TypeError)
+          setErrorProductos('Sin conexión a internet. No se pudo cargar el catálogo de productos.');
+        else if (status === 401)
+          setErrorProductos('Tu sesión ha expirado. Vuelve a iniciar sesión.');
+        else if (status === 403)
+          setErrorProductos('No tienes permisos para ver el catálogo de productos.');
+        else if (status >= 500)
+          setErrorProductos('Error en el servidor al cargar el catálogo. Intenta más tarde.');
+        else
+          setErrorProductos('No se pudo cargar el catálogo de productos. Intenta de nuevo.');
+      })
+      .finally(() => setCargandoProd(false));
   }, [token]);
 
   const handleChange = (e) =>
@@ -64,10 +88,14 @@ export default function RegistroMerma() {
         }),
       });
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.message ?? 'Error al guardar el registro.');
+        const errData = await res.json().catch(() => ({}));
+        const msg = errData.mensaje ?? errData.message ?? errData.error ?? '';
+        if (res.status === 400) throw new Error(msg || 'Datos inválidos. Revisa los campos e intenta de nuevo.');
+        if (res.status === 404) throw new Error('El producto seleccionado no existe o fue eliminado.');
+        if (res.status >= 500)  throw new Error('Error en el servidor al guardar el registro. Intenta más tarde.');
+        throw new Error(msg || 'No se pudo guardar el registro de merma.');
       }
-      setExito(true);
+      setToast({ show: true, msg: 'Registro guardado correctamente.', type: 'success' });
       setForm({
         producto_id:   '',
         cantidad:      0,
@@ -76,9 +104,8 @@ export default function RegistroMerma() {
         fecha:         new Date().toISOString().split('T')[0],
         observaciones: '',
       });
-      setTimeout(() => setExito(false), 3000);
     } catch (err) {
-      setError(err.message);
+      setToast({ show: true, msg: err.message, type: 'error' });
     } finally {
       setGuardando(false);
     }
@@ -107,13 +134,11 @@ export default function RegistroMerma() {
           </p>
         </div>
 
-        {/* Banner éxito */}
-        {exito && (
-          <div className="bg-[#f0fdf4] border border-[#16a34a]/20 rounded-[10px] px-4 py-3 flex items-center gap-2">
-            <span className="text-[#16a34a]">✓</span>
-            <span className="font-['Inter'] font-medium text-[14px] text-[#16a34a]">
-              Registro guardado correctamente.
-            </span>
+        {/* Banner error catálogo */}
+        {errorProductos && (
+          <div className="bg-[#fef2f2] border border-[#fca5a5] rounded-[10px] px-4 py-3 flex items-start gap-2">
+            <svg width="15" height="15" className="shrink-0 mt-0.5 text-[#dc2626]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <span className="font-['Inter'] font-medium text-[14px] text-[#dc2626]">{errorProductos}</span>
           </div>
         )}
 
@@ -209,9 +234,12 @@ export default function RegistroMerma() {
               </p>
             </div>
 
-            {/* Error */}
+            {/* Error submit */}
             {error && (
-              <p className="font-['Inter'] text-[13px] text-[#dc2626]">{error}</p>
+              <div className="bg-[#fef2f2] border border-[#fca5a5] rounded-[10px] px-4 py-3 flex items-start gap-2">
+                <svg width="15" height="15" className="shrink-0 mt-0.5 text-[#dc2626]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                <span className="font-['Inter'] font-medium text-[14px] text-[#dc2626]">{error}</span>
+              </div>
             )}
 
             {/* Footer acciones */}
@@ -226,14 +254,23 @@ export default function RegistroMerma() {
               <button
                 type="submit"
                 disabled={guardando}
-                className="bg-[#9e2016] hover:bg-[#c0392b] disabled:opacity-70 text-white font-['Manrope'] font-bold text-[14px] px-6 py-3 rounded-[8px] cursor-pointer transition-colors"
+                className="flex items-center gap-2 bg-[#9e2016] hover:bg-[#c0392b] disabled:opacity-70 text-white font-['Manrope'] font-bold text-[14px] px-6 py-3 rounded-[8px] cursor-pointer transition-colors"
               >
-                {guardando ? 'Guardando...' : 'Guardar Registro'}
+                {guardando ? (
+                  <><span className="w-4 h-4 rounded-full border-2 border-white/40 border-t-white animate-spin shrink-0" />Guardando...</>
+                ) : 'Guardar Registro'}
               </button>
             </div>
           </form>
         </div>
       </div>
+
+      <SuccessToast
+        message={toast.msg}
+        show={toast.show}
+        onClose={() => setToast(t => ({ ...t, show: false }))}
+        type={toast.type}
+      />
     </AppLayout>
   );
 }

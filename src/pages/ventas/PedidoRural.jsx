@@ -9,9 +9,17 @@ import { useNavigate } from 'react-router-dom';
 import AppLayout from '../../components/AppLayout';
 import api from '../../api/axiosConfig';
 import CustomSelect from '../../components/ui/CustomSelect';
+import SuccessToast from '../../components/SuccessToast';
 
 const formatCOP = (n) => '$' + Number(n || 0).toLocaleString('es-CO', { minimumFractionDigits: 0 });
 const fechaHoy  = () => new Date().toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' });
+const formatFecha = (iso) => {
+  if (!iso) return null;
+  return new Date(iso).toLocaleDateString('es-CO', {
+    day: '2-digit', month: '2-digit', year: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  });
+};
 const genTx     = () => `GLX-${Math.floor(1000 + Math.random() * 9000)}`;
 const EMPTY_DEST   = { nombre: '', telefono: '', direccion: '', correo: '', corregimiento: '' };
 const EMPTY_FORM   = { nombre: '', telefono: '', direccion: '', correo: '', corregimiento: '' };
@@ -64,10 +72,10 @@ export default function PedidoRural() {
   const [costoEnvio, setCostoEnvio]           = useState('');
   const [transaccionId]                       = useState(genTx);
   const [enviando, setEnviando]               = useState(false);
-  const [errorGlobal, setErrorGlobal]         = useState('');
-  const [stockErr, setStockErr]               = useState(null);
-  const [pedidoOk, setPedidoOk]               = useState(false);
+  const [ventaConfirmada, setVentaConfirmada]   = useState(null);
+  const [isLeavingSuccess, setIsLeavingSuccess] = useState(false);
   const [showConfirm, setShowConfirm]         = useState(false);
+  const [isClosingConfirm, setIsClosingConfirm] = useState(false);
   const [errores, setErrores]                 = useState({});
   const [showNuevo, setShowNuevo]             = useState(false);
   const [isClosingNuevo, setIsClosingNuevo]   = useState(false);
@@ -79,18 +87,28 @@ export default function PedidoRural() {
   const [editandoCliente, setEditandoCliente] = useState(EMPTY_FORM);
   const [guardandoEditar, setGuardandoEditar] = useState(false);
   const [errEditar, setErrEditar]             = useState('');
-  const [toast, setToast]                     = useState({ msg: '', type: '' });
+  const [toast, setToast]                     = useState({ show: false, msg: '', type: 'success' });
   const [isLeavingFields, setIsLeavingFields] = useState(false);
+  const [errorCatalogo, setErrorCatalogo]     = useState('');
+  const [errorClientes, setErrorClientes]     = useState('');
 
   /* Cargar catálogo */
   useEffect(() => {
     (async () => {
       setCargandoProd(true);
+      setErrorCatalogo('');
       try {
         const { data } = await api.get('/api/catalogo/productos', { params: { page: 0, size: 100 } });
         setProductos(Array.isArray(data.content) ? data.content : []);
-      } catch { setProductos([]); }
-      finally { setCargandoProd(false); }
+      } catch (err) {
+        setProductos([]);
+        const status = err?.response?.status;
+        if (!err?.response) setErrorCatalogo('Sin conexión a internet. No se pudo cargar el catálogo.');
+        else if (status === 401) setErrorCatalogo('Tu sesión ha expirado. Vuelve a iniciar sesión.');
+        else if (status === 403) setErrorCatalogo('No tienes permisos para ver el catálogo de productos.');
+        else if (status >= 500) setErrorCatalogo('Error en el servidor al cargar el catálogo. Intenta más tarde.');
+        else setErrorCatalogo(err?.response?.data?.mensaje ?? 'No se pudo cargar el catálogo.');
+      } finally { setCargandoProd(false); }
     })();
   }, []);
 
@@ -98,6 +116,7 @@ export default function PedidoRural() {
   useEffect(() => {
     (async () => {
       setLoadingClientes(true);
+      setErrorClientes('');
       try {
         const { data } = await api.get('/api/ventas/clientes-rurales');
         setClientes(Array.isArray(data) ? data : (data.content ?? []));
@@ -105,7 +124,15 @@ export default function PedidoRural() {
         try {
           const { data } = await api.get('/api/clientes', { params: { page: 0, size: 200 } });
           setClientes(Array.isArray(data.content) ? data.content : Array.isArray(data) ? data : []);
-        } catch { setClientes([]); }
+        } catch (err2) {
+          setClientes([]);
+          const status = err2?.response?.status;
+          if (!err2?.response) setErrorClientes('Sin conexión a internet. No se pudo cargar la lista de clientes.');
+          else if (status === 401) setErrorClientes('Tu sesión ha expirado. Vuelve a iniciar sesión.');
+          else if (status === 403) setErrorClientes('No tienes permisos para ver los clientes rurales.');
+          else if (status >= 500) setErrorClientes('Error en el servidor al cargar clientes. Intenta más tarde.');
+          else setErrorClientes('No se pudo cargar la lista de clientes rurales.');
+        }
       } finally { setLoadingClientes(false); }
     })();
   }, []);
@@ -158,10 +185,13 @@ export default function PedidoRural() {
     }, 200);
   };
 
-  const showToast = (msg, type = 'success') => {
-    setToast({ msg, type });
-    setTimeout(() => setToast({ msg: '', type: '' }), 3500);
+  const closeConfirm = () => {
+    if (isClosingConfirm) return;
+    setIsClosingConfirm(true);
+    setTimeout(() => { setIsClosingConfirm(false); setShowConfirm(false); }, 200);
   };
+
+  const showToast = (msg, type = 'success') => setToast({ show: true, msg, type });
 
   const abrirEditar = () => {
     setEditandoCliente({ ...destinatario });
@@ -236,7 +266,6 @@ export default function PedidoRural() {
       }];
     });
     setErrores((p) => ({ ...p, items: '' }));
-    setStockErr(null);
   }, []);
 
   const updateCart = useCallback((productoId, field, valor) => {
@@ -263,55 +292,60 @@ export default function PedidoRural() {
 
   const validar = () => {
     const e = {};
-    if (!destinatario.nombre.trim())    e.nombre    = 'El nombre es obligatorio.';
-    if (!destinatario.telefono.trim())  e.telefono  = 'El teléfono es obligatorio.';
-    if (!destinatario.direccion.trim()) e.direccion = 'La dirección es obligatoria.';
-    if (cartItems.length === 0)         e.items     = 'Agrega al menos un producto.';
+    if (!destinatario.nombre.trim())   e.nombre  = 'El nombre es obligatorio.';
+    if (!destinatario.telefono.trim()) e.telefono = 'El teléfono es obligatorio.';
+    if (cartItems.length === 0)        e.items    = 'Agrega al menos un producto.';
     setErrores(e);
     return Object.keys(e).length === 0;
   };
 
   const abrirConfirm = () => {
-    if (validar()) { setShowConfirm(true); setErrorGlobal(''); setStockErr(null); }
+    if (validar()) setShowConfirm(true);
   };
 
   const confirmarPedido = async () => {
-    setEnviando(true); setErrorGlobal(''); setStockErr(null);
+    setEnviando(true);
     const clienteObj = clientes.find((c) => String(c.id) === String(clienteIdSel));
     const body = {
-      clienteId: clienteObj?.id ?? null,
-      destinatario: {
-        nombre:        destinatario.nombre.trim(),
-        telefono:      destinatario.telefono.trim(),
-        direccion:     destinatario.direccion.trim() || null,
-        correo:        destinatario.correo.trim() || null,
-        corregimiento: destinatario.corregimiento.trim() || null,
-      },
+      clienteRuralId:        clienteObj?.id ?? null,
+      nombreDestinatario:    destinatario.nombre.trim()        || null,
+      telefonoDestinatario:  destinatario.telefono.trim()      || null,
+      direccionDestinatario: destinatario.direccion.trim()     || null,
+      corregimiento:         destinatario.corregimiento.trim() || null,
+      costoEnvio:            envio,
       items: cartItems
         .filter((it) => it.cajas > 0 || it.unidadesSueltas > 0)
-        .map((it) => ({ productoId: it.productoId, cajas: it.cajas, unidadesSueltas: it.unidadesSueltas })),
-      costoEnvio: envio,
+        .map((it) => ({
+          productoId:       it.productoId,
+          cantidadCajas:    it.cajas,
+          cantidadUnidades: it.unidadesSueltas,
+        })),
     };
     try {
-      await api.post('/api/ventas/rural', body);
-      setPedidoOk(true); setShowConfirm(false);
+      const respuesta = await api.post('/api/ventas/rural', body);
+      setVentaConfirmada(respuesta.data);
+      setShowConfirm(false);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err) {
       const status = err.response?.status;
       const data   = err.response?.data;
       if (status === 409 || data?.tipo === 'STOCK_INSUFICIENTE') {
-        setStockErr(data?.detalle ?? data?.mensaje ?? 'Stock insuficiente para uno o más productos.');
+        setToast({ show: true, msg: `Stock insuficiente: ${data?.detalle ?? data?.mensaje ?? 'uno o más productos no tienen suficiente stock.'}`, type: 'error' });
       } else {
-        setErrorGlobal(data?.mensaje ?? data?.message ?? 'Error al registrar el pedido.');
+        setToast({ show: true, msg: data?.mensaje ?? data?.message ?? 'Error al registrar el pedido.', type: 'error' });
       }
       setShowConfirm(false);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
     } finally { setEnviando(false); }
   };
 
   const reiniciar = () => {
     setCartItems([]); setCostoEnvio(''); setDestinatario(EMPTY_DEST); setClienteIdSel('');
-    setErrores({}); setErrorGlobal(''); setStockErr(null); setPedidoOk(false);
+    setErrores({}); setVentaConfirmada(null);
+  };
+
+  const handleNuevaVenta = () => {
+    setIsLeavingSuccess(true);
+    setTimeout(() => { setIsLeavingSuccess(false); reiniciar(); }, 280);
   };
 
   /* ─── RENDER ─── */
@@ -319,55 +353,113 @@ export default function PedidoRural() {
     <AppLayout>
       <div className="max-w-7xl mx-auto animate-fade-in-up">
 
-        {/* Éxito */}
-        {pedidoOk && (
-          <div className="mb-6 bg-emerald-50 border border-emerald-200 rounded-2xl p-5 flex items-center gap-4 animate-scale-in">
-            <div className="w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center shrink-0"><CheckIcon /></div>
-            <div className="flex-1">
-              <p className="font-bold text-emerald-800 font-display">¡Venta registrada!</p>
-              <p className="text-sm text-emerald-700 font-inter mt-0.5">El pedido fue enviado correctamente y el stock fue descontado.</p>
+        {/* ══════════════ PANTALLA DE ÉXITO ══════════════ */}
+        {ventaConfirmada && (
+          <div className={`space-y-4 ${isLeavingSuccess ? 'animate-scale-out' : 'animate-scale-in'}`}>
+
+            {/* Banner principal */}
+            <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 flex items-center gap-4">
+              <div className="w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+                <CheckIcon />
+              </div>
+              <div className="flex-1">
+                <p className="font-bold text-emerald-800 font-display">¡Venta registrada!</p>
+                <p className="text-sm text-emerald-700 font-inter mt-0.5">
+                  El pedido fue enviado correctamente y el stock fue descontado.
+                </p>
+              </div>
+              <button onClick={handleNuevaVenta}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl px-4 py-2 text-sm font-semibold transition-all active:scale-95 shrink-0">
+                Nueva venta
+              </button>
             </div>
-            <button onClick={reiniciar} className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl px-4 py-2 text-sm font-semibold transition-all active:scale-95 shrink-0">Nueva venta</button>
-          </div>
-        )}
 
-        {/* Toast cliente */}
-        {toast.msg && (
-          <div className={`mb-4 rounded-2xl p-4 flex items-center gap-3 animate-slide-down ${
-            toast.type === 'success'
-              ? 'bg-emerald-50 border border-emerald-200'
-              : 'bg-red-50 border border-red-200'
-          }`}>
-            <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${toast.type === 'success' ? 'bg-emerald-100' : 'bg-red-100'}`}>
-              {toast.type === 'success' ? <CheckIcon /> : <AlertIcon />}
+            {/* Resumen */}
+            <div className="bg-white border border-zinc-200 rounded-2xl shadow-sm p-6 space-y-4">
+              <p className={labelCls}>Resumen del Pedido</p>
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                <div className="bg-zinc-50 rounded-xl p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 font-inter mb-1">N° Pedido</p>
+                  <p className="text-sm font-extrabold text-zinc-900 font-display break-all">
+                    {String(ventaConfirmada.ventaId ?? ventaConfirmada.pedidoId ?? '—').slice(0, 8).toUpperCase()}
+                  </p>
+                </div>
+                <div className="bg-zinc-50 rounded-xl p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 font-inter mb-1">Total</p>
+                  <p className="text-sm font-extrabold text-[#9e2016] font-display">
+                    {formatCOP(ventaConfirmada.total)}
+                  </p>
+                </div>
+                <div className="bg-zinc-50 rounded-xl p-4 col-span-2 sm:col-span-1">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 font-inter mb-1">Fecha</p>
+                  <p className="text-sm font-bold text-zinc-900 font-display">
+                    {formatFecha(ventaConfirmada.fecha) ?? fechaHoy()}
+                  </p>
+                </div>
+              </div>
+
+              {/* Estado y canal */}
+              <div className="flex items-center gap-3 flex-wrap">
+                <span className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 text-[11px] font-bold px-3 py-1 rounded-full font-inter uppercase tracking-wide border border-emerald-200">
+                  <CheckIcon /> {ventaConfirmada.estado ?? 'CONFIRMADA'}
+                </span>
+                <span className="inline-flex items-center gap-1.5 bg-zinc-100 text-zinc-600 text-[11px] font-semibold px-3 py-1 rounded-full font-inter uppercase tracking-wide">
+                  <TruckIcon size={12} /> {ventaConfirmada.canal ?? 'RURAL'}
+                </span>
+              </div>
+
+              {/* Destinatario */}
+              <div className="bg-zinc-50 rounded-xl p-4">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 font-inter mb-2">Destinatario</p>
+                <p className="text-sm font-bold text-zinc-900 font-display">
+                  {(ventaConfirmada.destinatario ?? destinatario).nombre}
+                </p>
+                <p className="text-xs text-zinc-500 font-inter mt-0.5">
+                  {(ventaConfirmada.destinatario ?? destinatario).telefono}
+                </p>
+                {(ventaConfirmada.destinatario ?? destinatario).direccion && (
+                  <p className="text-xs text-zinc-500 font-inter">
+                    {(ventaConfirmada.destinatario ?? destinatario).direccion}
+                  </p>
+                )}
+                {(ventaConfirmada.destinatario ?? destinatario).corregimiento && (
+                  <p className="text-xs text-zinc-500 font-inter">
+                    {(ventaConfirmada.destinatario ?? destinatario).corregimiento}
+                  </p>
+                )}
+              </div>
+
+              {/* Ítems */}
+              {ventaConfirmada.items?.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 font-inter">
+                    Productos ({ventaConfirmada.items.length})
+                  </p>
+                  {ventaConfirmada.items.map((it) => (
+                    <div key={it.productoId}
+                      className="flex items-center justify-between bg-zinc-50 rounded-xl px-4 py-2.5">
+                      <div>
+                        <p className="text-sm font-semibold text-zinc-800 font-display">{it.nombre}</p>
+                        <p className="text-[11px] text-zinc-400 font-inter">
+                          {it.cajas > 0 && `${it.cajas} caja${it.cajas > 1 ? 's' : ''}`}
+                          {it.cajas > 0 && (it.unidadesSueltas ?? it.unidades ?? 0) > 0 && ' + '}
+                          {(it.unidadesSueltas ?? it.unidades ?? 0) > 0 && `${it.unidadesSueltas ?? it.unidades} uds sueltas`}
+                          {' · '}{formatCOP(it.precioUnitario)} c/u
+                        </p>
+                      </div>
+                      <span className="text-sm font-bold text-zinc-800 font-display">
+                        {formatCOP(it.subtotal)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-            <p className={`text-sm font-inter flex-1 ${toast.type === 'success' ? 'text-emerald-700' : 'text-red-700'}`}>{toast.msg}</p>
-            <button onClick={() => setToast({ msg: '', type: '' })} className={`p-1 ${toast.type === 'success' ? 'text-emerald-300 hover:text-emerald-500' : 'text-red-300 hover:text-red-500'}`}><XIcon size={14} /></button>
           </div>
         )}
 
-        {/* Error stock */}
-        {stockErr && (
-          <div className="mb-4 bg-red-50 border border-red-200 rounded-2xl p-4 flex items-start gap-3 animate-scale-in">
-            <span className="text-red-500 shrink-0 mt-0.5"><AlertIcon /></span>
-            <div className="flex-1">
-              <p className="text-sm font-bold text-red-800 font-display">Stock insuficiente</p>
-              <p className="text-sm text-red-700 font-inter mt-0.5">{stockErr}</p>
-            </div>
-            <button onClick={() => setStockErr(null)} className="text-red-300 hover:text-red-500 p-1"><XIcon size={14} /></button>
-          </div>
-        )}
-
-        {/* Error general */}
-        {errorGlobal && (
-          <div className="mb-4 bg-red-50 border border-red-200 rounded-2xl p-4 flex items-start gap-3 animate-scale-in">
-            <span className="text-red-500 shrink-0 mt-0.5"><AlertIcon /></span>
-            <p className="text-sm text-red-700 font-inter flex-1">{errorGlobal}</p>
-            <button onClick={() => setErrorGlobal('')} className="text-red-300 hover:text-red-500 p-1"><XIcon size={14} /></button>
-          </div>
-        )}
-
-        {!pedidoOk && (
+        {!ventaConfirmada && (
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 items-start">
 
             {/* ── COLUMNA IZQUIERDA (3/5) ── */}
@@ -413,6 +505,13 @@ export default function PedidoRural() {
                     {/* Dropdown clientes guardados */}
                     <div>
                       <p className={labelCls}>Clientes Guardados</p>
+                      {errorClientes && (
+                        <div className="mb-2 px-4 py-3 rounded-xl bg-error-bg border border-[#ffb4a9] text-error-fg text-sm animate-slide-down flex items-start gap-2">
+                          <span className="shrink-0 mt-0.5"><AlertIcon /></span>
+                          <span className="flex-1 font-inter">{errorClientes}</span>
+                          <button onClick={() => setErrorClientes('')} className="shrink-0 opacity-60 hover:opacity-100 p-0.5 transition-opacity"><XIcon size={13} /></button>
+                        </div>
+                      )}
                       <div className="flex items-center gap-2">
                         <div className="flex-1">
                           <CustomSelect
@@ -497,6 +596,12 @@ export default function PedidoRural() {
                     {cargandoProd ? (
                       <div className="flex items-center justify-center py-16 gap-3">
                         <SpinIcon /><span className="text-sm text-zinc-500 font-inter">Cargando catálogo…</span>
+                      </div>
+                    ) : errorCatalogo ? (
+                      <div className="px-4 py-3 rounded-xl bg-error-bg border border-[#ffb4a9] text-error-fg text-sm animate-slide-down flex items-start gap-2">
+                        <span className="shrink-0 mt-0.5"><AlertIcon /></span>
+                        <span className="flex-1 font-inter">{errorCatalogo}</span>
+                        <button onClick={() => setErrorCatalogo('')} className="shrink-0 opacity-60 hover:opacity-100 p-0.5 transition-opacity"><XIcon size={13} /></button>
                       </div>
                     ) : productosFiltrados.length === 0 ? (
                       <div className="text-center py-14 text-zinc-400 text-sm font-inter">No se encontraron productos.</div>
@@ -667,8 +772,14 @@ export default function PedidoRural() {
                     </span>
                   </div>
 
+                  {cartItems.length > 0 && !destinatario.nombre.trim() && (
+                    <p className="text-[11px] text-amber-600 font-inter text-center bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                      Selecciona un cliente para continuar.
+                    </p>
+                  )}
+
                   <button type="button" onClick={abrirConfirm}
-                    disabled={enviando || cartItems.length === 0}
+                    disabled={enviando || cartItems.length === 0 || !destinatario.nombre.trim()}
                     className="w-full bg-[#9e2016] hover:bg-[#7c0202] disabled:bg-zinc-300 disabled:cursor-not-allowed text-white rounded-xl py-3.5 text-sm font-bold tracking-wide font-display transition-all duration-200 active:scale-[0.98] shadow-lg shadow-[#9e2016]/25 flex items-center justify-center gap-2">
                     {enviando ? <><SpinIcon /> Procesando…</> : 'COMPLETAR VENTA →'}
                   </button>
@@ -681,16 +792,22 @@ export default function PedidoRural() {
       </div>
 
       {/* ── Modal confirmar pedido ── */}
-      {showConfirm && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
-          <div className="bg-white rounded-2xl shadow-xl border border-zinc-200 w-full max-w-md animate-scale-in">
-            <div className="flex items-center justify-between px-6 py-5 border-b border-zinc-100">
+      {showConfirm && createPortal(
+        <div
+          className={`fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/45 backdrop-blur-sm ${isClosingConfirm ? 'animate-fade-out' : 'animate-fade-in'}`}
+          onClick={closeConfirm}
+        >
+          <div
+            className={`bg-white rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.18)] border border-zinc-200 w-full max-w-md flex flex-col max-h-[90vh] ${isClosingConfirm ? 'animate-scale-out' : 'animate-scale-in'}`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-6 py-5 border-b border-zinc-100 shrink-0">
               <h3 className="text-base font-bold text-zinc-900 font-display flex items-center gap-2">
                 <TruckIcon size={18} /> Confirmar Pedido Rural
               </h3>
-              <button onClick={() => setShowConfirm(false)} className="p-1.5 rounded-lg text-zinc-400 hover:bg-zinc-100 transition-all"><XIcon /></button>
+              <button onClick={closeConfirm} className="p-1.5 rounded-lg text-zinc-400 hover:bg-zinc-100 transition-all"><XIcon /></button>
             </div>
-            <div className="p-6 space-y-4 max-h-[55vh] overflow-y-auto">
+            <div className="p-6 space-y-4 overflow-y-auto flex-1">
               <div className="bg-zinc-50 rounded-xl p-4 space-y-1">
                 <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 font-inter mb-2">Destinatario</p>
                 <p className="text-sm font-bold text-zinc-900 font-display">{destinatario.nombre}</p>
@@ -723,8 +840,8 @@ export default function PedidoRural() {
                 </div>
               </div>
             </div>
-            <div className="flex gap-3 px-6 py-5 border-t border-zinc-100">
-              <button onClick={() => setShowConfirm(false)}
+            <div className="flex gap-3 px-6 py-5 border-t border-zinc-100 shrink-0">
+              <button onClick={closeConfirm}
                 className="flex-1 bg-zinc-100 hover:bg-zinc-200 text-zinc-800 rounded-xl py-3 text-sm font-semibold transition-all active:scale-95 font-inter">
                 Editar
               </button>
@@ -734,7 +851,8 @@ export default function PedidoRural() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* ── Modal nuevo cliente (RF33) ── */}
@@ -917,6 +1035,12 @@ export default function PedidoRural() {
         </div>,
         document.body
       )}
+      <SuccessToast
+        message={toast.msg}
+        show={toast.show}
+        onClose={() => setToast(t => ({ ...t, show: false }))}
+        type={toast.type}
+      />
     </AppLayout>
   );
 }

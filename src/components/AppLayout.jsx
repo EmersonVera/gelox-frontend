@@ -1,9 +1,16 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Navbar from './Navbar';
 
 export default function AppLayout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const scrollRef = useRef(null);
+  const location = useLocation();
+
+  useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollTop = 0;
+  }, [location.pathname]);
 
   return (
     <div className="flex min-h-screen bg-canvas">
@@ -19,12 +26,8 @@ export default function AppLayout({ children }) {
 
       <div className="flex flex-col flex-1 min-w-0">
         <Navbar onToggle={() => setSidebarOpen((v) => !v)} sidebarOpen={sidebarOpen} />
-        {/* overflow-hidden en main recorta el translateY de las animaciones
-            y evita que el scrollbar aparezca durante la entrada.
-            El scroll real lo maneja el div interior, que también lleva
-            la animación para que todas las páginas entren con fade. */}
         <main className="flex-1 min-h-0 overflow-hidden">
-          <div className="h-full overflow-y-auto p-6 md:p-8 animate-fade-in-up">
+          <div ref={scrollRef} className="h-full overflow-y-auto p-6 md:p-8 animate-fade-in-up">
             {children}
           </div>
         </main>

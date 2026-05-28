@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import AppLayout from '../../components/AppLayout';
 import CantidadControl from '../../components/inventarios/CantidadControl';
 import CustomSelect from '../../components/ui/CustomSelect';
+import SuccessToast from '../../components/SuccessToast';
 
 const CATEGORIAS = ['Todos', 'Paletas', 'Conos', 'Vaso', 'Litros'];
 const base = import.meta.env.VITE_API_BASE_URL ?? '';
@@ -29,6 +30,8 @@ export default function RegistroEntrada() {
   const [cargandoPedido, setCargandoPedido]         = useState(false);
   const [confirmando, setConfirmando]               = useState(false);
   const [resumen, setResumen]                       = useState(null);
+  const [errorProductos, setErrorProductos]         = useState('');
+  const [toast, setToast]                           = useState({ show: false, msg: '', type: 'error' });
 
   // Cargar pedidos PENDIENTES
   // Nota: GET /api/inventario/pedidos aún no está implementado en el backend.
@@ -53,19 +56,35 @@ export default function RegistroEntrada() {
   // Cargar catálogo según categoría
   const fetchProductos = useCallback(async () => {
     setCargando(true);
+    setErrorProductos('');
     try {
       const params = new URLSearchParams();
       if (categoriaActiva !== 'Todos') params.set('categoria', categoriaActiva);
       const res = await fetch(`${base}/api/catalogo/productos?${params}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) throw new Error(`catalogo ${res.status}`);
+      if (!res.ok) {
+        if (res.status === 401) throw Object.assign(new Error(), { status: 401 });
+        if (res.status === 403) throw Object.assign(new Error(), { status: 403 });
+        if (res.status >= 500)  throw Object.assign(new Error(), { status: 500 });
+        throw Object.assign(new Error(), { status: res.status });
+      }
       const data = await res.json();
       const list = data.productos ?? data.content ?? data;
       setProductos(Array.isArray(list) ? list : []);
     } catch (e) {
-      console.error('fetchProductos:', e);
       setProductos([]);
+      const status = e?.status;
+      if (!status || e instanceof TypeError)
+        setErrorProductos('Sin conexión a internet. No se pudo cargar el catálogo de productos.');
+      else if (status === 401)
+        setErrorProductos('Tu sesión ha expirado. Vuelve a iniciar sesión.');
+      else if (status === 403)
+        setErrorProductos('No tienes permisos para ver el catálogo de productos.');
+      else if (status >= 500)
+        setErrorProductos('Error en el servidor al cargar el catálogo. Intenta más tarde.');
+      else
+        setErrorProductos('No se pudo cargar el catálogo de productos. Intenta de nuevo.');
     } finally {
       setCargando(false);
     }
@@ -140,12 +159,19 @@ export default function RegistroEntrada() {
           })),
         }),
       });
-      if (!res.ok) throw new Error('Error al confirmar ingreso');
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        const msg = errData.mensaje ?? errData.message ?? '';
+        if (res.status === 400) throw new Error(msg || 'Datos inválidos en el ingreso. Revisa los productos y cantidades.');
+        if (res.status === 404) throw new Error('Uno o más productos del carrito no se encontraron en el sistema.');
+        if (res.status >= 500)  throw new Error('Error en el servidor al registrar el ingreso. Intenta más tarde.');
+        throw new Error(msg || 'No se pudo confirmar el ingreso. Intenta de nuevo.');
+      }
       const data = await res.json();
       setResumen(data);
       setCarrito([]);
     } catch (e) {
-      console.error(e);
+      setToast({ show: true, msg: e.message || 'No se pudo confirmar el ingreso. Intenta de nuevo.', type: 'error' });
     } finally {
       setConfirmando(false);
     }
@@ -226,6 +252,17 @@ export default function RegistroEntrada() {
             Registro Entrada
           </h1>
         </div>
+
+        {/* Error catálogo */}
+        {errorProductos && (
+          <div className="bg-[#fef2f2] border border-[#fca5a5] rounded-[10px] px-4 py-3 flex items-start gap-2.5">
+            <svg width="15" height="15" className="shrink-0 mt-0.5 text-[#dc2626]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <span className="font-['Inter'] font-medium text-[14px] text-[#dc2626] flex-1">{errorProductos}</span>
+            <button onClick={() => setErrorProductos('')} className="text-[#dc2626] opacity-60 hover:opacity-100 transition-opacity">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+        )}
 
         {/* Selector de pedido */}
         <div>
@@ -464,7 +501,9 @@ export default function RegistroEntrada() {
                     disabled={confirmando || carrito.length === 0}
                     className="w-full bg-[#9e2016] hover:bg-[#c0392b] disabled:opacity-70 text-white font-['Manrope'] font-bold text-[16px] rounded-[8px] py-3 flex items-center justify-center gap-2 cursor-pointer transition-colors"
                   >
-                    {confirmando ? 'Confirmando...' : 'Confirmar Ingreso ✓'}
+                    {confirmando ? (
+                      <><span className="w-4 h-4 rounded-full border-2 border-white/40 border-t-white animate-spin shrink-0" />Confirmando...</>
+                    ) : 'Confirmar Ingreso ✓'}
                   </button>
                 </>
               )}
@@ -486,6 +525,13 @@ export default function RegistroEntrada() {
           </div>
         </div>
       </div>
+
+      <SuccessToast
+        message={toast.msg}
+        show={toast.show}
+        onClose={() => setToast(t => ({ ...t, show: false }))}
+        type={toast.type}
+      />
     </AppLayout>
   );
 }
