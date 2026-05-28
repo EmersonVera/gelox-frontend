@@ -5,6 +5,9 @@ import AppLayout from '../../components/AppLayout';
 import NuevoProducto from '../../components/catalogo/NuevoProducto';
 import EditarProducto from '../../components/catalogo/EditarProducto';
 import ModalConfirmarEliminar from '../../components/catalogo/ModalConfirmarEliminar';
+import SuccessToast from '../../components/SuccessToast';
+
+const SAVED_STOCK_MS = 700;
 
 // Categorías que acepta el backend: PALETAS, CONOS, FAMILIARES
 const CATEGORIAS = ['Todos', 'Paletas', 'Conos', 'Familiares'];
@@ -18,6 +21,10 @@ const CAT_LABEL = {
   FAMILIARES: 'Familiares',
 };
 
+function AlertIcon() {
+  return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>;
+}
+
 export default function CatalogoProductos() {
   const { token } = useAuth();
   const [productos, setProductos]             = useState([]);
@@ -27,15 +34,33 @@ export default function CatalogoProductos() {
   const [categoriaActiva, setCategoriaActiva] = useState('Todos');
   const [busqueda, setBusqueda]               = useState('');
   const [filtroStock, setFiltroStock]         = useState('');        // '' | 'bajo' | 'sin'
-  const [filtroOpen, setFiltroOpen]           = useState(false);
-  const [cargando, setCargando]               = useState(true);
+  const [filtroOpen,    setFiltroOpen]    = useState(false);
+  const [filtroClosing, setFiltroClosing] = useState(false);
+  const [filtroSaved,   setFiltroSaved]   = useState(false);
+  const [cargando, setCargando]           = useState(true);
+  const [errorProductos, setErrorProductos]   = useState('');
+  const [toast, setToast]                     = useState({ show: false, msg: '', type: 'success' });
   const [modalNuevo, setModalNuevo]           = useState(false);
   const [productoEditar, setProductoEditar]   = useState(null);
   const [productoEliminar, setProductoEliminar] = useState(null);
-  const filtroRef = useRef(null);
+  const filtroRef       = useRef(null);
+  const savedStockTimer = useRef(null);
+  const filtroCloseTimer = useRef(null);
+
+  const showToast = (msg, type = 'success') => setToast({ show: true, msg, type });
+
+  const closeFiltro = useCallback(() => {
+    setFiltroClosing(true);
+    if (filtroCloseTimer.current) clearTimeout(filtroCloseTimer.current);
+    filtroCloseTimer.current = setTimeout(() => {
+      setFiltroOpen(false);
+      setFiltroClosing(false);
+    }, 120);
+  }, []);
 
   const fetchProductos = useCallback(async () => {
     setCargando(true);
+    setErrorProductos('');
     try {
       // Cuando hay búsqueda activa: traer todos (size grande) y filtrar client-side
       // El backend no soporta parámetro q para búsqueda por nombre
@@ -52,7 +77,12 @@ export default function CatalogoProductos() {
       const res = await fetch(`${base}/api/catalogo/productos?${params}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) throw new Error(`Error ${res.status}`);
+      if (!res.ok) {
+        if (res.status === 401) throw Object.assign(new Error(), { status: 401 });
+        if (res.status === 403) throw Object.assign(new Error(), { status: 403 });
+        if (res.status >= 500)  throw Object.assign(new Error(), { status: 500 });
+        throw Object.assign(new Error(), { status: res.status });
+      }
       const data = await res.json();
       let lista = Array.isArray(data.content) ? data.content : [];
 
@@ -77,10 +107,20 @@ export default function CatalogoProductos() {
 
       setProductos(lista);
     } catch (e) {
-      console.error('fetchProductos:', e);
       setProductos([]);
       setTotal(0);
       setTotalPages(1);
+      const status = e?.status ?? e?.response?.status;
+      if (!status || e instanceof TypeError)
+        setErrorProductos('Sin conexión a internet. No se pudo cargar el catálogo.');
+      else if (status === 401)
+        setErrorProductos('Tu sesión ha expirado. Vuelve a iniciar sesión.');
+      else if (status === 403)
+        setErrorProductos('No tienes permisos para ver el catálogo de productos.');
+      else if (status >= 500)
+        setErrorProductos('Error en el servidor al cargar el catálogo. Intenta más tarde.');
+      else
+        setErrorProductos('No se pudo cargar el catálogo de productos. Intenta de nuevo.');
     } finally {
       setCargando(false);
     }
@@ -92,11 +132,11 @@ export default function CatalogoProductos() {
   useEffect(() => {
     if (!filtroOpen) return;
     const handler = (e) => {
-      if (!filtroRef.current?.contains(e.target)) setFiltroOpen(false);
+      if (!filtroRef.current?.contains(e.target)) closeFiltro();
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
-  }, [filtroOpen]);
+  }, [filtroOpen, closeFiltro]);
 
   const handleCategoriaChange = (cat) => {
     setCategoriaActiva(cat);
@@ -110,20 +150,46 @@ export default function CatalogoProductos() {
 
   const handleFiltroStock = (valor) => {
     setFiltroStock(valor);
-    setFiltroOpen(false);
+    closeFiltro();
     setPage(1);
+    if (savedStockTimer.current) clearTimeout(savedStockTimer.current);
+    setFiltroSaved(true);
+    savedStockTimer.current = setTimeout(() => setFiltroSaved(false), SAVED_STOCK_MS);
   };
 
+  useEffect(() => () => {
+    if (savedStockTimer.current)  clearTimeout(savedStockTimer.current);
+    if (filtroCloseTimer.current) clearTimeout(filtroCloseTimer.current);
+  }, []);
+
   const FILTROS_STOCK = [
-    { value: '',      label: 'Todos',        desc: 'Sin filtro aplicado'               },
-    { value: 'medio', label: 'Stock medio',  desc: 'Stock actual ≤ stock medio'        },
-    { value: 'bajo',  label: 'Stock mínimo', desc: 'Stock actual ≤ stock mínimo'       },
-    { value: 'sin',   label: 'Sin stock',    desc: 'Stock actual en 0 o no registrado' },
+    { value: '',      label: 'Todos'},
+    { value: 'medio', label: 'Stock medio'},
+    { value: 'bajo',  label: 'Stock mínimo'},
+    { value: 'sin',   label: 'Sin stock'},
   ];
 
   return (
     <AppLayout>
       <div className="flex flex-col gap-6">
+
+        <SuccessToast
+          message={toast.msg}
+          show={toast.show}
+          onClose={() => setToast(t => ({ ...t, show: false }))}
+          type={toast.type}
+        />
+
+        {/* Error catálogo */}
+        {errorProductos && (
+          <div className="px-4 py-3 rounded-xl bg-[#fef2f2] border border-[#fca5a5] text-[#dc2626] text-sm flex items-start gap-2.5 animate-slide-down">
+            <span className="shrink-0 mt-0.5"><AlertIcon /></span>
+            <span className="flex-1">{errorProductos}</span>
+            <button onClick={() => setErrorProductos('')} className="shrink-0 opacity-60 hover:opacity-100 transition-opacity text-[#dc2626]">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+        )}
 
         {/* Header */}
         <div className="flex items-start justify-between">
@@ -139,7 +205,8 @@ export default function CatalogoProductos() {
             {/* ── Botón Filtros con panel desplegable ── */}
             <div className="relative" ref={filtroRef}>
               <button
-                onClick={() => setFiltroOpen(v => !v)}
+                onClick={() => { if (filtroOpen) { closeFiltro(); } else { setFiltroClosing(false); setFiltroOpen(true); } }}
+                style={filtroSaved ? { animation: 'saved-ring 0.7s ease-out forwards' } : undefined}
                 className={[
                   'flex items-center gap-2 border rounded-[8px] px-4 py-2',
                   "font-['Inter'] font-medium text-[14px] cursor-pointer transition-colors",
@@ -158,7 +225,7 @@ export default function CatalogoProductos() {
               </button>
 
               {filtroOpen && (
-                <div className="absolute right-0 top-full mt-1.5 bg-white border border-[#f0eded] rounded-[12px] shadow-2xl overflow-hidden z-50 min-w-[220px]">
+                <div className={`absolute right-0 top-full mt-1.5 bg-white border border-[#f0eded] rounded-[12px] shadow-2xl overflow-hidden z-50 min-w-[220px] ${filtroClosing ? 'animate-dropdown-out' : 'animate-dropdown-in'}`}>
                   <p className="px-4 pt-3 pb-1 font-['Inter'] font-semibold text-[10px] uppercase tracking-[0.55px] text-[#a8a29e]">
                     Filtrar por stock
                   </p>
@@ -318,20 +385,23 @@ export default function CatalogoProductos() {
 
         {/* Modales */}
         {modalNuevo && (
-          <NuevoProducto onClose={() => setModalNuevo(false)} onSuccess={fetchProductos} />
+          <NuevoProducto
+            onClose={() => setModalNuevo(false)}
+            onSuccess={(msg) => { fetchProductos(); if (msg) showToast(msg); }}
+          />
         )}
         {productoEditar && (
           <EditarProducto
             producto={productoEditar}
             onClose={() => setProductoEditar(null)}
-            onSuccess={fetchProductos}
+            onSuccess={(msg) => { fetchProductos(); if (msg) showToast(msg); }}
           />
         )}
         {productoEliminar && (
           <ModalConfirmarEliminar
             producto={productoEliminar}
             onClose={() => setProductoEliminar(null)}
-            onSuccess={fetchProductos}
+            onSuccess={(msg) => { fetchProductos(); if (msg) showToast(msg); }}
           />
         )}
       </div>
@@ -341,7 +411,7 @@ export default function CatalogoProductos() {
 
 function ProductoCard({ producto, onEditar, onEliminar }) {
   // Backend devuelve camelCase: codigoTecnico, precioVenta, stockMinimo, stockActual, imagenUrl
-  const { nombre, categoria, precioVenta, descripcion, stockMinimo, stockActual, imagenUrl } = producto;
+  const { nombre, codigoTecnico, categoria, precioVenta, descripcion, stockMinimo, stockActual, unidadMedida, imagenUrl } = producto;
   const stockBajo = stockActual !== null && stockActual <= stockMinimo;
 
   return (
@@ -363,10 +433,20 @@ function ProductoCard({ producto, onEditar, onEliminar }) {
       {/* Contenido */}
       <div className="p-4 flex flex-col gap-3 flex-1">
         <div className="flex items-start justify-between gap-2">
-          <span className="font-['Manrope'] font-semibold text-[16px] text-[#1b1b1c] leading-[22px]">{nombre}</span>
+          <div className="flex flex-col gap-0.5">
+            <span className="font-['Manrope'] font-semibold text-[16px] text-[#1b1b1c] leading-[22px]">{nombre}</span>
+            {codigoTecnico && (
+              <span className="font-['Inter'] font-normal text-[11px] text-[#a8a29e] tracking-wide">{codigoTecnico}</span>
+            )}
+          </div>
           <span className="font-['Manrope'] font-bold text-[18px] text-[#9e2016] shrink-0">{formatCOP(precioVenta)}</span>
         </div>
         <p className="font-['Inter'] font-normal text-[13px] text-[#57534e] leading-[20px] line-clamp-2">{descripcion}</p>
+        {unidadMedida && (
+          <p className="font-['Inter'] font-normal text-[12px] text-[#a8a29e]">
+            Unidad: <span className="font-semibold text-[#57534e]">{unidadMedida}</span>
+          </p>
+        )}
 
         {/* Stock mínimo */}
         <div className={`flex items-center justify-between rounded-[8px] px-3 py-2 ${stockBajo ? 'bg-[#fef2f2]' : 'bg-[#f6f3f3]'}`}>

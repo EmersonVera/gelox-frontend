@@ -4,32 +4,46 @@ import { useAuth } from '../../context/AuthContext';
 import AppLayout from '../../components/AppLayout';
 import NuevoComerciante from '../../components/comerciantes/NuevoComerciante';
 import SuccessToast from '../../components/SuccessToast';
+import api from '../../api/axiosConfig';
+
+function AlertIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>; }
+function XIcon({ size = 16 }) { return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>; }
 
 export default function MisComerciantess() {
-  const { token } = useAuth();
   const [comerciantes, setComerciantess] = useState([]);
   const [total, setTotal]               = useState(0);
   const [busqueda, setBusqueda]         = useState('');
   const [cargando, setCargando]         = useState(true);
   const [modalAbierto, setModalAbierto] = useState(false);
   const [toast, setToast]               = useState({ show: false, message: '' });
+  const [errorLista, setErrorLista]     = useState('');
 
   const fetchComerciantess = useCallback(async () => {
     setCargando(true);
+    setErrorLista('');
     try {
-      const params = new URLSearchParams();
-      if (busqueda) params.set('q', busqueda);
-      const res = await fetch(`/api/comerciantes?${params}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      // El backend devuelve un array plano; preparado también para wrapper { comerciantes, total }
+      const params = {};
+      if (busqueda) params.q = busqueda;
+      const { data } = await api.get('/api/comerciantes', { params });
       const list = Array.isArray(data) ? data : (data.comerciantes ?? []);
       setComerciantess(list);
       setTotal(Array.isArray(data) ? list.length : (data.total ?? list.length));
-    } catch (e) { console.error(e); }
-    finally { setCargando(false); }
-  }, [token, busqueda]);
+    } catch (e) {
+      const status = e?.response?.status;
+      const msgs = {
+        401: 'Tu sesión ha expirado. Vuelve a iniciar sesión.',
+        403: 'No tienes permisos para ver los comerciantes.',
+        404: 'El recurso de comerciantes no fue encontrado.',
+      };
+      setErrorLista(
+        !e?.response
+          ? 'Sin conexión a internet. Verifica tu red e intenta de nuevo.'
+          : (msgs[status] ?? (status >= 500
+              ? 'Error en el servidor al cargar los comerciantes. Intenta más tarde.'
+              : 'No se pudo cargar la lista de comerciantes.'))
+      );
+    } finally { setCargando(false); }
+  }, [busqueda]);
 
   useEffect(() => { fetchComerciantess(); }, [fetchComerciantess]);
 
@@ -77,6 +91,17 @@ export default function MisComerciantess() {
             className="bg-[#f6f3f3] border-none rounded-full pl-9 pr-4 py-2 w-full font-inter text-[14px] text-ink outline-none focus:ring-2 focus:ring-[#9e2016]/20"
           />
         </div>
+
+        {/* ── Error de carga ── */}
+        {errorLista && (
+          <div className="px-4 py-3 rounded-xl bg-error-bg border border-[#ffb4a9] text-error-fg text-sm animate-slide-down flex items-start gap-2">
+            <span className="shrink-0 mt-0.5"><AlertIcon /></span>
+            <span className="flex-1 font-inter">{errorLista}</span>
+            <button onClick={() => setErrorLista('')} className="shrink-0 opacity-60 hover:opacity-100 p-0.5 transition-opacity">
+              <XIcon size={13} />
+            </button>
+          </div>
+        )}
 
         {/* ── Grid de cards ── */}
         {cargando ? (

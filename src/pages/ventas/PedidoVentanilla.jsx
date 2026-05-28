@@ -4,9 +4,11 @@
  * Todos los datos provienen exclusivamente del backend a través de ventasService.
  */
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import AppLayout from '../../components/AppLayout';
 import { getCatalogoVenta, calcularVenta, confirmarVenta } from '../../services/ventasService';
+import SuccessToast from '../../components/SuccessToast';
 
 const UNIDADES_POR_CAJA = 24;
 
@@ -94,10 +96,11 @@ export default function PedidoVentanilla() {
   const [metodoPago, setMetodoPago] = useState('EFECTIVO');
 
   /* ── UI ── */
-  const [enviando, setEnviando]       = useState(false);
-  const [errorGlobal, setErrorGlobal] = useState('');
-  const [stockErr, setStockErr]       = useState(null);
-  const [showConfirm, setShowConfirm] = useState(false);
+  const [enviando, setEnviando]             = useState(false);
+  const [errorCatalogo, setErrorCatalogo]   = useState('');
+  const [showConfirm, setShowConfirm]       = useState(false);
+  const [isClosingConfirm, setIsClosingConfirm] = useState(false);
+  const [toast, setToast]                   = useState({ show: false, msg: '', type: 'success' });
 
   /**
    * ventaConfirmada: respuesta real del backend al confirmar.
@@ -105,6 +108,7 @@ export default function PedidoVentanilla() {
    * Mientras sea null se muestra el formulario.
    */
   const [ventaConfirmada, setVentaConfirmada] = useState(null);
+  const [isLeavingSuccess, setIsLeavingSuccess] = useState(false);
 
   /* ── Total visible en UI (backend cuando llega, estimación local mientras) ── */
   const [totalCalculado, setTotalCalculado] = useState(0);
@@ -131,7 +135,15 @@ export default function PedidoVentanilla() {
       .catch((err) => {
         if (!vivo) return;
         setProductos([]);
-        setErrorGlobal(err?.response?.data?.mensaje ?? 'No se pudo cargar el catálogo. Intenta nuevamente.');
+        const status = err?.response?.status;
+        let msg;
+        if (!err?.response) msg = 'Sin conexión a internet. Verifica tu red e intenta de nuevo.';
+        else if (status === 401) msg = 'Tu sesión ha expirado. Vuelve a iniciar sesión.';
+        else if (status === 403) msg = 'No tienes permisos para ver el catálogo de productos.';
+        else if (status === 404) msg = 'El catálogo de productos no está disponible en este momento.';
+        else if (status >= 500) msg = 'Error en el servidor al cargar el catálogo. Intenta más tarde.';
+        else msg = err?.response?.data?.mensaje ?? 'No se pudo cargar el catálogo. Intenta nuevamente.';
+        setErrorCatalogo(msg);
       })
       .finally(() => { if (vivo) setCargandoProd(false); });
     return () => { vivo = false; };
@@ -201,7 +213,6 @@ export default function PedidoVentanilla() {
         unidades:    0,
       }];
     });
-    setStockErr(null);
   }, []);
 
   const updateCart = useCallback((id, field, valor) => {
@@ -227,8 +238,6 @@ export default function PedidoVentanilla() {
   /* ── Confirmar venta ── */
   const confirmarPedido = async () => {
     setEnviando(true);
-    setErrorGlobal('');
-    setStockErr(null);
     try {
       const respuesta = await confirmarVenta({
         canal:      'VENTANILLA',
@@ -241,7 +250,6 @@ export default function PedidoVentanilla() {
             unidades:   i.unidades,
           })),
       });
-      // respuesta exacta: { ventaId, canal, fecha, estado, items, total, metodoPago }
       setVentaConfirmada(respuesta);
       setShowConfirm(false);
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -249,15 +257,20 @@ export default function PedidoVentanilla() {
       const status = err?.response?.status;
       const data   = err?.response?.data;
       if (status === 409 || data?.tipo === 'STOCK_INSUFICIENTE') {
-        setStockErr(data?.detalle ?? data?.mensaje ?? 'Stock insuficiente para uno o más productos.');
+        setToast({ show: true, msg: `Stock insuficiente: ${data?.detalle ?? data?.mensaje ?? 'uno o más productos no tienen suficiente stock.'}`, type: 'error' });
       } else {
-        setErrorGlobal(data?.mensaje ?? data?.message ?? 'Error al registrar la venta.');
+        setToast({ show: true, msg: data?.mensaje ?? data?.message ?? 'Error al registrar la venta.', type: 'error' });
       }
       setShowConfirm(false);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
     } finally {
       setEnviando(false);
     }
+  };
+
+  const closeConfirm = () => {
+    if (isClosingConfirm) return;
+    setIsClosingConfirm(true);
+    setTimeout(() => { setIsClosingConfirm(false); setShowConfirm(false); }, 200);
   };
 
   const reiniciar = () => {
@@ -265,9 +278,13 @@ export default function PedidoVentanilla() {
     setCalcResult(null);
     setTotalCalculado(0);
     setMetodoPago('EFECTIVO');
-    setErrorGlobal('');
-    setStockErr(null);
+    setErrorCatalogo('');
     setVentaConfirmada(null);
+  };
+
+  const handleNuevaVenta = () => {
+    setIsLeavingSuccess(true);
+    setTimeout(() => { setIsLeavingSuccess(false); reiniciar(); }, 280);
   };
 
   const totalItemsBadge = cartItems.length;
@@ -298,7 +315,7 @@ export default function PedidoVentanilla() {
          * ventaId, canal, fecha, estado, items, total, metodoPago
          */}
         {ventaConfirmada && (
-          <div className="space-y-4 animate-scale-in">
+          <div className={`space-y-4 ${isLeavingSuccess ? 'animate-scale-out' : 'animate-scale-in'}`}>
 
             {/* Banner principal */}
             <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 flex items-center gap-4">
@@ -311,7 +328,7 @@ export default function PedidoVentanilla() {
                   La venta fue registrada correctamente y el stock fue descontado.
                 </p>
               </div>
-              <button onClick={reiniciar}
+              <button onClick={handleNuevaVenta}
                 className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl px-4 py-2 text-sm font-semibold transition-all active:scale-95 shrink-0">
                 Nueva venta
               </button>
@@ -397,27 +414,13 @@ export default function PedidoVentanilla() {
           </div>
         )}
 
-        {/* ── Stock insuficiente ── */}
-        {stockErr && (
-          <div className="mb-4 bg-red-50 border border-red-200 rounded-2xl p-4 flex items-start gap-3 animate-scale-in">
-            <span className="text-red-500 shrink-0 mt-0.5"><AlertIcon /></span>
-            <div className="flex-1">
-              <p className="text-sm font-bold text-red-800 font-display">Stock insuficiente</p>
-              <p className="text-sm text-red-700 font-inter mt-0.5">{stockErr}</p>
-            </div>
-            <button onClick={() => setStockErr(null)} className="text-red-300 hover:text-red-500 p-1">
-              <XIcon size={14} />
-            </button>
-          </div>
-        )}
-
-        {/* ── Error general ── */}
-        {errorGlobal && (
-          <div className="mb-4 bg-red-50 border border-red-200 rounded-2xl p-4 flex items-start gap-3 animate-scale-in">
-            <span className="text-red-500 shrink-0 mt-0.5"><AlertIcon /></span>
-            <p className="text-sm text-red-700 font-inter flex-1">{errorGlobal}</p>
-            <button onClick={() => setErrorGlobal('')} className="text-red-300 hover:text-red-500 p-1">
-              <XIcon size={14} />
+        {/* ── Error catálogo GET ── */}
+        {errorCatalogo && (
+          <div className="mb-4 px-4 py-3 rounded-xl bg-error-bg border border-[#ffb4a9] text-error-fg text-sm animate-slide-down flex items-start gap-2">
+            <span className="shrink-0 mt-0.5"><AlertIcon /></span>
+            <span className="flex-1 font-inter">{errorCatalogo}</span>
+            <button onClick={() => setErrorCatalogo('')} className="shrink-0 opacity-60 hover:opacity-100 p-0.5 transition-opacity">
+              <XIcon size={13} />
             </button>
           </div>
         )}
@@ -693,15 +696,21 @@ export default function PedidoVentanilla() {
       </div>
 
       {/* ══════════════ MODAL CONFIRMAR ══════════════ */}
-      {showConfirm && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
-          <div className="bg-white rounded-2xl shadow-xl border border-zinc-200 w-full max-w-md flex flex-col max-h-[90vh] animate-scale-in">
+      {showConfirm && createPortal(
+        <div
+          className={`fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/45 backdrop-blur-sm ${isClosingConfirm ? 'animate-fade-out' : 'animate-fade-in'}`}
+          onClick={closeConfirm}
+        >
+          <div
+            className={`bg-white rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.18)] border border-zinc-200 w-full max-w-md flex flex-col max-h-[90vh] ${isClosingConfirm ? 'animate-scale-out' : 'animate-scale-in'}`}
+            onClick={(e) => e.stopPropagation()}
+          >
 
             <div className="flex items-center justify-between px-6 py-5 border-b border-zinc-100 shrink-0">
               <h3 className="text-base font-bold text-zinc-900 font-display flex items-center gap-2">
                 <WindowIcon size={18} /> Confirmar Venta — Ventanilla
               </h3>
-              <button onClick={() => setShowConfirm(false)}
+              <button onClick={closeConfirm}
                 className="p-1.5 rounded-lg text-zinc-400 hover:bg-zinc-100 transition-all">
                 <XIcon />
               </button>
@@ -755,7 +764,7 @@ export default function PedidoVentanilla() {
             </div>
 
             <div className="flex gap-3 px-6 py-5 border-t border-zinc-100 shrink-0">
-              <button onClick={() => setShowConfirm(false)}
+              <button onClick={closeConfirm}
                 className="flex-1 bg-zinc-100 hover:bg-zinc-200 text-zinc-800 rounded-xl py-3 text-sm font-semibold transition-all active:scale-95 font-inter">
                 Editar
               </button>
@@ -765,8 +774,15 @@ export default function PedidoVentanilla() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
+      <SuccessToast
+        message={toast.msg}
+        show={toast.show}
+        onClose={() => setToast(t => ({ ...t, show: false }))}
+        type={toast.type}
+      />
     </AppLayout>
   );
 }

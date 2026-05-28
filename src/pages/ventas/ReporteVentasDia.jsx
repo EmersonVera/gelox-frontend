@@ -6,6 +6,9 @@ import CustomSelect from '../../components/ui/CustomSelect';
 
 const BASE_API = import.meta.env.VITE_API_BASE_URL ?? '';
 
+function AlertIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>; }
+function XIcon({ size = 16 }) { return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>; }
+
 // Canal: valor exacto que espera el backend (PLANILLA = comerciantes)
 const FILTROS_CANAL = [
   { value: '',           label: 'Todos'         },
@@ -114,11 +117,26 @@ export default function ReporteVentasDia() {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(async (res) => {
-        if (!res.ok) throw new Error(res.status === 403 ? 'Sin permisos' : `Error ${res.status}`);
+        if (!res.ok) {
+          if (res.status === 401) throw new Error('session');
+          if (res.status === 403) throw new Error('forbidden');
+          if (res.status >= 500) throw new Error('server');
+          throw new Error('generic');
+        }
         return res.json();
       })
       .then(setResumen)
-      .catch((e) => setErrorKpi(e.message))
+      .catch((e) => {
+        const msgs = {
+          session:   'Tu sesión ha expirado. Vuelve a iniciar sesión.',
+          forbidden: 'No tienes permisos para ver el resumen del día.',
+          server:    'Error en el servidor al cargar el resumen. Intenta más tarde.',
+        };
+        setErrorKpi(e instanceof TypeError
+          ? 'Sin conexión a internet. No se pudo cargar el resumen.'
+          : (msgs[e.message] ?? 'No se pudo cargar el resumen de ventas del día.')
+        );
+      })
       .finally(() => setCargandoKpi(false));
   }, [token]);
 
@@ -134,14 +152,27 @@ export default function ReporteVentasDia() {
         `${BASE_API}/api/reportes/diario/transacciones?${params}`,
         { headers: { Authorization: `Bearer ${token}` } },
       );
-      if (!res.ok) throw new Error(res.status === 403 ? 'Sin permisos' : `Error ${res.status}`);
+      if (!res.ok) {
+        if (res.status === 401) throw new Error('session');
+        if (res.status === 403) throw new Error('forbidden');
+        if (res.status >= 500) throw new Error('server');
+        throw new Error('generic');
+      }
 
       const data = await res.json();
       setTransacciones(data.transacciones ?? []);
       setTotalElementos(data.totalElementos ?? 0);
       setTotalPages(data.totalPages ?? 1);
     } catch (e) {
-      setErrorTx(e.message);
+      const msgs = {
+        session:   'Tu sesión ha expirado. Vuelve a iniciar sesión.',
+        forbidden: 'No tienes permisos para ver las transacciones.',
+        server:    'Error en el servidor al cargar las transacciones. Intenta más tarde.',
+      };
+      setErrorTx(e instanceof TypeError
+        ? 'Sin conexión a internet. No se pudieron cargar las transacciones.'
+        : (msgs[e.message] ?? 'No se pudieron cargar las transacciones del día.')
+      );
     } finally {
       setCargandoTx(false);
     }
@@ -151,13 +182,14 @@ export default function ReporteVentasDia() {
 
   const handleCanalChange = (canal) => { setCanalFiltro(canal); setPage(1); };
 
-  // Búsqueda local por ID o nombre de cliente
-  const txFiltradas = busqueda.trim()
-    ? transacciones.filter(tx =>
-        tx.id?.toLowerCase().includes(busqueda.toLowerCase()) ||
-        tx.clienteOComerciante?.toLowerCase().includes(busqueda.toLowerCase())
-      )
-    : transacciones;
+  // Filtrado local: búsqueda por ID/cliente + método de pago
+  const txFiltradas = transacciones.filter(tx => {
+    const matchBusqueda = !busqueda.trim() ||
+      tx.id?.toLowerCase().includes(busqueda.toLowerCase()) ||
+      tx.clienteOComerciante?.toLowerCase().includes(busqueda.toLowerCase());
+    const matchMetodo = !metodoPago || tx.metodoPago === metodoPago;
+    return matchBusqueda && matchMetodo;
+  });
 
   /* ── Datos para las KPI cards ─────────────────────────────────────── */
   const canalesKpi = resumen ? [
@@ -234,10 +266,12 @@ export default function ReporteVentasDia() {
               />
             ))
           ) : errorKpi ? (
-            <div className="col-span-4 bg-[#fef2f2] rounded-[12px] p-6 text-center">
-              <p className="font-['Inter'] text-[14px] text-[#dc2626]">
-                No se pudo cargar el resumen: {errorKpi}
-              </p>
+            <div className="col-span-4 px-4 py-3 rounded-xl bg-error-bg border border-[#ffb4a9] text-error-fg text-sm animate-slide-down flex items-start gap-2">
+              <span className="shrink-0 mt-0.5"><AlertIcon /></span>
+              <span className="flex-1 font-inter">{errorKpi}</span>
+              <button onClick={() => setErrorKpi(null)} className="shrink-0 opacity-60 hover:opacity-100 p-0.5 transition-opacity">
+                <XIcon size={13} />
+              </button>
             </div>
           ) : (
             <>
@@ -383,10 +417,14 @@ export default function ReporteVentasDia() {
 
           {/* Estado: error */}
           {!cargandoTx && errorTx && (
-            <div className="px-6 py-12 text-center">
-              <p className="font-['Inter'] text-[14px] text-[#dc2626]">
-                No se pudieron cargar las transacciones: {errorTx}
-              </p>
+            <div className="px-6 py-6">
+              <div className="px-4 py-3 rounded-xl bg-error-bg border border-[#ffb4a9] text-error-fg text-sm animate-slide-down flex items-start gap-2">
+                <span className="shrink-0 mt-0.5"><AlertIcon /></span>
+                <span className="flex-1 font-inter">{errorTx}</span>
+                <button onClick={() => setErrorTx(null)} className="shrink-0 opacity-60 hover:opacity-100 p-0.5 transition-opacity">
+                  <XIcon size={13} />
+                </button>
+              </div>
             </div>
           )}
 
