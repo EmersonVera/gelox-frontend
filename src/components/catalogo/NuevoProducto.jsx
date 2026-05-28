@@ -25,7 +25,7 @@ const schema = yup.object({
 
 export default function NuevoProducto({ onClose, onSuccess }) {
   const { perfil } = useAuth();
-  const esAdmin = perfil?.rol === 'ADMINISTRADOR';
+  const puedeVerCosto = ['ADMINISTRADOR', 'ENCARGADO_INVENTARIO'].includes(perfil?.rol);
   const [imagen, setImagen]       = useState(null);
   const [preview, setPreview]     = useState(null);
   const [guardando, setGuardando] = useState(false);
@@ -61,7 +61,7 @@ export default function NuevoProducto({ onClose, onSuccess }) {
       fd.append('categoria',     data.categoria.toUpperCase());
       fd.append('precioVenta',   data.precioVenta);
       fd.append('unidadMedida',  data.unidadMedida);
-      if (data.precioCosto != null) fd.append('precioCosto', data.precioCosto);
+      fd.append('precioCosto', data.precioCosto ?? 0);
       if (data.descripcion)         fd.append('descripcion', data.descripcion);
       if (data.stockMinimo != null) fd.append('stockMinimo', data.stockMinimo);
       if (imagen) fd.append('imagen', imagen); // ← campo "imagen", no "foto"
@@ -157,8 +157,8 @@ export default function NuevoProducto({ onClose, onSuccess }) {
               </div>
             </div>
 
-            {/* Precio Costo — solo ADMINISTRADOR */}
-            {esAdmin && (
+            {/* Precio Costo — ADMINISTRADOR y ENCARGADO_INVENTARIO */}
+            {puedeVerCosto && (
               <div>
                 <label className={labelClass}>Precio de Costo COP</label>
                 <div className="relative">
