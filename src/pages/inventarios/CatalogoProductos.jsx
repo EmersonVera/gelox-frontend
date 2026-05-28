@@ -341,7 +341,7 @@ export default function CatalogoProductos() {
 
 function ProductoCard({ producto, onEditar, onEliminar }) {
   // Backend devuelve camelCase: codigoTecnico, precioVenta, stockMinimo, stockActual, imagenUrl
-  const { nombre, categoria, precioVenta, descripcion, stockMinimo, stockActual, imagenUrl } = producto;
+  const { nombre, codigoTecnico, categoria, precioVenta, descripcion, stockMinimo, stockActual, unidadMedida, imagenUrl } = producto;
   const stockBajo = stockActual !== null && stockActual <= stockMinimo;
 
   return (
@@ -363,10 +363,20 @@ function ProductoCard({ producto, onEditar, onEliminar }) {
       {/* Contenido */}
       <div className="p-4 flex flex-col gap-3 flex-1">
         <div className="flex items-start justify-between gap-2">
-          <span className="font-['Manrope'] font-semibold text-[16px] text-[#1b1b1c] leading-[22px]">{nombre}</span>
+          <div className="flex flex-col gap-0.5">
+            <span className="font-['Manrope'] font-semibold text-[16px] text-[#1b1b1c] leading-[22px]">{nombre}</span>
+            {codigoTecnico && (
+              <span className="font-['Inter'] font-normal text-[11px] text-[#a8a29e] tracking-wide">{codigoTecnico}</span>
+            )}
+          </div>
           <span className="font-['Manrope'] font-bold text-[18px] text-[#9e2016] shrink-0">{formatCOP(precioVenta)}</span>
         </div>
         <p className="font-['Inter'] font-normal text-[13px] text-[#57534e] leading-[20px] line-clamp-2">{descripcion}</p>
+        {unidadMedida && (
+          <p className="font-['Inter'] font-normal text-[12px] text-[#a8a29e]">
+            Unidad: <span className="font-semibold text-[#57534e]">{unidadMedida}</span>
+          </p>
+        )}
 
         {/* Stock mínimo */}
         <div className={`flex items-center justify-between rounded-[8px] px-3 py-2 ${stockBajo ? 'bg-[#fef2f2]' : 'bg-[#f6f3f3]'}`}>
