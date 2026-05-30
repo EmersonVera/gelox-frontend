@@ -490,9 +490,15 @@ export default function ReporteVentasDia() {
                   )}
                 </div>
 
-                {/* Productos — detalle por producto con cantidad y tipo */}
+                {/* Productos */}
                 <div className="flex flex-col gap-0.5">
-                  {tx.detallesProductos?.length ? (
+                  {tx.tipo === 'PLANILLA' ? (
+                    <p className="font-['Inter'] font-normal text-[14px] text-[#57534e] leading-[20px]">
+                      {tx.detallesProductos?.length > 0
+                        ? `${tx.detallesProductos.length} producto${tx.detallesProductos.length !== 1 ? 's' : ''} vendido${tx.detallesProductos.length !== 1 ? 's' : ''}`
+                        : '—'}
+                    </p>
+                  ) : tx.detallesProductos?.length ? (
                     tx.detallesProductos.map((d, i) => (
                       <p key={i} className="font-['Inter'] font-normal text-[14px] text-[#57534e] leading-[20px]">
                         {d.nombre}{' '}

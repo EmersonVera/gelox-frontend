@@ -10,7 +10,7 @@ import SuccessToast from '../../components/SuccessToast';
 const SAVED_STOCK_MS = 700;
 
 const CATEGORIAS = ['Todos', 'Paletas', 'Conos', 'Familiares', 'Vasos'];
-const PAGE_SIZE = 8;
+const PAGE_SIZE = 9;
 
 const formatCOP = (n) => '$' + Number(n).toLocaleString('es-CO');
 
@@ -462,6 +462,22 @@ function ProductoCard({ producto, onEditar, onEliminar }) {
           <p className="font-['Inter'] font-normal text-[12px] text-[#a8a29e]">
             Unidad: <span className="font-semibold text-[#57534e]">{unidadMedida}</span>
           </p>
+        )}
+
+        {/* Stock actual */}
+        {stockActual != null && (
+          <div className={`flex items-center justify-between rounded-[8px] px-3 py-2 ${
+            stockBajo ? 'bg-[#fef2f2]' : stockMed ? 'bg-amber-50' : 'bg-[#f0fdf4]'
+          }`}>
+            <span className={`font-['Inter'] font-bold text-[10px] uppercase tracking-[0.5px] ${
+              stockBajo ? 'text-[#dc2626]' : stockMed ? 'text-amber-600' : 'text-[#16a34a]'
+            }`}>Stock Actual</span>
+            <span className={`font-['Manrope'] font-bold text-[16px] ${
+              stockBajo ? 'text-[#dc2626]' : stockMed ? 'text-amber-600' : 'text-[#16a34a]'
+            }`}>
+              {stockActual} <span className="font-normal text-[#a8a29e] text-[13px]">u</span>
+            </span>
+          </div>
         )}
 
         {/* Stock medio + mínimo */}

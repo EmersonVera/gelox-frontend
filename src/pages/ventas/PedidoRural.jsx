@@ -68,6 +68,7 @@ export default function PedidoRural() {
   const [productos, setProductos]             = useState([]);
   const [cargandoProd, setCargandoProd]       = useState(true);
   const [busquedaProd, setBusquedaProd]       = useState('');
+  const [pageProd, setPageProd]               = useState(0);
   const [cartItems, setCartItems]             = useState([]);
   const [costoEnvio, setCostoEnvio]           = useState('');
   const [transaccionId]                       = useState(genTx);
@@ -281,6 +282,9 @@ export default function PedidoRural() {
     const q = busquedaProd.toLowerCase();
     return productos.filter((p) => p.nombre?.toLowerCase().includes(q) || p.descripcion?.toLowerCase().includes(q));
   }, [productos, busquedaProd]);
+
+  useEffect(() => setPageProd(0), [busquedaProd]);
+  const totalProdPags = Math.ceil(productosFiltrados.length / 6);
 
   const erroresCarrito = useMemo(() => {
     const errs = {};
@@ -618,8 +622,9 @@ export default function PedidoRural() {
                     ) : productosFiltrados.length === 0 ? (
                       <div className="text-center py-14 text-zinc-400 text-sm font-inter">No se encontraron productos.</div>
                     ) : (
+                      <>
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                        {productosFiltrados.map((p) => {
+                        {productosFiltrados.slice(pageProd * 6, (pageProd + 1) * 6).map((p) => {
                           const sinStock  = (p.stockActual ?? 0) === 0;
                           const enCarrito = cartItems.some((i) => i.productoId === p.id);
                           return (
@@ -677,6 +682,24 @@ export default function PedidoRural() {
                           );
                         })}
                       </div>
+                      {totalProdPags > 1 && (
+                        <div className="flex items-center justify-between pt-3 mt-1 border-t border-zinc-100">
+                          <span className="text-xs text-zinc-400 font-inter">
+                            {pageProd * 6 + 1}–{Math.min((pageProd + 1) * 6, productosFiltrados.length)} de {productosFiltrados.length} productos
+                          </span>
+                          <div className="flex gap-1.5">
+                            <button onClick={() => setPageProd(p => p - 1)} disabled={pageProd === 0}
+                              className="w-8 h-8 border border-zinc-100 rounded-lg flex items-center justify-center text-zinc-500 hover:bg-zinc-50 disabled:opacity-30 disabled:cursor-not-allowed text-base">
+                              ‹
+                            </button>
+                            <button onClick={() => setPageProd(p => p + 1)} disabled={pageProd >= totalProdPags - 1}
+                              className="w-8 h-8 border border-zinc-100 rounded-lg flex items-center justify-center text-zinc-500 hover:bg-zinc-50 disabled:opacity-30 disabled:cursor-not-allowed text-base">
+                              ›
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                      </>
                     )}
                   </section>
                 </>
