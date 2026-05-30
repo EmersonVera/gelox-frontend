@@ -101,11 +101,16 @@ export default function InformacionComerciante() {
     setFiltroActivo({ inicio: fechaInicio, fin: fechaFin });
   }
 
+  const [busquedaPlanilla, setBusquedaPlanilla] = useState('');
+
   const chartData      = buildChartData(planillas);
   const rendimiento    = calcRendimiento(chartData);
   const alAlza         = rendimiento >= 0;
-  const totalPaginas   = Math.max(1, Math.ceil(planillas.length / POR_PAGINA));
-  const planillasPagina = planillas.slice((pagina - 1) * POR_PAGINA, pagina * POR_PAGINA);
+  const planillasFiltradas = busquedaPlanilla.trim()
+    ? planillas.filter(pl => pl.fecha?.includes(busquedaPlanilla.trim()))
+    : planillas;
+  const totalPaginas   = Math.max(1, Math.ceil(planillasFiltradas.length / POR_PAGINA));
+  const planillasPagina = planillasFiltradas.slice((pagina - 1) * POR_PAGINA, pagina * POR_PAGINA);
 
   function abrirModalEditar() {
     const c = comercianteLocal;
@@ -391,13 +396,30 @@ export default function InformacionComerciante() {
             <div className="bg-white rounded-[16px] border border-[#f5f5f4] p-5">
 
               {/* Header */}
-              <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
+              <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
                 <h2 className="font-['Manrope'] font-bold text-[15px] sm:text-[16px] text-[#1b1b1c]">
                   Historial de Cierres Diarios
                 </h2>
                 <span className="font-['Inter'] text-[11px] sm:text-[12px] text-[#a8a29e]">
-                  {planillasPagina.length} de {planillas.length} registros
+                  {planillasFiltradas.length} de {planillas.length} registros
                 </span>
+              </div>
+
+              {/* Búsqueda planillas */}
+              <div className="relative mb-4">
+                <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-[#a8a29e]" width="14" height="14" fill="none" viewBox="0 0 16 16">
+                  <circle cx="7" cy="7" r="5" stroke="currentColor" strokeWidth="1.3"/>
+                  <path d="M11 11l3 3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+                </svg>
+                <input
+                  value={busquedaPlanilla}
+                  onChange={e => { setBusquedaPlanilla(e.target.value); setPagina(1); }}
+                  placeholder="Buscar por fecha (ej. 2026-05)..."
+                  className="bg-[#f6f3f3] border-none rounded-[10px] pl-9 pr-4 py-2 w-full font-['Inter'] text-[13px] text-[#1b1b1c] outline-none focus:ring-2 focus:ring-[#9e2016]/20"
+                />
+                {busquedaPlanilla && (
+                  <button onClick={() => { setBusquedaPlanilla(''); setPagina(1); }} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#a8a29e] hover:text-[#78716c] cursor-pointer text-xs">✕</button>
+                )}
               </div>
 
               {/* Contenido */}

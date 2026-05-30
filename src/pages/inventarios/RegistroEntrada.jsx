@@ -274,10 +274,11 @@ export default function RegistroEntrada() {
           </div>
         )}
 
-        {/* Selector de pedido */}
+        {/* Selector de pedido — obligatorio */}
         <div>
           <label className="font-['Inter'] font-semibold text-[11px] uppercase tracking-[0.55px] text-[#1b1b1c] mb-2 block">
-            Selecciona Pedido
+            Pedido <span className="text-[#dc2626] font-bold">*</span>
+            <span className="ml-1 normal-case font-normal tracking-normal text-[#a8a29e]">(requerido)</span>
           </label>
           <CustomSelect
             value={pedidoSeleccionado}
@@ -292,6 +293,12 @@ export default function RegistroEntrada() {
             className="min-w-[280px]"
             size="sm"
           />
+          {!pedidoSeleccionado && (
+            <p className="font-['Inter'] text-[12px] text-[#78716c] mt-1.5 flex items-center gap-1">
+              <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              Debes seleccionar un pedido para poder registrar la entrada.
+            </p>
+          )}
         </div>
 
         <div className="flex gap-6 items-start">
@@ -524,10 +531,16 @@ export default function RegistroEntrada() {
                     </p>
                   )}
 
-                  {/* Botón confirmar — pedidoId es opcional en el backend (RF23 sin pedido asociado) */}
+                  {/* Pedido requerido para confirmar */}
+                  {!pedidoSeleccionado && carrito.length > 0 && (
+                    <p className="font-['Inter'] text-[11px] text-[#9e2016] text-center bg-[#fef2f2] rounded-[8px] px-3 py-2">
+                      Selecciona un pedido antes de confirmar el ingreso.
+                    </p>
+                  )}
+
                   <button
                     onClick={handleConfirmar}
-                    disabled={confirmando || carrito.length === 0 || hayErroresCarrito}
+                    disabled={confirmando || carrito.length === 0 || hayErroresCarrito || !pedidoSeleccionado}
                     className="w-full bg-[#9e2016] hover:bg-[#c0392b] disabled:opacity-70 disabled:cursor-not-allowed text-white font-['Manrope'] font-bold text-[16px] rounded-[8px] py-3 flex items-center justify-center gap-2 cursor-pointer transition-colors"
                   >
                     {confirmando ? (
