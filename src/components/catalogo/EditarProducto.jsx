@@ -79,6 +79,7 @@ export default function EditarProducto({ producto, onClose, onSuccess }) {
       fd.append('precioCosto', data.precioCosto ?? 0);
       if (data.descripcion)         fd.append('descripcion', data.descripcion);
       if (data.stockMinimo != null) fd.append('stockMinimo', data.stockMinimo);
+      if (data.stockMedio  != null) fd.append('stockMedio',  data.stockMedio);
       if (imagenNueva) fd.append('imagen', imagenNueva); // ← campo "imagen", no "foto"
 
       const res = await api.put(`/api/catalogo/productos/${producto.id}`, fd);

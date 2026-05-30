@@ -427,7 +427,7 @@ export default function PedidoVentanilla() {
 
         {/* ══════════════ FORMULARIO DE VENTA ══════════════ */}
         {!ventaConfirmada && (
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 items-start">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
 
             {/* ── COLUMNA IZQUIERDA (3/5) ── */}
             <div className="lg:col-span-3 space-y-5">
@@ -536,8 +536,8 @@ export default function PedidoVentanilla() {
               </section>
             </div>
 
-            {/* ── CARRITO DERECHO (2/5) ── */}
-            <div className="lg:col-span-2 lg:sticky lg:top-0">
+            {/* ── CARRITO DERECHO (1/4) ── */}
+            <div className="lg:col-span-1 lg:sticky lg:top-0">
               <div className="bg-white border border-zinc-200 rounded-2xl shadow-sm overflow-hidden flex flex-col">
 
                 {/* Header */}
@@ -605,12 +605,16 @@ export default function PedidoVentanilla() {
                         {/* Fila Cajas */}
                         <div className="flex items-center justify-between gap-2">
                           <span className="text-xs text-zinc-500 font-inter w-14 shrink-0">Caja</span>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1.5">
                             <QtyBtn onClick={() => updateCart(item.id, 'cajas', item.cajas - 1)}>−</QtyBtn>
-                            <span className="text-sm font-bold text-zinc-800 w-5 text-center font-display">{item.cajas}</span>
+                            <input
+                              type="number" min="0" value={item.cajas}
+                              onChange={(e) => { const n = parseInt(e.target.value, 10); updateCart(item.id, 'cajas', isNaN(n) || n < 0 ? 0 : n); }}
+                              className="w-9 text-center text-sm font-bold text-zinc-800 border border-zinc-200 rounded-lg py-0.5 outline-none focus:border-[#9e2016] focus:ring-1 focus:ring-[#9e2016]/20 font-display [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            />
                             <QtyBtn onClick={() => updateCart(item.id, 'cajas', item.cajas + 1)}>+</QtyBtn>
                           </div>
-                          <span className="text-sm font-bold text-zinc-800 font-display text-right min-w-[60px]">
+                          <span className="text-sm font-bold text-zinc-800 font-display text-right min-w-[52px]">
                             {formatCOP(subtotalCajas)}
                           </span>
                         </div>
@@ -618,12 +622,16 @@ export default function PedidoVentanilla() {
                         {/* Fila Unidades (unidades sueltas — campo "unidades" en el backend) */}
                         <div className="flex items-center justify-between gap-2">
                           <span className="text-xs text-zinc-500 font-inter w-14 shrink-0">Unidad</span>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1.5">
                             <QtyBtn onClick={() => updateCart(item.id, 'unidades', item.unidades - 1)}>−</QtyBtn>
-                            <span className="text-sm font-bold text-zinc-800 w-5 text-center font-display">{item.unidades}</span>
+                            <input
+                              type="number" min="0" value={item.unidades}
+                              onChange={(e) => { const n = parseInt(e.target.value, 10); updateCart(item.id, 'unidades', isNaN(n) || n < 0 ? 0 : n); }}
+                              className="w-9 text-center text-sm font-bold text-zinc-800 border border-zinc-200 rounded-lg py-0.5 outline-none focus:border-[#9e2016] focus:ring-1 focus:ring-[#9e2016]/20 font-display [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            />
                             <QtyBtn onClick={() => updateCart(item.id, 'unidades', item.unidades + 1)}>+</QtyBtn>
                           </div>
-                          <span className="text-sm font-bold text-zinc-800 font-display text-right min-w-[60px]">
+                          <span className="text-sm font-bold text-zinc-800 font-display text-right min-w-[52px]">
                             {formatCOP(subtotalUnidades)}
                           </span>
                         </div>
