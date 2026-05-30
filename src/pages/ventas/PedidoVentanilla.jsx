@@ -93,6 +93,8 @@ export default function PedidoVentanilla() {
   /* ── Pago ── */
   const [metodoPago, setMetodoPago] = useState('EFECTIVO');
 
+  const [pageProd, setPageProd] = useState(0);
+
   /* ── UI ── */
   const [enviando, setEnviando]             = useState(false);
   const [errorCatalogo, setErrorCatalogo]   = useState('');
@@ -234,6 +236,9 @@ export default function PedidoVentanilla() {
       p.codigoTecnico.toLowerCase().includes(q)
     );
   }, [productos, busquedaProd]);
+
+  useEffect(() => setPageProd(0), [busquedaProd]);
+  const totalProdPags = Math.ceil(productosFiltrados.length / 6);
 
   /* ── Confirmar venta ── */
   const confirmarPedido = async () => {
@@ -478,8 +483,9 @@ export default function PedidoVentanilla() {
                     {productos.length === 0 ? 'No hay productos disponibles.' : 'No se encontraron productos.'}
                   </div>
                 ) : (
+                  <>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    {productosFiltrados.map((p) => {
+                    {productosFiltrados.slice(pageProd * 6, (pageProd + 1) * 6).map((p) => {
                       const sinStock  = !p.disponible || p.stockActual === 0;
                       const enCarrito = cartItems.some((i) => i.id === p.id);
                       return (
@@ -532,6 +538,24 @@ export default function PedidoVentanilla() {
                       );
                     })}
                   </div>
+                  {totalProdPags > 1 && (
+                    <div className="flex items-center justify-between pt-3 mt-1 border-t border-zinc-100">
+                      <span className="text-xs text-zinc-400 font-inter">
+                        {pageProd * 6 + 1}–{Math.min((pageProd + 1) * 6, productosFiltrados.length)} de {productosFiltrados.length} productos
+                      </span>
+                      <div className="flex gap-1.5">
+                        <button onClick={() => setPageProd(p => p - 1)} disabled={pageProd === 0}
+                          className="w-8 h-8 border border-zinc-200 rounded-lg flex items-center justify-center text-zinc-500 hover:bg-zinc-50 disabled:opacity-30 disabled:cursor-not-allowed text-base">
+                          ‹
+                        </button>
+                        <button onClick={() => setPageProd(p => p + 1)} disabled={pageProd >= totalProdPags - 1}
+                          className="w-8 h-8 border border-zinc-200 rounded-lg flex items-center justify-center text-zinc-500 hover:bg-zinc-50 disabled:opacity-30 disabled:cursor-not-allowed text-base">
+                          ›
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  </>
                 )}
               </section>
             </div>

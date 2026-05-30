@@ -56,6 +56,8 @@ export default function PlanillaDiaria() {
   const [filas, setFilas]                     = useState([]);
   const [estadoPlanilla, setEstadoPlanilla]   = useState('NUEVA'); // NUEVA | DESPACHADO | CERRADO
   const [planillaId, setPlanillaId]           = useState(null);
+  const [busquedaFila, setBusquedaFila]       = useState('');
+  const [editandoMatutino, setEditandoMatutino] = useState(false);
   const [loading, setLoading]                 = useState(true);
   const [errorMsg, setErrorMsg]               = useState('');
   const [enviando, setEnviando]               = useState(false);
@@ -169,12 +171,17 @@ export default function PlanillaDiaria() {
     f => Number(f.entrada) > Number(f.salida)
   );
 
+  /* ── Filtro de búsqueda ── */
+  const filasFiltradas = busquedaFila.trim()
+    ? filas.filter(f => f.nombre?.toLowerCase().includes(busquedaFila.toLowerCase()))
+    : filas;
+
   /* ── Habilitación de botones ── */
   const cierreMatutinoHabilitado =
-    estadoPlanilla === 'NUEVA' &&
+    (estadoPlanilla === 'NUEVA' || editandoMatutino) &&
     filas.length > 0 &&
     filas.every(f => f.salida !== '') &&
-    filas.some(f => Number(f.salida) > 0);   // al menos un producto con unidades > 0
+    filas.some(f => Number(f.salida) > 0);
 
   const cierreDiarioHabilitado =
     estadoPlanilla === 'DESPACHADO' &&
@@ -395,6 +402,23 @@ export default function PlanillaDiaria() {
           </div>
         ) : (
           <>
+            {/* ══ Búsqueda ══ */}
+            <div className="relative">
+              <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-[#a8a29e]" width="15" height="15" fill="none" viewBox="0 0 16 16">
+                <circle cx="7" cy="7" r="5" stroke="currentColor" strokeWidth="1.3"/>
+                <path d="M11 11l3 3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+              </svg>
+              <input
+                value={busquedaFila}
+                onChange={e => setBusquedaFila(e.target.value)}
+                placeholder="Buscar producto en la planilla..."
+                className="bg-white border border-[#e7e5e4] rounded-[10px] pl-9 pr-4 py-2.5 w-full font-['Inter'] text-[14px] text-[#1b1b1c] outline-none focus:ring-2 focus:ring-[#9e2016]/20 focus:border-[#9e2016]"
+              />
+              {busquedaFila && (
+                <button onClick={() => setBusquedaFila('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#a8a29e] hover:text-[#78716c] cursor-pointer">✕</button>
+              )}
+            </div>
+
             {/* ══ Tabla ══ */}
             <div className="bg-white rounded-[16px] border border-[#f5f5f4] overflow-hidden shadow-sm">
               {filas.length === 0 ? (
@@ -421,7 +445,7 @@ export default function PlanillaDiaria() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[#f5f5f4]">
-                      {filas.map(fila => {
+                      {filasFiltradas.map(fila => {
                         const salida   = Number(fila.salida)  || 0;
                         const entrada  = Number(fila.entrada) || 0;
                         const vendidas = Math.max(0, salida - entrada);
@@ -441,7 +465,7 @@ export default function PlanillaDiaria() {
                             {/* SALIDA */}
                             <td className="px-5 py-3.5">
                               <div className="flex justify-center">
-                                {estadoPlanilla === 'NUEVA' ? (
+                                {estadoPlanilla === 'NUEVA' || editandoMatutino ? (
                                   <input
                                     type="number"
                                     min="0"
@@ -541,20 +565,31 @@ export default function PlanillaDiaria() {
               {/* Botones */}
               <div className="flex items-center gap-3 shrink-0 flex-wrap">
 
-                {/* Cierre Matutino */}
+                {/* Editar Cierre Matutino — solo cuando ya fue despachado y no se está editando */}
+                {estadoPlanilla === 'DESPACHADO' && !editandoMatutino && (
+                  <button
+                    onClick={() => setEditandoMatutino(true)}
+                    className="flex items-center gap-2 border border-[#1b2d4f] text-[#1b2d4f] hover:bg-[#1b2d4f] hover:text-white font-['Manrope'] font-bold text-[13px] sm:text-[14px] rounded-[10px] px-4 sm:px-5 py-2.5 transition-colors cursor-pointer"
+                  >
+                    <svg width="13" height="13" fill="none" viewBox="0 0 14 14"><path d="M9.5 2l2.5 2.5-7 7H2.5V9L9.5 2z" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/><path d="M8 3.5l2.5 2.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
+                    Editar Cierre Matutino
+                  </button>
+                )}
+
+                {/* Cierre Matutino / Guardar cambios */}
                 <button
-                  onClick={handleCierreMatutino}
+                  onClick={editandoMatutino ? () => setEditandoMatutino(false) : handleCierreMatutino}
                   disabled={!cierreMatutinoHabilitado || enviando}
                   className="flex items-center gap-2 bg-[#1b2d4f] hover:bg-[#152240] text-white font-['Manrope'] font-bold text-[13px] sm:text-[14px] rounded-[10px] px-4 sm:px-5 py-2.5 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {enviando && estadoPlanilla === 'NUEVA' ? <SpinIcon /> : <CheckIcon />}
-                  Cierre Matutino
+                  {editandoMatutino ? 'Guardar Cambios' : 'Cierre Matutino'}
                 </button>
 
                 {/* Cierre Diario */}
                 <button
                   onClick={handleCierreDiario}
-                  disabled={!cierreDiarioHabilitado || enviando}
+                  disabled={!cierreDiarioHabilitado || enviando || editandoMatutino}
                   className="flex items-center gap-2 bg-[#9e2016] hover:bg-[#7c0202] text-white font-['Manrope'] font-bold text-[13px] sm:text-[14px] rounded-[10px] px-4 sm:px-5 py-2.5 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {enviando && estadoPlanilla === 'DESPACHADO' ? <SpinIcon /> : <CheckIcon />}
