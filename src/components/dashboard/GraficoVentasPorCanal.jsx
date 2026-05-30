@@ -23,10 +23,14 @@ export default function GraficoVentasPorCanal() {
           { canal: 'Ventanilla',   porcentaje: Number(raw.porcentajeVentanilla   ?? 0) },
           { canal: 'Rural',        porcentaje: Number(raw.porcentajeRural         ?? 0) },
         ];
-       
-        const sumParcial = items.slice(0, -1).reduce((acc, d) => acc + d.porcentaje, 0);
-        items[items.length - 1].porcentaje = Number((100 - sumParcial).toFixed(2));
-        setData(items);
+        const totalReal = items.reduce((acc, d) => acc + d.porcentaje, 0);
+        if (totalReal === 0) {
+          setData([]);
+        } else {
+          const sumParcial = items.slice(0, -1).reduce((acc, d) => acc + d.porcentaje, 0);
+          items[items.length - 1].porcentaje = Number((100 - sumParcial).toFixed(2));
+          setData(items);
+        }
       })
       .catch(() => setData([]))
       .finally(() => setCargando(false));
@@ -47,6 +51,28 @@ export default function GraficoVentasPorCanal() {
         <div className="flex-1 flex items-center justify-center">
           <div className="w-[192px] h-[192px] rounded-full bg-[#f5f5f4] animate-pulse" />
         </div>
+      ) : data.length === 0 ? (
+        <>
+          <div className="relative flex justify-center">
+            <div className="w-[192px] h-[192px] rounded-full border-[24px] border-[#f0efee] flex items-center justify-center">
+              <div className="flex flex-col items-center">
+                <span className="font-display font-bold text-[30px] text-[#a8a29e] leading-none">0%</span>
+                <span className="font-inter font-bold text-[10px] text-[#a8a29e] uppercase tracking-[0.5px] mt-1">TOTAL</span>
+              </div>
+            </div>
+          </div>
+          <div className="flex flex-col gap-3 mt-8">
+            {['Comerciantes', 'Ventanilla', 'Rural'].map((canal, i) => (
+              <div key={canal} className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: COLORES[i] }} />
+                  <span className="font-inter font-normal text-[14px] text-ink leading-[20px]">{canal}</span>
+                </div>
+                <span className="font-inter font-bold text-[14px] text-[#a8a29e] leading-[20px]">0%</span>
+              </div>
+            ))}
+          </div>
+        </>
       ) : (
         <>
           {/* Dona con label central como overlay CSS */}

@@ -5,7 +5,7 @@ import AppLayout from '../../components/AppLayout';
 import CantidadControl from '../../components/inventarios/CantidadControl';
 import SuccessToast from '../../components/SuccessToast';
 
-const CATEGORIAS = ['Todos', 'Paletas', 'Conos', 'Vaso', 'Litros'];
+const CATEGORIAS = ['Todos', 'Paletas', 'Conos', 'Vasos', 'Familiares'];
 const base = import.meta.env.VITE_API_BASE_URL ?? '';
 
 export default function GenerarPedido() {
