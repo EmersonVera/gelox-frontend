@@ -1,10 +1,14 @@
 // src/pages/ventas/InformacionComerciante.jsx — RF38
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { BarChart, Bar, XAxis, Cell, ResponsiveContainer } from 'recharts';
 import AppLayout from '../../components/AppLayout';
-import { getPlanillasComerciante, actualizarComerciante } from '../../services/ventasService';
+import CustomSelect from '../../components/ui/CustomSelect';
+import { getPlanillasComerciante, actualizarComerciante, cambiarEstadoComerciante } from '../../services/ventasService';
 
+const MUNICIPIOS  = ['Ocaña', 'Cúcuta', 'Villa del Rosario', 'Los Patios', 'El Zulia', 'Tibú', 'Otro'];
+const TALLAS      = ['S', 'M', 'L', 'XL'];
 const MESES       = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
 const DIAS_SEMANA = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
 const DIAS_CORTOS = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
@@ -51,21 +55,24 @@ export default function InformacionComerciante() {
 
   const [comercianteLocal, setComerianteLocal] = useState(comerciante);
 
-  const [planillas,     setPlanillas]     = useState([]);
-  const [cargando,      setCargando]      = useState(true);
-  const [error,         setError]         = useState('');
-  const [fechaInicio,   setFechaInicio]   = useState('');
-  const [fechaFin,      setFechaFin]      = useState('');
-  const [filtroActivo,  setFiltroActivo]  = useState({ inicio: '', fin: '' });
-  const [pagina,        setPagina]        = useState(1);
-  const [fechaElegida,  setFechaElegida]  = useState(new Date().toISOString().split('T')[0]);
-  const [errorFecha,    setErrorFecha]    = useState('');
+  const [planillas,      setPlanillas]      = useState([]);
+  const [cargando,       setCargando]       = useState(true);
+  const [error,          setError]          = useState('');
+  const [fechaInicio,    setFechaInicio]    = useState('');
+  const [fechaFin,       setFechaFin]       = useState('');
+  const [filtroActivo,   setFiltroActivo]   = useState({ inicio: '', fin: '' });
+  const [pagina,         setPagina]         = useState(1);
+  const [fechaElegida,   setFechaElegida]   = useState(new Date().toISOString().split('T')[0]);
+  const [errorFecha,     setErrorFecha]     = useState('');
 
-  const [modalEditar,   setModalEditar]   = useState(false);
-  const [formEditar,    setFormEditar]    = useState({});
-  const [fotoPreview,   setFotoPreview]   = useState(null);
-  const [guardando,     setGuardando]     = useState(false);
-  const [errorEditar,   setErrorEditar]   = useState('');
+  const [modalEditar,    setModalEditar]    = useState(false);
+  const [isClosingModal, setIsClosingModal] = useState(false);
+  const [formEditar,     setFormEditar]     = useState({});
+  const [fotoPreview,    setFotoPreview]    = useState(null);
+  const [guardando,      setGuardando]      = useState(false);
+  const [errorEditar,    setErrorEditar]    = useState('');
+
+  const inputFileEditRef = useRef();
 
   const cargar = useCallback(async (inicio, fin) => {
     setCargando(true);
@@ -99,24 +106,33 @@ export default function InformacionComerciante() {
   const alAlza         = rendimiento >= 0;
   const totalPaginas   = Math.max(1, Math.ceil(planillas.length / POR_PAGINA));
   const planillasPagina = planillas.slice((pagina - 1) * POR_PAGINA, pagina * POR_PAGINA);
-  const hoy            = new Date().toISOString().split('T')[0];
 
   function abrirModalEditar() {
     const c = comercianteLocal;
     setFormEditar({
       nombre:                       c.nombre ?? '',
-      municipio:                    c.municipio ?? '',
+      municipio:                    c.municipio ?? 'Ocaña',
       direccion:                    c.direccion ?? '',
       telefono:                     c.telefono ?? '',
       placa:                        c.placa ?? '',
       contactoEmergenciaNombre:     c.contactoEmergenciaNombre   ?? c.contacto_emergencia_nombre   ?? '',
       contactoEmergenciaParentesco: c.contactoEmergenciaParentesco ?? c.contacto_emergencia_parentesco ?? '',
-      tallaUniforme:                c.tallaUniforme ?? c.talla_uniforme ?? '',
+      tallaUniforme:                c.tallaUniforme ?? c.talla_uniforme ?? 'M',
+      activo:                       c.activo ?? true,
       foto:                         null,
     });
     setFotoPreview(null);
     setErrorEditar('');
     setModalEditar(true);
+  }
+
+  function handleCloseModal() {
+    if (isClosingModal || guardando) return;
+    setIsClosingModal(true);
+    setTimeout(() => {
+      setIsClosingModal(false);
+      setModalEditar(false);
+    }, 200);
   }
 
   async function submitEditar(e) {
@@ -138,9 +154,15 @@ export default function InformacionComerciante() {
       if (formEditar.contactoEmergenciaParentesco) fd.append('contactoEmergenciaParentesco', formEditar.contactoEmergenciaParentesco);
       if (formEditar.tallaUniforme)                fd.append('tallaUniforme', formEditar.tallaUniforme);
       if (formEditar.foto)                         fd.append('foto', formEditar.foto);
-      const actualizado = await actualizarComerciante(id, fd);
+
+      let actualizado = await actualizarComerciante(id, fd);
+
+      if (formEditar.activo !== comercianteLocal.activo) {
+        actualizado = await cambiarEstadoComerciante(id, formEditar.activo);
+      }
+
       setComerianteLocal(prev => ({ ...prev, ...actualizado }));
-      setModalEditar(false);
+      handleCloseModal();
     } catch {
       setErrorEditar('No se pudo guardar los cambios. Intenta de nuevo.');
     } finally {
@@ -171,6 +193,9 @@ export default function InformacionComerciante() {
   const emergNombre   = comercianteLocal.contactoEmergenciaNombre   ?? comercianteLocal.contacto_emergencia_nombre   ?? '';
   const emergRelacion = comercianteLocal.contactoEmergenciaParentesco ?? comercianteLocal.contacto_emergencia_parentesco ?? '';
   const emergTelefono = comercianteLocal.contactoEmergenciaTelefono  ?? comercianteLocal.contacto_emergencia_telefono  ?? '';
+
+  const inputClass = "bg-[#f6f3f3] border-none rounded-[10px] px-4 py-3.5 font-['Inter'] text-[16px] text-[#1b1b1c] outline-none focus:ring-2 focus:ring-[#9e2016]/20 w-full placeholder-[rgba(168,162,158,0.8)]";
+  const labelClass = "font-['Inter'] font-semibold text-[11px] uppercase tracking-[0.55px] text-[#a8a29e] mb-2 block";
 
   return (
     <AppLayout>
@@ -375,8 +400,6 @@ export default function InformacionComerciante() {
                 </span>
               </div>
 
-              
-
               {/* Contenido */}
               {cargando ? (
                 <div className="flex flex-col gap-3">
@@ -527,182 +550,230 @@ export default function InformacionComerciante() {
       </div>
 
       {/* ══ MODAL EDITAR COMERCIANTE ════════════════════════════════════════ */}
-      {modalEditar && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 px-4">
-          <div className="bg-white rounded-2xl shadow-xl border border-zinc-200 w-full max-w-md max-h-[90vh] flex flex-col">
-
-            {/* Header modal */}
-            <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-zinc-100 shrink-0">
-              <h2 className="font-['Manrope'] font-bold text-[16px] text-[#1b1b1c]">Editar Comerciante</h2>
+      {modalEditar && createPortal(
+        <div
+          className={`fixed inset-0 z-[9999] flex items-center justify-center px-4 bg-black/45 backdrop-blur-sm ${
+            isClosingModal ? 'animate-fade-out' : 'animate-fade-in'
+          }`}
+          onClick={handleCloseModal}
+        >
+          <div
+            className={`bg-white rounded-[20px] w-full max-w-[760px] max-h-[90vh] overflow-y-auto shadow-[0_20px_60px_rgba(0,0,0,0.18)] ${
+              isClosingModal ? 'animate-scale-out' : 'animate-scale-in'
+            }`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header rojo */}
+            <div className="bg-[#9e2016] px-8 py-7 relative rounded-t-[20px]">
+              <h2 className="font-['Manrope'] font-bold text-[28px] text-white leading-[34px]">
+                Editar Comerciante
+              </h2>
+              <p className="font-['Inter'] font-normal text-[15px] text-white/80 mt-1">
+                Modifica los datos del distribuidor registrado en la red GELOX.
+              </p>
               <button
-                onClick={() => setModalEditar(false)}
-                className="w-8 h-8 flex items-center justify-center rounded-lg text-[#a8a29e] hover:text-[#1b1b1c] hover:bg-[#f6f3f3] transition-all duration-200 cursor-pointer"
+                type="button"
+                onClick={handleCloseModal}
+                className="absolute top-6 right-6 w-8 h-8 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center cursor-pointer transition-colors"
               >
                 <svg width="14" height="14" fill="none" viewBox="0 0 14 14">
-                  <path d="M2 2l10 10M12 2L2 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                  <path d="M11 3L3 11M3 3l8 8" stroke="white" strokeWidth="1.8" strokeLinecap="round"/>
                 </svg>
               </button>
             </div>
 
-            {/* Cuerpo scrollable */}
-            <form onSubmit={submitEditar} className="overflow-y-auto px-6 py-5 space-y-4">
+            {/* Body */}
+            <form onSubmit={submitEditar}>
+              <div className="px-8 py-7 grid grid-cols-2 gap-x-8 gap-y-5">
 
-              {/* Nombre */}
-              <div>
-                <label className="text-sm font-medium text-zinc-700 mb-1.5 block">
-                  Nombre <span className="text-[#9e2016]">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={formEditar.nombre}
-                  onChange={e => setFormEditar(f => ({ ...f, nombre: e.target.value }))}
-                  placeholder="Nombre completo"
-                  className="w-full bg-zinc-100 border border-transparent focus:border-[#9e2016] focus:ring-2 focus:ring-[#9e2016]/20 rounded-xl px-4 py-3 outline-none transition-all duration-200 font-['Inter'] text-[14px] text-zinc-900 placeholder:text-zinc-400"
-                />
-              </div>
+                {/* Columna izquierda */}
+                <div className="flex flex-col gap-5">
+                  <div>
+                    <label className={labelClass}>Nombre Completo</label>
+                    <input
+                      name="nombre"
+                      value={formEditar.nombre}
+                      onChange={e => setFormEditar(f => ({ ...f, nombre: e.target.value }))}
+                      placeholder="Ej: Luis Carlos"
+                      className={inputClass}
+                    />
+                  </div>
 
-              {/* Municipio */}
-              <div>
-                <label className="text-sm font-medium text-zinc-700 mb-1.5 block">Municipio</label>
-                <input
-                  type="text"
-                  value={formEditar.municipio}
-                  onChange={e => setFormEditar(f => ({ ...f, municipio: e.target.value }))}
-                  placeholder="Municipio"
-                  className="w-full bg-zinc-100 border border-transparent focus:border-[#9e2016] focus:ring-2 focus:ring-[#9e2016]/20 rounded-xl px-4 py-3 outline-none transition-all duration-200 font-['Inter'] text-[14px] text-zinc-900 placeholder:text-zinc-400"
-                />
-              </div>
+                  <div>
+                    <label className={labelClass}>Ubicación (Municipio)</label>
+                    <CustomSelect
+                      value={formEditar.municipio}
+                      onChange={(val) => setFormEditar(f => ({ ...f, municipio: val }))}
+                      options={MUNICIPIOS}
+                    />
+                  </div>
 
-              {/* Dirección */}
-              <div>
-                <label className="text-sm font-medium text-zinc-700 mb-1.5 block">Dirección</label>
-                <input
-                  type="text"
-                  value={formEditar.direccion}
-                  onChange={e => setFormEditar(f => ({ ...f, direccion: e.target.value }))}
-                  placeholder="Dirección"
-                  className="w-full bg-zinc-100 border border-transparent focus:border-[#9e2016] focus:ring-2 focus:ring-[#9e2016]/20 rounded-xl px-4 py-3 outline-none transition-all duration-200 font-['Inter'] text-[14px] text-zinc-900 placeholder:text-zinc-400"
-                />
-              </div>
+                  <div>
+                    <label className={labelClass}>Dirección</label>
+                    <input
+                      name="direccion"
+                      value={formEditar.direccion}
+                      onChange={e => setFormEditar(f => ({ ...f, direccion: e.target.value }))}
+                      placeholder="Calle xx #xx-xx"
+                      className={inputClass}
+                    />
+                  </div>
 
-              {/* Teléfono */}
-              <div>
-                <label className="text-sm font-medium text-zinc-700 mb-1.5 block">Teléfono</label>
-                <input
-                  type="tel"
-                  value={formEditar.telefono}
-                  onChange={e => setFormEditar(f => ({ ...f, telefono: e.target.value }))}
-                  placeholder="Teléfono"
-                  className="w-full bg-zinc-100 border border-transparent focus:border-[#9e2016] focus:ring-2 focus:ring-[#9e2016]/20 rounded-xl px-4 py-3 outline-none transition-all duration-200 font-['Inter'] text-[14px] text-zinc-900 placeholder:text-zinc-400"
-                />
-              </div>
+                  <div>
+                    <label className={labelClass}>Teléfono</label>
+                    <input
+                      name="telefono"
+                      value={formEditar.telefono}
+                      onChange={e => setFormEditar(f => ({ ...f, telefono: e.target.value }))}
+                      placeholder="+57 ..."
+                      className={inputClass}
+                    />
+                  </div>
 
-              {/* Placa del carrito */}
-              <div>
-                <label className="text-sm font-medium text-zinc-700 mb-1.5 block">Placa del Carrito</label>
-                <input
-                  type="text"
-                  value={formEditar.placa}
-                  onChange={e => setFormEditar(f => ({ ...f, placa: e.target.value }))}
-                  placeholder="Ej: ABC-123"
-                  className="w-full bg-zinc-100 border border-transparent focus:border-[#9e2016] focus:ring-2 focus:ring-[#9e2016]/20 rounded-xl px-4 py-3 outline-none transition-all duration-200 font-['Inter'] text-[14px] text-zinc-900 placeholder:text-zinc-400"
-                />
-              </div>
-
-              {/* Contacto de emergencia */}
-              <div className="pt-1">
-                <p className="text-[11px] uppercase tracking-wider font-bold font-['Inter'] text-[#a8a29e] mb-3">
-                  Contacto de Emergencia
-                </p>
-                <div className="space-y-3">
-                  <input
-                    type="text"
-                    value={formEditar.contactoEmergenciaNombre}
-                    onChange={e => setFormEditar(f => ({ ...f, contactoEmergenciaNombre: e.target.value }))}
-                    placeholder="Nombre del contacto"
-                    className="w-full bg-zinc-100 border border-transparent focus:border-[#9e2016] focus:ring-2 focus:ring-[#9e2016]/20 rounded-xl px-4 py-3 outline-none transition-all duration-200 font-['Inter'] text-[14px] text-zinc-900 placeholder:text-zinc-400"
-                  />
-                  <input
-                    type="text"
-                    value={formEditar.contactoEmergenciaParentesco}
-                    onChange={e => setFormEditar(f => ({ ...f, contactoEmergenciaParentesco: e.target.value }))}
-                    placeholder="Parentesco (ej. Madre, Esposo)"
-                    className="w-full bg-zinc-100 border border-transparent focus:border-[#9e2016] focus:ring-2 focus:ring-[#9e2016]/20 rounded-xl px-4 py-3 outline-none transition-all duration-200 font-['Inter'] text-[14px] text-zinc-900 placeholder:text-zinc-400"
-                  />
+                  <div>
+                    <label className={labelClass}>Placa del Carrito</label>
+                    <input
+                      name="placa"
+                      value={formEditar.placa}
+                      onChange={e => setFormEditar(f => ({ ...f, placa: e.target.value }))}
+                      placeholder="Ej: ABC-123"
+                      className={inputClass}
+                    />
+                  </div>
                 </div>
-              </div>
 
-              {/* Talla de Uniforme */}
-              <div>
-                <label className="text-sm font-medium text-zinc-700 mb-1.5 block">Talla de Uniforme</label>
-                <input
-                  type="text"
-                  value={formEditar.tallaUniforme}
-                  onChange={e => setFormEditar(f => ({ ...f, tallaUniforme: e.target.value }))}
-                  placeholder="XS, S, M, L, XL…"
-                  className="w-full bg-zinc-100 border border-transparent focus:border-[#9e2016] focus:ring-2 focus:ring-[#9e2016]/20 rounded-xl px-4 py-3 outline-none transition-all duration-200 font-['Inter'] text-[14px] text-zinc-900 placeholder:text-zinc-400"
-                />
-              </div>
+                {/* Columna derecha */}
+                <div className="flex flex-col gap-5">
+                  <div>
+                    <label className={labelClass}>Contacto de Emergencia</label>
+                    <input
+                      name="contactoEmergenciaNombre"
+                      value={formEditar.contactoEmergenciaNombre}
+                      onChange={e => setFormEditar(f => ({ ...f, contactoEmergenciaNombre: e.target.value }))}
+                      placeholder="Nombre completo"
+                      className={inputClass}
+                    />
+                    <input
+                      name="contactoEmergenciaParentesco"
+                      value={formEditar.contactoEmergenciaParentesco}
+                      onChange={e => setFormEditar(f => ({ ...f, contactoEmergenciaParentesco: e.target.value }))}
+                      placeholder="Parentesco (Ej: Esposa)"
+                      className={`${inputClass} mt-2`}
+                    />
+                  </div>
 
-              {/* Foto */}
-              <div>
-                <label className="text-sm font-medium text-zinc-700 mb-1.5 block">Foto</label>
-                <label className="flex items-center gap-3 bg-zinc-100 hover:bg-zinc-200 rounded-xl px-4 py-3 cursor-pointer transition-all duration-200 group">
-                  <svg width="16" height="16" fill="none" viewBox="0 0 16 16" className="text-[#a8a29e] group-hover:text-[#9e2016] transition-colors shrink-0">
-                    <rect x="1" y="3" width="14" height="10" rx="2" stroke="currentColor" strokeWidth="1.2"/>
-                    <circle cx="8" cy="8" r="2.5" stroke="currentColor" strokeWidth="1.2"/>
-                    <path d="M5.5 3L6.5 1.5h3L10.5 3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                  <span className="font-['Inter'] text-[13px] text-zinc-500 group-hover:text-zinc-700 transition-colors truncate">
-                    {formEditar.foto ? formEditar.foto.name : 'Seleccionar foto…'}
-                  </span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={e => {
-                      const file = e.target.files?.[0] ?? null;
-                      setFormEditar(f => ({ ...f, foto: file }));
-                      setFotoPreview(file ? URL.createObjectURL(file) : null);
-                    }}
-                  />
-                </label>
-                {fotoPreview && (
-                  <img
-                    src={fotoPreview}
-                    alt="Vista previa"
-                    className="mt-2 w-16 h-16 rounded-xl object-cover border border-zinc-200"
-                  />
-                )}
+                  <div>
+                    <label className={labelClass}>Talla de Uniforme</label>
+                    <div className="flex gap-2">
+                      {TALLAS.map(t => (
+                        <button
+                          key={t}
+                          type="button"
+                          onClick={() => setFormEditar(f => ({ ...f, tallaUniforme: t }))}
+                          className={`flex-1 py-2.5 rounded-[8px] font-['Manrope'] font-semibold text-[15px] cursor-pointer transition-colors ${
+                            formEditar.tallaUniforme === t
+                              ? 'bg-[#9e2016] text-white'
+                              : 'bg-[#f6f3f3] text-[#1b1b1c] hover:bg-[#e7e5e4]'
+                          }`}
+                        >
+                          {t}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className={labelClass}>Fotografía del Perfil</label>
+                    <label className="border-2 border-dashed border-[#e7e5e4] rounded-[12px] p-5 flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-[#9e2016] transition-colors min-h-[100px]">
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg"
+                        className="hidden"
+                        ref={inputFileEditRef}
+                        onChange={e => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            setFormEditar(f => ({ ...f, foto: file }));
+                            setFotoPreview(URL.createObjectURL(file));
+                          }
+                        }}
+                      />
+                      {fotoPreview ? (
+                        <img src={fotoPreview} alt="preview"
+                          className="w-[72px] h-[72px] rounded-full object-cover" />
+                      ) : comercianteLocal.fotoUrl ? (
+                        <img src={comercianteLocal.fotoUrl} alt="foto actual"
+                          className="w-[72px] h-[72px] rounded-full object-cover opacity-60" />
+                      ) : (
+                        <>
+                          <svg width="24" height="24" fill="none" viewBox="0 0 24 24" className="text-[#a8a29e]">
+                            <rect x="2" y="6" width="20" height="15" rx="2" stroke="currentColor" strokeWidth="1.5"/>
+                            <circle cx="12" cy="13.5" r="3.5" stroke="currentColor" strokeWidth="1.5"/>
+                            <path d="M8 6V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v1" stroke="currentColor" strokeWidth="1.5"/>
+                            <path d="M16 3v3M14 1h4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+                          </svg>
+                          <span className="font-['Inter'] font-bold text-[11px] uppercase tracking-[0.5px] text-[#a8a29e]">
+                            Subir Archivo
+                          </span>
+                        </>
+                      )}
+                    </label>
+                  </div>
+
+                  {/* Estado del comerciante */}
+                  <div>
+                    <label className={labelClass}>Estado del Comerciante</label>
+                    <div className="flex items-center gap-3 bg-[#f6f3f3] rounded-[10px] px-4 py-3.5">
+                      <button
+                        type="button"
+                        onClick={() => setFormEditar(f => ({ ...f, activo: !f.activo }))}
+                        className={`relative inline-flex items-center w-12 h-6 rounded-full transition-colors duration-200 cursor-pointer shrink-0 ${
+                          formEditar.activo ? 'bg-[#16a34a]' : 'bg-[#d6d3d1]'
+                        }`}
+                      >
+                        <span className={`inline-block w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${
+                          formEditar.activo ? 'translate-x-7' : 'translate-x-1'
+                        }`} />
+                      </button>
+                      <span className={`font-['Inter'] font-semibold text-[14px] ${
+                        formEditar.activo ? 'text-[#16a34a]' : 'text-[#a8a29e]'
+                      }`}>
+                        {formEditar.activo ? 'Comerciante Activo' : 'Comerciante Inactivo'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {/* Error */}
               {errorEditar && (
-                <p className="text-sm text-red-600 mt-1">{errorEditar}</p>
+                <div className="px-8 pb-2">
+                  <p className="font-['Inter'] text-[13px] text-[#dc2626]">{errorEditar}</p>
+                </div>
               )}
-            </form>
 
-            {/* Footer modal */}
-            <div className="flex gap-3 px-6 py-4 border-t border-zinc-100 shrink-0">
-              <button
-                type="button"
-                onClick={() => setModalEditar(false)}
-                disabled={guardando}
-                className="flex-1 bg-zinc-200 hover:bg-zinc-300 text-zinc-900 font-['Manrope'] font-bold text-[14px] rounded-xl py-2.5 transition-all duration-200 active:scale-95 disabled:opacity-50 cursor-pointer"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={submitEditar}
-                disabled={guardando}
-                className="flex-1 bg-[#9e2016] hover:bg-[#7c0202] text-white font-['Manrope'] font-bold text-[14px] rounded-xl py-2.5 transition-all duration-200 active:scale-95 shadow-lg shadow-red-700/20 disabled:opacity-50 cursor-pointer"
-              >
-                {guardando ? 'Guardando…' : 'Guardar'}
-              </button>
-            </div>
+              {/* Footer */}
+              <div className="px-8 pb-7 flex gap-4">
+                <button
+                  type="button"
+                  onClick={handleCloseModal}
+                  disabled={guardando}
+                  className="flex-1 bg-[#f6f3f3] hover:bg-[#e7e5e4] disabled:opacity-50 text-[#57534e] font-['Manrope'] font-semibold text-[16px] rounded-[10px] px-8 py-3.5 cursor-pointer transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={guardando}
+                  className="flex-[2] bg-[#9e2016] hover:bg-[#c0392b] disabled:opacity-70 text-white font-['Manrope'] font-bold text-[16px] rounded-[10px] px-8 py-3.5 cursor-pointer transition-colors"
+                >
+                  {guardando ? 'Guardando...' : 'Guardar Cambios'}
+                </button>
+              </div>
+            </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </AppLayout>
   );
@@ -711,14 +782,12 @@ export default function InformacionComerciante() {
 // ── Sub-componente reutilizable para ícono + texto en la tarjeta de perfil ──
 function DataItem({ icon, label }) {
   const icons = {
-    // Municipio — ícono de mapa con pin (rojo)
     map: (
       <svg width="14" height="14" fill="none" viewBox="0 0 14 14" className="text-[#9e2016] shrink-0">
         <path d="M7 1a4 4 0 0 1 4 4c0 3.5-4 8-4 8S3 8.5 3 5a4 4 0 0 1 4-4z" stroke="currentColor" strokeWidth="1.2"/>
         <circle cx="7" cy="5" r="1.2" fill="currentColor"/>
       </svg>
     ),
-    // Dirección — ícono de pin gris
     pin: (
       <svg width="14" height="14" fill="none" viewBox="0 0 14 14" className="text-[#78716c] shrink-0">
         <path d="M7 1a4 4 0 0 1 4 4c0 3.5-4 8-4 8S3 8.5 3 5a4 4 0 0 1 4-4z" stroke="currentColor" strokeWidth="1.2"/>
