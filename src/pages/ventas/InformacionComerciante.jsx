@@ -7,8 +7,9 @@ import AppLayout from '../../components/AppLayout';
 import CustomSelect from '../../components/ui/CustomSelect';
 import { getPlanillasComerciante, actualizarComerciante, cambiarEstadoComerciante } from '../../services/ventasService';
 
-const MUNICIPIOS  = ['Ocaña', 'Cúcuta', 'Villa del Rosario', 'Los Patios', 'El Zulia', 'Tibú', 'Otro'];
-const TALLAS      = ['S', 'M', 'L', 'XL'];
+const MUNICIPIOS      = ['Ocaña', 'Cúcuta', 'Villa del Rosario', 'Los Patios', 'El Zulia', 'Tibú', 'Otro'];
+const TALLAS          = ['S', 'M', 'L', 'XL'];
+const TIPOS_DOCUMENTO = ['CC', 'PPT'];
 const MESES       = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
 const DIAS_SEMANA = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
 const DIAS_CORTOS = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
@@ -115,6 +116,9 @@ export default function InformacionComerciante() {
       direccion:                    c.direccion ?? '',
       telefono:                     c.telefono ?? '',
       placa:                        c.placa ?? '',
+      documento:                    c.documento ?? '',
+      tipoDocumento:                c.tipoDocumento ?? 'CC',
+      eps:                          c.eps ?? '',
       contactoEmergenciaNombre:     c.contactoEmergenciaNombre   ?? c.contacto_emergencia_nombre   ?? '',
       contactoEmergenciaParentesco: c.contactoEmergenciaParentesco ?? c.contacto_emergencia_parentesco ?? '',
       tallaUniforme:                c.tallaUniforme ?? c.talla_uniforme ?? 'M',
@@ -150,6 +154,9 @@ export default function InformacionComerciante() {
       if (formEditar.direccion)                    fd.append('direccion', formEditar.direccion);
       if (formEditar.telefono)                     fd.append('telefono', formEditar.telefono);
       fd.append('placa', formEditar.placa ?? '');
+      if (formEditar.documento)                    fd.append('documento', formEditar.documento);
+      if (formEditar.tipoDocumento)                fd.append('tipoDocumento', formEditar.tipoDocumento);
+      if (formEditar.eps)                          fd.append('eps', formEditar.eps);
       if (formEditar.contactoEmergenciaNombre)     fd.append('contactoEmergenciaNombre', formEditar.contactoEmergenciaNombre);
       if (formEditar.contactoEmergenciaParentesco) fd.append('contactoEmergenciaParentesco', formEditar.contactoEmergenciaParentesco);
       if (formEditar.tallaUniforme)                fd.append('tallaUniforme', formEditar.tallaUniforme);
@@ -280,6 +287,12 @@ export default function InformacionComerciante() {
                   : <span />}
                 {comercianteLocal.placa
                   ? <DataItem icon="pin" label={`Placa del Carrito: ${comercianteLocal.placa}`} />
+                  : <span />}
+                {comercianteLocal.documento
+                  ? <DataItem icon="doc" label={`Documento: ${comercianteLocal.tipoDocumento ? `(${comercianteLocal.tipoDocumento}) ` : ''}${comercianteLocal.documento}`} />
+                  : <span />}
+                {comercianteLocal.eps
+                  ? <DataItem icon="health" label={`EPS: ${comercianteLocal.eps}`} />
                   : <span />}
               </div>
 
@@ -640,6 +653,48 @@ export default function InformacionComerciante() {
                       className={inputClass}
                     />
                   </div>
+
+                  <div>
+                    <label className={labelClass}>Documento</label>
+                    <input
+                      name="documento"
+                      value={formEditar.documento}
+                      onChange={e => setFormEditar(f => ({ ...f, documento: e.target.value }))}
+                      placeholder="Número de documento"
+                      className={inputClass}
+                    />
+                  </div>
+
+                  <div>
+                    <label className={labelClass}>Tipo de Documento</label>
+                    <div className="flex gap-2">
+                      {TIPOS_DOCUMENTO.map(t => (
+                        <button
+                          key={t}
+                          type="button"
+                          onClick={() => setFormEditar(f => ({ ...f, tipoDocumento: t }))}
+                          className={`flex-1 py-2.5 rounded-[8px] font-['Manrope'] font-semibold text-[15px] cursor-pointer transition-colors ${
+                            formEditar.tipoDocumento === t
+                              ? 'bg-[#9e2016] text-white'
+                              : 'bg-[#f6f3f3] text-[#1b1b1c] hover:bg-[#e7e5e4]'
+                          }`}
+                        >
+                          {t}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className={labelClass}>EPS</label>
+                    <input
+                      name="eps"
+                      value={formEditar.eps}
+                      onChange={e => setFormEditar(f => ({ ...f, eps: e.target.value }))}
+                      placeholder="Ej: Sura, Nueva EPS..."
+                      className={inputClass}
+                    />
+                  </div>
                 </div>
 
                 {/* Columna derecha */}
@@ -804,6 +859,18 @@ function DataItem({ icon, label }) {
       <svg width="14" height="14" fill="none" viewBox="0 0 14 14" className="text-[#78716c] shrink-0">
         <circle cx="7" cy="4.5" r="2.5" stroke="currentColor" strokeWidth="1.2"/>
         <path d="M2 13c0-2.761 2.239-5 5-5s5 2.239 5 5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+      </svg>
+    ),
+    doc: (
+      <svg width="14" height="14" fill="none" viewBox="0 0 14 14" className="text-[#78716c] shrink-0">
+        <rect x="2.5" y="1.5" width="9" height="11" rx="1.5" stroke="currentColor" strokeWidth="1.2"/>
+        <path d="M5 5h4M5 7.5h4M5 10h2.5" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round"/>
+      </svg>
+    ),
+    health: (
+      <svg width="14" height="14" fill="none" viewBox="0 0 14 14" className="text-[#78716c] shrink-0">
+        <path d="M7 2.5C5.5 1 3 1.5 2 3.5c-1 2 0 4 5 7 5-3 6-5 5-7-1-2-3.5-2.5-5-1z" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="M7 5v4M5 7h4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
       </svg>
     ),
   };
