@@ -141,7 +141,7 @@ export default function ReportePedido() {
             );
             // Hay discrepancia si algún ítem tiene cantidades distintas
             const tieneDiscrepancia = (det.items ?? []).some(
-              item => (item.cantidadRecibida ?? 0) !== (item.cantidadSolicitada ?? 0)
+              item => (item.cantidadRecibida ?? 0) !== ((item.cantidadCajas ?? 0) + (item.cantidadUnidades ?? 0))
             );
             detallesMap[p.id] = { totalRecibido, tieneDiscrepancia };
           } catch { /* ignorar errores individuales */ }

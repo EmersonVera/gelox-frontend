@@ -6,6 +6,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import AppLayout from '../../components/AppLayout';
 import {
   getProductosEnStock,
+  getDatosPlanillaImpresion,
   getPlanillasComerciante,
   registrarDespacho,
   liquidarPlanilla,
@@ -71,10 +72,12 @@ export default function PlanillaDiaria() {
       setLoading(true);
       setErrorMsg('');
       try {
-        const lista = await getPlanillasComerciante(comerciante.id, hoyISO(), hoyISO());
+        const lista = await getPlanillasComerciante(comerciante.id);
         if (!vivo) return;
 
-        const planillaHoy = Array.isArray(lista) && lista.length > 0 ? lista[0] : null;
+        const planillaHoy = Array.isArray(lista)
+          ? lista.find(p => p.fecha === hoyISO())
+          : null;
 
         if (!planillaHoy) {
           const productos = await getProductosEnStock();
@@ -91,23 +94,38 @@ export default function PlanillaDiaria() {
           );
           setEstadoPlanilla('NUEVA');
         } else if (planillaHoy.cerrada) {
-          setPlanillaId(planillaHoy.planillaId ?? planillaHoy.id);
+          setPlanillaId(planillaHoy.planillaId);
           setEstadoPlanilla('CERRADO');
         } else {
-          setPlanillaId(planillaHoy.planillaId ?? planillaHoy.id);
-          const rawItems = planillaHoy.items ?? planillaHoy.productos ?? [];
-          setFilas(
-            rawItems.map(it => ({
-              productoId: it.productoId,
-              detalleId:  it.id ?? it.detalleId,
-              nombre:     it.nombre ?? it.productoNombre ?? '—',
-              precio:     Number(it.precioVenta ?? it.precioUnitario ?? 0),
-              disponible: Number(it.unidadesDespachadas ?? it.unidades ?? 0),
-              salida:     Number(it.unidadesDespachadas ?? it.unidades ?? 0),
-              entrada:    0,
-            }))
-          );
+          setPlanillaId(planillaHoy.planillaId);
           setEstadoPlanilla('DESPACHADO');
+          try {
+            const detalle = await getDatosPlanillaImpresion(planillaHoy.planillaId);
+            if (!vivo) return;
+            const rawItems = detalle?.items ?? detalle?.detalles ?? detalle?.productos ?? [];
+            const agrupado = {};
+            rawItems.forEach(it => {
+              const pid = it.productoId;
+              if (!agrupado[pid]) {
+                agrupado[pid] = {
+                  productoId: pid,
+                  detalleIds: [],
+                  nombre:     it.productoNombre ?? it.nombre ?? '—',
+                  precio:     Number(it.precioVenta ?? it.precioUnitario ?? 0),
+                  disponible: 0,
+                  salida:     0,
+                  entrada:    0,
+                };
+              }
+              agrupado[pid].detalleIds.push(it.id ?? it.detalleId);
+              agrupado[pid].disponible += Number(it.unidadesDespachadas ?? it.unidades ?? 0);
+              agrupado[pid].salida     += Number(it.unidadesDespachadas ?? it.unidades ?? 0);
+            });
+            console.log('✅ agrupado:', JSON.stringify(Object.values(agrupado).map(f => ({ productoId: f.productoId, detalleIds: f.detalleIds })), null, 2));
+            setFilas(Object.values(agrupado));
+          } catch {
+            if (vivo) setErrorMsg('No se pudieron cargar los detalles del despacho.');
+          }
         }
       } catch {
         if (vivo) setErrorMsg('No se pudieron cargar los datos. Intenta de nuevo.');
@@ -174,35 +192,40 @@ export default function PlanillaDiaria() {
         unidades:       Number(f.salida) || 0,
         precioUnitario: f.precio,
       }));
+      const totalGanancia = items.reduce(
+        (acc, it) => acc + it.unidades * it.precioUnitario, 0
+      );
       const result = await registrarDespacho({
         comercianteId: comerciante.id,
         fecha:         hoyISO(),
         items,
+        totalGanancia,
       });
-      setPlanillaId(result.id ?? result.planillaId);
-      // Reconstruir filas desde la respuesta del despacho para obtener detalleId
-      const resultItems = result.items ?? result.detalles ?? [];
-      if (resultItems.length > 0) {
-        setFilas(
-          resultItems.map(it => ({
-            productoId: it.productoId,
-            detalleId:  it.id ?? it.detalleId,
-            nombre:     it.nombre ?? it.productoNombre ?? '—',
-            precio:     Number(it.precioVenta ?? it.precioUnitario ?? 0),
-            disponible: Number(it.unidadesDespachadas ?? it.unidades ?? 0),
-            salida:     Number(it.unidadesDespachadas ?? it.unidades ?? 0),
-            entrada:    0,
-          }))
-        );
-      } else {
-        // Fallback: mantener las filas con salida > 0
-        setFilas(prev =>
-          prev
-            .filter(f => Number(f.salida) > 0)
-            .map(f => ({ ...f, disponible: Number(f.salida), entrada: 0 }))
-        );
-      }
+      const nuevoPlanillaId = result.id ?? result.planillaId;
+      setPlanillaId(nuevoPlanillaId);
       setEstadoPlanilla('DESPACHADO');
+      // Cargar ítems desde imprimir para obtener los detalleIds reales
+      const detalle = await getDatosPlanillaImpresion(nuevoPlanillaId);
+      const rawItems = detalle?.items ?? detalle?.detalles ?? detalle?.productos ?? [];
+      const agrupado = {};
+      rawItems.forEach(it => {
+        const pid = it.productoId;
+        if (!agrupado[pid]) {
+          agrupado[pid] = {
+            productoId: pid,
+            detalleIds: [],
+            nombre:     it.productoNombre ?? it.nombre ?? '—',
+            precio:     Number(it.precioVenta ?? it.precioUnitario ?? 0),
+            disponible: 0,
+            salida:     0,
+            entrada:    0,
+          };
+        }
+        agrupado[pid].detalleIds.push(it.id ?? it.detalleId);
+        agrupado[pid].disponible += Number(it.unidadesDespachadas ?? it.unidades ?? 0);
+        agrupado[pid].salida     += Number(it.unidadesDespachadas ?? it.unidades ?? 0);
+      });
+      setFilas(Object.values(agrupado));
     } catch (e) {
       setErrorMsg(e?.response?.data?.mensaje ?? 'Error al registrar el despacho. Intenta de nuevo.');
     } finally {
@@ -215,10 +238,18 @@ export default function PlanillaDiaria() {
     setEnviando(true);
     setErrorMsg('');
     try {
-      const items = filas.map(f => ({
-        detalleId:         f.detalleId,
-        unidadesDevueltas: Number(f.entrada) || 0,
-      }));
+      // Si la fila tiene múltiples detalleIds (agrupados), poner todas las
+      // devoluciones en el primero y 0 en el resto
+      const items = filas.flatMap(f => {
+        const devueltas = Number(f.entrada) || 0;
+        const ids = f.detalleIds?.length ? f.detalleIds : [f.detalleId];
+        return ids.map((id, i) => ({
+          detalleId:         id,
+          unidadesDevueltas: i === 0 ? devueltas : 0,
+        }));
+      });
+      console.log('🧾 filas:', JSON.stringify(filas.map(f => ({ productoId: f.productoId, detalleId: f.detalleId, detalleIds: f.detalleIds })), null, 2));
+      console.log('📤 items liquidar:', JSON.stringify(items, null, 2));
       await liquidarPlanilla(planillaId, items);
       navigate(-1);
     } catch (e) {
@@ -255,10 +286,7 @@ export default function PlanillaDiaria() {
     return (
       <AppLayout>
         <div className="flex flex-col gap-4 animate-fade-in-up">
-          <p className="font-['Inter'] text-[11px] font-bold uppercase tracking-[0.8px] text-[#a8a29e]">
-            GESTIÓN DE DISTRIBUCIÓN{' '}
-            <span className="text-[#9e2016]">&gt; CIERRE DIARIO</span>
-          </p>
+          
           <div className="flex items-center justify-center py-16">
             <div className="bg-white border border-[#f5f5f4] rounded-2xl shadow-sm p-8 w-full max-w-md text-center flex flex-col items-center gap-5">
               <div className="w-14 h-14 rounded-full bg-emerald-100 flex items-center justify-center">
@@ -294,11 +322,18 @@ export default function PlanillaDiaria() {
     <AppLayout>
       <div className="flex flex-col gap-5 animate-fade-in-up">
 
-        {/* ── Breadcrumb ── */}
-        <p className="font-['Inter'] text-[11px] font-bold uppercase tracking-[0.8px] text-[#a8a29e]">
-          GESTIÓN DE DISTRIBUCIÓN{' '}
-          <span className="text-[#9e2016]">&gt; CIERRE DIARIO</span>
-        </p>
+        {/* ── Volver al comerciante ── */}
+        <button
+          onClick={() => navigate(`/ventas/comerciantes/${comerciante.id}/informacion`, { state: { comerciante } })}
+          className="flex items-center gap-1.5 text-[#78716c] hover:text-[#1b1b1c] transition-colors w-fit font-['Inter'] text-[13px] cursor-pointer"
+        >
+          <svg width="16" height="16" fill="none" viewBox="0 0 16 16">
+            <path d="M10 12L6 8l4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          Volver a {comerciante.nombre}
+        </button>
+
+        
 
         {/* ── Header ── */}
         <div className="flex items-start justify-between gap-4 flex-wrap">

@@ -34,8 +34,7 @@ export async function registrarDespacho(payload) {
 }
 
 export async function liquidarPlanilla(planillaId, items) {
-  // body: { items: [{ productoId, unidadesDevueltas }] }
-  const { data } = await api.post(`/api/planillas/${planillaId}/liquidar`, { items });
+  const { data } = await api.post(`/api/planillas/${planillaId}/liquidar`, { devoluciones: items });
   return data;
 }
 
@@ -75,6 +74,14 @@ export async function getPlanillaDetalle(comercianteId, planillaId) {
 // RF36/RF37 — Datos formateados para impresión
 export async function imprimirPlanilla(planillaId) {
   const { data } = await api.get(`/api/planillas/${planillaId}/imprimir`);
+  return data;
+}
+
+// RF38 — Actualizar información de un comerciante (multipart con foto opcional)
+export async function actualizarComerciante(id, formData) {
+  const { data } = await api.put(`/api/comerciantes/${id}`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
   return data;
 }
 

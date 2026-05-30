@@ -1,4 +1,4 @@
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../api/axiosConfig';
 
@@ -74,7 +74,7 @@ function ArrowLeftIcon() {
 
 /* ─── Nav Links ── */
 const LINKS = [
-  { icon: <TruckIcon />,    label: 'Ventas',       to: '/ventas/pedidos-ventanilla' },
+  { icon: <TruckIcon />,    label: 'Ventas',       to: '/ventas/pedidos-ventanilla', extraPaths: ['/ventas/pedidos-rurales'] },
   { icon: <BarChartIcon />, label: 'Reportes',     to: '/ventas/reportes' },
   { icon: <UsersIcon />,    label: 'Comerciantes', to: '/ventas/comerciantes' },
 ];
@@ -85,6 +85,7 @@ const navItemBase =
 export default function SidebarVentas({ open, onClose }) {
   const { perfil, logout, rol } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const isAdmin = rol === 'ADMINISTRADOR';
 
@@ -163,17 +164,20 @@ export default function SidebarVentas({ open, onClose }) {
 
       {/* Navigation */}
       <nav className="flex-1 px-4 py-2 flex flex-col gap-1 overflow-y-auto">
-        {LINKS.map(({ icon, label, to }) => (
-          <NavLink
-            key={to}
-            to={to}
-            className={linkClass}
-            onClick={handleNavClick}
-          >
-            <span className="shrink-0">{icon}</span>
-            {label}
-          </NavLink>
-        ))}
+        {LINKS.map(({ icon, label, to, extraPaths }) => {
+          const isExtraActive = extraPaths?.some(p => location.pathname.startsWith(p));
+          return (
+            <NavLink
+              key={to}
+              to={to}
+              className={({ isActive }) => linkClass({ isActive: isActive || isExtraActive })}
+              onClick={handleNavClick}
+            >
+              <span className="shrink-0">{icon}</span>
+              {label}
+            </NavLink>
+          );
+        })}
       </nav>
 
       {/* Bottom section */}

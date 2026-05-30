@@ -139,9 +139,9 @@ export default function DetallePedido() {
             </div>
           ) : (
             pedido.items.map(item => {
-              // Campos del backend: productoId, codigoTecnico, nombre, cantidadSolicitada, cantidadRecibida
-              const recibida   = item.cantidadRecibida ?? 0;
-              const solicitada = item.cantidadSolicitada ?? 0;
+              // Campos del backend: productoId, codigoTecnico, nombre, cantidadCajas, cantidadUnidades, cantidadRecibida
+              const recibida   = item.cantidadRecibida  ?? 0;
+              const solicitada = (item.cantidadCajas ?? 0) + (item.cantidadUnidades ?? 0);
               const dif        = recibida - solicitada;
               // Solo mostrar estado de comparación si el pedido ya fue recibido
               const mostrarComparacion = pedido.estado === 'RECIBIDO' || pedido.estado === 'CANCELADO';
@@ -171,7 +171,7 @@ export default function DetallePedido() {
                   </span>
                   {/* Cant. pedida */}
                   <span className="font-['Inter'] font-medium text-[14px] text-[#1b1b1c]">
-                    {solicitada}
+                    {item.cantidadCajas ?? 0} Cj / {item.cantidadUnidades ?? 0} Un
                   </span>
                   {/* Cant. recibida */}
                   <span className="font-['Inter'] font-medium text-[14px] text-[#1b1b1c]">
