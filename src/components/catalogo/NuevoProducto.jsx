@@ -64,6 +64,7 @@ export default function NuevoProducto({ onClose, onSuccess }) {
       fd.append('precioCosto', data.precioCosto ?? 0);
       if (data.descripcion)         fd.append('descripcion', data.descripcion);
       if (data.stockMinimo != null) fd.append('stockMinimo', data.stockMinimo);
+      if (data.stockMedio  != null) fd.append('stockMedio',  data.stockMedio);
       if (imagen) fd.append('imagen', imagen); // ← campo "imagen", no "foto"
 
       const res = await api.post('/api/catalogo/productos', fd);
