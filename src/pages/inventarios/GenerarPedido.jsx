@@ -12,6 +12,7 @@ export default function GenerarPedido() {
   const { token } = useAuth();
   const [categoriaActiva, setCategoriaActiva] = useState('Todos');
   const [busqueda, setBusqueda]               = useState('');
+  const [pageProd, setPageProd]               = useState(0);
   const [productos, setProductos] = useState([]);
   const [carrito, setCarrito] = useState([]); // [{ producto, cajas, unidades }]
   const [cargando, setCargando] = useState(true);
@@ -56,6 +57,7 @@ export default function GenerarPedido() {
   }, [token, categoriaActiva]);
 
   useEffect(() => { fetchProductos(); }, [fetchProductos]);
+  useEffect(() => setPageProd(0), [busqueda, categoriaActiva]);
 
   const toggleSeleccionar = (p) => {
     const enCarrito = carrito.find(i => i.producto.id === p.id);
@@ -206,15 +208,17 @@ export default function GenerarPedido() {
             {/* Grid de productos */}
             {(() => {
               const productosFiltrados = busqueda
-                ? productos.filter(p => p.nombre?.toLowerCase().includes(busqueda.toLowerCase()))
+                ? productos.filter(p =>
+                    p.nombre?.toLowerCase().includes(busqueda.toLowerCase()) ||
+                    p.codigoTecnico?.toLowerCase().includes(busqueda.toLowerCase()))
                 : productos;
+              const totalPags = Math.ceil(productosFiltrados.length / 9);
+              const pagina    = productosFiltrados.slice(pageProd * 9, (pageProd + 1) * 9);
+
               return cargando ? (
               <div className="grid grid-cols-3 gap-4">
                 {[1, 2, 3, 4, 5, 6].map(i => (
-                  <div
-                    key={i}
-                    className="bg-white rounded-[12px] h-[320px] animate-pulse border border-[#f5f5f4]"
-                  />
+                  <div key={i} className="bg-white rounded-[12px] h-[220px] animate-pulse border border-[#f5f5f4]" />
                 ))}
               </div>
             ) : productosFiltrados.length === 0 ? (
@@ -222,53 +226,56 @@ export default function GenerarPedido() {
                 {busqueda ? `Sin resultados para "${busqueda}"` : 'No hay productos en esta categoría.'}
               </p>
             ) : (
+              <>
               <div className="grid grid-cols-3 gap-4">
-                {productosFiltrados.map(p => {
-                  const enCarrito = !!carrito.find(i => i.producto.id === p.id);
+                {pagina.map(p => {
+                  const enCarrito  = !!carrito.find(i => i.producto.id === p.id);
+                  const stockBajo  = p.stockActual != null && p.stockMinimo != null && p.stockActual <= p.stockMinimo;
                   return (
                     <div
                       key={p.id}
                       className="bg-white rounded-[12px] border border-[#f5f5f4] overflow-hidden flex flex-col"
                     >
                       {/* Imagen */}
-                      <div className="h-[160px] bg-[#f6f3f3]">
-                        {p.imagenUrl || p.imagen_url
-                          ? (
-                            <img
-                              src={p.imagenUrl ?? p.imagen_url}
-                              alt={p.nombre}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-[#a8a29e] text-[12px]">
-                              Sin imagen
-                            </div>
-                          )
-                        }
+                      <div className="h-[130px] bg-[#f6f3f3] relative">
+                        {p.imagenUrl || p.imagen_url ? (
+                          <img
+                            src={p.imagenUrl ?? p.imagen_url}
+                            alt={p.nombre}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-[#a8a29e] text-[12px]">
+                            Sin imagen
+                          </div>
+                        )}
+                        {/* Badge stock */}
+                        {p.stockActual != null && (
+                          <span className={`absolute top-2 right-2 text-[10px] font-bold px-1.5 py-0.5 rounded-md leading-none ${
+                            stockBajo ? 'bg-red-100 text-red-700' : 'bg-[#f0fdf4] text-[#16a34a]'
+                          }`}>
+                            {p.stockActual}u
+                          </span>
+                        )}
                       </div>
 
                       {/* Contenido */}
-                      <div className="p-4 flex flex-col gap-2 flex-1">
-                        <div className="flex items-start justify-between gap-2">
-                          <span className="font-['Manrope'] font-semibold text-[15px] text-[#1b1b1c] leading-[20px]">
-                            {p.nombre}
-                          </span>
-                          <span className="bg-[#f6f3f3] text-[#57534e] font-['Inter'] font-medium text-[11px] uppercase px-2 py-0.5 rounded-full shrink-0">
-                            {p.categoria}
-                          </span>
-                        </div>
-                        <p className="font-['Inter'] font-normal text-[13px] text-[#78716c] leading-[18px] line-clamp-2 flex-1">
-                          {p.descripcion}
-                        </p>
+                      <div className="p-3 flex flex-col gap-1.5 flex-1">
+                        <span className="font-['Manrope'] font-semibold text-[14px] text-[#1b1b1c] leading-[18px] line-clamp-2">
+                          {p.nombre}
+                        </span>
+                        <span className="font-['Inter'] font-medium text-[11px] text-[#a8a29e] tracking-wide">
+                          {p.codigoTecnico}
+                        </span>
                         <button
                           onClick={() => toggleSeleccionar(p)}
-                          className={`flex items-center justify-center gap-2 border rounded-full px-4 py-2 font-['Inter'] font-semibold text-[13px] cursor-pointer transition-colors mt-1 ${
+                          className={`flex items-center justify-center gap-1.5 border rounded-full px-3 py-1.5 font-['Inter'] font-semibold text-[12px] cursor-pointer transition-colors mt-auto ${
                             enCarrito
                               ? 'bg-[#9e2016] border-[#9e2016] text-white hover:bg-[#c0392b] hover:border-[#c0392b]'
                               : 'border-[#e7e5e4] text-[#1b1b1c] hover:border-[#9e2016]'
                           }`}
                         >
-                          <span className="text-[16px] font-bold" style={{ color: enCarrito ? 'white' : '#9e2016' }}>
+                          <span style={{ color: enCarrito ? 'white' : '#9e2016' }}>
                             {enCarrito ? '−' : '+'}
                           </span>
                           {enCarrito ? 'Quitar' : 'Seleccionar'}
@@ -278,6 +285,28 @@ export default function GenerarPedido() {
                   );
                 })}
               </div>
+
+              {/* Paginación */}
+              {totalPags > 1 && (
+                <div className="flex items-center justify-between pt-2">
+                  <span className="font-['Inter'] text-[12px] text-[#a8a29e]">
+                    {pageProd * 9 + 1}–{Math.min((pageProd + 1) * 9, productosFiltrados.length)} de {productosFiltrados.length}
+                  </span>
+                  <div className="flex gap-1">
+                    <button
+                      onClick={() => setPageProd(p => p - 1)}
+                      disabled={pageProd === 0}
+                      className="w-8 h-8 border border-[#e7e5e4] rounded-[8px] flex items-center justify-center text-[#78716c] hover:bg-[#f6f3f3] disabled:opacity-30 disabled:cursor-not-allowed"
+                    >‹</button>
+                    <button
+                      onClick={() => setPageProd(p => p + 1)}
+                      disabled={pageProd >= totalPags - 1}
+                      className="w-8 h-8 border border-[#e7e5e4] rounded-[8px] flex items-center justify-center text-[#78716c] hover:bg-[#f6f3f3] disabled:opacity-30 disabled:cursor-not-allowed"
+                    >›</button>
+                  </div>
+                </div>
+              )}
+              </>
             );})()}
           </div>
 
@@ -343,7 +372,7 @@ export default function GenerarPedido() {
                             ✕
                           </button>
                         </div>
-                        {item.producto.unidadesPorCaja != null && (
+                        {item.producto.unidadesPorCaja != null ? (
                           <CantidadControl
                             label="Caja"
                             value={item.cajas}
@@ -352,15 +381,16 @@ export default function GenerarPedido() {
                             onChange={(v) => actualizarCantidad(item.producto.id, 'cajas', v)}
                             hasError={!!errItem}
                           />
+                        ) : (
+                          <CantidadControl
+                            label="Unidad"
+                            value={item.unidades}
+                            onMinus={() => actualizarCantidad(item.producto.id, 'unidades', item.unidades - 1)}
+                            onPlus={() => actualizarCantidad(item.producto.id, 'unidades', item.unidades + 1)}
+                            onChange={(v) => actualizarCantidad(item.producto.id, 'unidades', v)}
+                            hasError={!!errItem}
+                          />
                         )}
-                        <CantidadControl
-                          label="Unidad"
-                          value={item.unidades}
-                          onMinus={() => actualizarCantidad(item.producto.id, 'unidades', item.unidades - 1)}
-                          onPlus={() => actualizarCantidad(item.producto.id, 'unidades', item.unidades + 1)}
-                          onChange={(v) => actualizarCantidad(item.producto.id, 'unidades', v)}
-                          hasError={!!errItem}
-                        />
                       </div>
                       );
                     })}

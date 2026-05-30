@@ -76,7 +76,13 @@ export default function NuevoProducto({ onClose, onSuccess }) {
       onSuccess('Producto registrado correctamente.');
       handleClose();
     } catch (err) {
-      setErrorApi(err.message || 'No se pudo registrar el producto. Intenta de nuevo.');
+      const status = err?.response?.status;
+      const msg    = err?.response?.data?.mensaje ?? err?.response?.data?.message ?? '';
+      if (status === 409) {
+        setErrorApi(msg || 'Ya existe un producto con este código técnico.');
+      } else {
+        setErrorApi(msg || err.message || 'No se pudo registrar el producto. Intenta de nuevo.');
+      }
     } finally {
       setGuardando(false);
     }
