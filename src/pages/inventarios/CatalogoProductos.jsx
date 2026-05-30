@@ -373,24 +373,45 @@ export default function CatalogoProductos() {
         )}
 
         {/* Paginación */}
-        <div className="flex items-center justify-between pt-2">
-          <p className="font-['Inter'] font-normal text-[14px] text-[#78716c]">
-            Mostrando {productos.length} de {total} productos registrados
-          </p>
-          <div className="flex gap-1 items-center">
-            <PaginaBtn onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}>
-              ‹
-            </PaginaBtn>
-            {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => i + 1).map((n) => (
-              <PaginaBtn key={n} activo={n === page} onClick={() => setPage(n)}>
-                {n}
+        {!cargando && total > 0 && (
+          <div className="flex items-center justify-between pt-2 px-1">
+            <p className="font-['Inter'] text-sm text-zinc-500">
+              Mostrando {Math.min((page - 1) * PAGE_SIZE + 1, total)}–{Math.min(page * PAGE_SIZE, total)} de {total} productos
+            </p>
+            <div className="flex items-center gap-1">
+              <PaginaBtn onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}>
+                <ChevronLeftIcon />
               </PaginaBtn>
-            ))}
-            <PaginaBtn onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages}>
-              ›
-            </PaginaBtn>
+              {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
+                let pageNum;
+                if (totalPages <= 7) {
+                  pageNum = i + 1;
+                } else if (page <= 4) {
+                  pageNum = i + 1;
+                  if (i === 6) pageNum = totalPages;
+                } else if (page >= totalPages - 3) {
+                  pageNum = totalPages - 6 + i;
+                  if (i === 0) pageNum = 1;
+                } else {
+                  const mid = [1, page - 1, page, page + 1, totalPages];
+                  pageNum = mid[i] ?? i + 1;
+                }
+                return (
+                  <PaginaBtn
+                    key={`pg-${pageNum}-${i}`}
+                    activo={pageNum === page}
+                    onClick={() => setPage(pageNum)}
+                  >
+                    {pageNum}
+                  </PaginaBtn>
+                );
+              })}
+              <PaginaBtn onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages}>
+                <ChevronRightIcon />
+              </PaginaBtn>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Modales */}
         {modalNuevo && (
@@ -573,15 +594,31 @@ function ProductoCardInactivo({ producto, onActivar }) {
   );
 }
 
+function ChevronLeftIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="15 18 9 12 15 6" />
+    </svg>
+  );
+}
+
+function ChevronRightIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="9 18 15 12 9 6" />
+    </svg>
+  );
+}
+
 function PaginaBtn({ children, onClick, activo, disabled }) {
   return (
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`w-8 h-8 rounded-[8px] font-['Inter'] font-medium text-[14px] flex items-center justify-center cursor-pointer transition-colors ${
+      className={`w-8 h-8 rounded-full font-['Inter'] font-medium text-sm flex items-center justify-center transition-colors ${
         activo   ? 'bg-[#9e2016] text-white' :
-        disabled ? 'text-[#d6d3d1] cursor-not-allowed' :
-                   'text-[#78716c] hover:bg-[#f6f3f3]'
+        disabled ? 'text-zinc-300 cursor-not-allowed' :
+                   'text-zinc-600 hover:bg-zinc-100'
       }`}
     >
       {children}

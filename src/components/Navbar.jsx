@@ -53,6 +53,7 @@ function AlertasBell({ token }) {
   const [alertas, setAlertas]   = useState([]);
   const [open, setOpen]         = useState(false);
   const [cargando, setCargando] = useState(false);
+  const [readIds, setReadIds]   = useState(new Set());
   const ref                     = useRef(null);
 
   const fetchAlertas = () => {
@@ -83,6 +84,11 @@ function AlertasBell({ token }) {
   }, [open]);
 
   const count = alertas.length;
+  const unreadCount = alertas.filter((a, i) => !readIds.has(a.id ?? i)).length;
+
+  const handleLeerTodo = () => {
+    setReadIds(new Set(alertas.map((a, i) => a.id ?? i)));
+  };
 
   return (
     <div ref={ref} className="relative">
@@ -95,9 +101,9 @@ function AlertasBell({ token }) {
         title="Alertas de stock"
       >
         <BellIcon />
-        {count > 0 && (
+        {unreadCount > 0 && (
           <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 bg-primary text-white text-[9px] font-bold rounded-full flex items-center justify-center px-0.5 leading-none">
-            {count > 99 ? '99+' : count}
+            {unreadCount > 99 ? '99+' : unreadCount}
           </span>
         )}
       </button>
@@ -117,16 +123,26 @@ function AlertasBell({ token }) {
                 </span>
               )}
             </div>
-            <button
-              onClick={fetchAlertas}
-              className="text-muted hover:text-ink transition-colors cursor-pointer"
-              title="Actualizar"
-            >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className={cargando ? 'animate-spin' : ''}>
-                <polyline points="23 4 23 10 17 10"/>
-                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
-              </svg>
-            </button>
+            <div className="flex items-center gap-3">
+              {unreadCount > 0 && (
+                <button
+                  onClick={handleLeerTodo}
+                  className="font-['Inter'] text-[12px] font-semibold text-primary hover:underline transition-colors cursor-pointer"
+                >
+                  Leer todo
+                </button>
+              )}
+              <button
+                onClick={fetchAlertas}
+                className="text-muted hover:text-ink transition-colors cursor-pointer"
+                title="Actualizar"
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className={cargando ? 'animate-spin' : ''}>
+                  <polyline points="23 4 23 10 17 10"/>
+                  <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                </svg>
+              </button>
+            </div>
           </div>
 
           {/* Lista */}
@@ -146,10 +162,11 @@ function AlertasBell({ token }) {
             ) : (
               alertas.map((a, i) => {
                 const esBajoStock = a.estado === 'BAJO_STOCK';
+                const isRead = readIds.has(a.id ?? i);
                 return (
                   <div
                     key={a.id ?? i}
-                    className="flex items-start gap-3 px-4 py-3 border-b border-[#fafaf9] last:border-0 hover:bg-surface transition-colors"
+                    className={`flex items-start gap-3 px-4 py-3 border-b border-[#fafaf9] last:border-0 hover:bg-surface transition-colors ${isRead ? 'opacity-50' : ''}`}
                   >
                     {/* Icono estado */}
                     <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${

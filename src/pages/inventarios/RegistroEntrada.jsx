@@ -8,7 +8,40 @@ import CustomSelect from '../../components/ui/CustomSelect';
 import SuccessToast from '../../components/SuccessToast';
 
 const CATEGORIAS = ['Todos', 'Paletas', 'Conos', 'Vasos', 'Familiares'];
+const PAGE_PRODUCTOS = 9;
 const base = import.meta.env.VITE_API_BASE_URL ?? '';
+
+function ChevronLeftIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="15 18 9 12 15 6" />
+    </svg>
+  );
+}
+
+function ChevronRightIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="9 18 15 12 9 6" />
+    </svg>
+  );
+}
+
+function PageBtn({ children, onClick, active, disabled }) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={`w-8 h-8 rounded-full font-['Inter'] font-medium text-sm flex items-center justify-center transition-colors ${
+        active   ? 'bg-[#9e2016] text-white' :
+        disabled ? 'text-zinc-300 cursor-not-allowed' :
+                   'text-zinc-600 hover:bg-zinc-100'
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
 
 const MESES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
 function formatFecha(fecha) {
@@ -25,6 +58,7 @@ export default function RegistroEntrada() {
   const [categoriaActiva, setCategoriaActiva]       = useState('Todos');
   const [busqueda, setBusqueda]                     = useState('');
   const [productos, setProductos]                   = useState([]);
+  const [pageProductos, setPageProductos]           = useState(1);
   const [carrito, setCarrito]                       = useState([]);
   const [cargando, setCargando]                     = useState(true);
   const [cargandoPedido, setCargandoPedido]         = useState(false);
@@ -92,6 +126,8 @@ export default function RegistroEntrada() {
 
   useEffect(() => { fetchProductos(); }, [fetchProductos]);
 
+  useEffect(() => { setPageProductos(1); }, [categoriaActiva, busqueda]);
+
   // Cuando se selecciona un pedido, cargar sus ítems en el carrito automáticamente
   useEffect(() => {
     if (!pedidoSeleccionado) {
@@ -108,9 +144,10 @@ export default function RegistroEntrada() {
           setCarrito(
             data.items.map(item => ({
               producto: {
-                id:             item.productoId,
-                nombre:         item.nombre,
-                codigoTecnico:  item.codigoTecnico,
+                id:              item.productoId,
+                nombre:          item.nombre,
+                codigoTecnico:   item.codigoTecnico,
+                unidadesPorCaja: item.unidadesPorCaja ?? null,
               },
               cajas:    item.cantidadCajas    ?? 0,
               unidades: item.cantidadUnidades ?? 0,
@@ -344,73 +381,122 @@ export default function RegistroEntrada() {
               ))}
             </div>
 
-            {/* Grid productos */}
+            {/* Grid productos con paginación */}
             {(() => {
               const productosFiltrados = busqueda
                 ? productos.filter(p => p.nombre?.toLowerCase().includes(busqueda.toLowerCase()))
                 : productos;
-              return cargando ? (
-              <div className="grid grid-cols-3 gap-4">
-                {[1, 2, 3, 4, 5].map(i => (
-                  <div
-                    key={i}
-                    className="bg-white rounded-[12px] h-[300px] animate-pulse border border-[#f5f5f4]"
-                  />
-                ))}
-              </div>
-            ) : productosFiltrados.length === 0 ? (
-              <p className="font-['Inter'] text-[14px] text-[#a8a29e] text-center py-12">
-                {busqueda ? `Sin resultados para "${busqueda}"` : 'No hay productos en esta categoría.'}
-              </p>
-            ) : (
-              <div className="grid grid-cols-3 gap-4">
-                {productosFiltrados.map(p => {
-                  const enCarrito = !!carrito.find(i => i.producto.id === p.id);
-                  return (
-                    <div
-                      key={p.id}
-                      className="bg-white rounded-[12px] border border-[#f5f5f4] overflow-hidden flex flex-col"
-                    >
-                      <div className="h-[160px] bg-[#f6f3f3]">
-                        {(p.imagenUrl || p.imagen_url) && (
-                          <img
-                            src={p.imagenUrl ?? p.imagen_url}
-                            alt={p.nombre}
-                            className="w-full h-full object-cover"
-                          />
-                        )}
-                      </div>
-                      <div className="p-4 flex flex-col gap-2 flex-1">
-                        <div className="flex items-start justify-between gap-2">
-                          <span className="font-['Manrope'] font-semibold text-[15px] text-[#1b1b1c]">
-                            {p.nombre}
-                          </span>
-                          <span className="bg-[#f6f3f3] text-[#57534e] font-['Inter'] font-medium text-[11px] uppercase px-2 py-0.5 rounded-full shrink-0">
-                            {p.categoria}
-                          </span>
-                        </div>
-                        <p className="font-['Inter'] font-normal text-[13px] text-[#78716c] leading-[18px] line-clamp-2 flex-1">
-                          {p.descripcion}
-                        </p>
-                        <button
-                          onClick={() => toggleSeleccionar(p)}
-                          className={`flex items-center justify-center gap-2 border rounded-full px-4 py-2 font-['Inter'] font-semibold text-[13px] cursor-pointer transition-colors ${
-                            enCarrito
-                              ? 'bg-[#9e2016] border-[#9e2016] text-white hover:bg-[#c0392b] hover:border-[#c0392b]'
-                              : 'border-[#e7e5e4] text-[#1b1b1c] hover:border-[#9e2016]'
-                          }`}
-                        >
-                          <span style={{ color: enCarrito ? 'white' : '#9e2016' }}>
-                            {enCarrito ? '−' : '+'}
-                          </span>
-                          {enCarrito ? 'Quitar' : 'Seleccionar'}
-                        </button>
+              const totalProd       = productosFiltrados.length;
+              const totalPagesProd  = Math.max(1, Math.ceil(totalProd / PAGE_PRODUCTOS));
+              const productosPagina = productosFiltrados.slice(
+                (pageProductos - 1) * PAGE_PRODUCTOS,
+                pageProductos * PAGE_PRODUCTOS
+              );
+              return (
+                <>
+                  {cargando ? (
+                    <div className="grid grid-cols-3 gap-4">
+                      {[1, 2, 3, 4, 5, 6].map(i => (
+                        <div key={i} className="bg-white rounded-[12px] h-[300px] animate-pulse border border-[#f5f5f4]" />
+                      ))}
+                    </div>
+                  ) : totalProd === 0 ? (
+                    <p className="font-['Inter'] text-[14px] text-[#a8a29e] text-center py-12">
+                      {busqueda ? `Sin resultados para "${busqueda}"` : 'No hay productos en esta categoría.'}
+                    </p>
+                  ) : (
+                    <div className="grid grid-cols-3 gap-4">
+                      {productosPagina.map(p => {
+                        const enCarrito = !!carrito.find(i => i.producto.id === p.id);
+                        return (
+                          <div
+                            key={p.id}
+                            className="bg-white rounded-[12px] border border-[#f5f5f4] overflow-hidden flex flex-col"
+                          >
+                            <div className="h-[160px] bg-[#f6f3f3]">
+                              {(p.imagenUrl || p.imagen_url) && (
+                                <img
+                                  src={p.imagenUrl ?? p.imagen_url}
+                                  alt={p.nombre}
+                                  className="w-full h-full object-cover"
+                                />
+                              )}
+                            </div>
+                            <div className="p-4 flex flex-col gap-2 flex-1">
+                              <div className="flex items-start justify-between gap-2">
+                                <span className="font-['Manrope'] font-semibold text-[15px] text-[#1b1b1c]">
+                                  {p.nombre}
+                                </span>
+                                <span className="bg-[#f6f3f3] text-[#57534e] font-['Inter'] font-medium text-[11px] uppercase px-2 py-0.5 rounded-full shrink-0">
+                                  {p.categoria}
+                                </span>
+                              </div>
+                              <p className="font-['Inter'] font-normal text-[13px] text-[#78716c] leading-[18px] line-clamp-2 flex-1">
+                                {p.descripcion}
+                              </p>
+                              <button
+                                onClick={() => toggleSeleccionar(p)}
+                                className={`flex items-center justify-center gap-2 border rounded-full px-4 py-2 font-['Inter'] font-semibold text-[13px] cursor-pointer transition-colors ${
+                                  enCarrito
+                                    ? 'bg-[#9e2016] border-[#9e2016] text-white hover:bg-[#c0392b] hover:border-[#c0392b]'
+                                    : 'border-[#e7e5e4] text-[#1b1b1c] hover:border-[#9e2016]'
+                                }`}
+                              >
+                                <span style={{ color: enCarrito ? 'white' : '#9e2016' }}>
+                                  {enCarrito ? '−' : '+'}
+                                </span>
+                                {enCarrito ? 'Quitar' : 'Seleccionar'}
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Paginación */}
+                  {!cargando && totalProd > PAGE_PRODUCTOS && (
+                    <div className="flex items-center justify-between pt-2 px-1">
+                      <p className="font-['Inter'] text-sm text-zinc-500">
+                        Mostrando {Math.min((pageProductos - 1) * PAGE_PRODUCTOS + 1, totalProd)}–{Math.min(pageProductos * PAGE_PRODUCTOS, totalProd)} de {totalProd} productos
+                      </p>
+                      <div className="flex items-center gap-1">
+                        <PageBtn onClick={() => setPageProductos(p => Math.max(1, p - 1))} disabled={pageProductos === 1}>
+                          <ChevronLeftIcon />
+                        </PageBtn>
+                        {Array.from({ length: Math.min(totalPagesProd, 7) }, (_, i) => {
+                          let pageNum;
+                          if (totalPagesProd <= 7) {
+                            pageNum = i + 1;
+                          } else if (pageProductos <= 4) {
+                            pageNum = i + 1;
+                            if (i === 6) pageNum = totalPagesProd;
+                          } else if (pageProductos >= totalPagesProd - 3) {
+                            pageNum = totalPagesProd - 6 + i;
+                            if (i === 0) pageNum = 1;
+                          } else {
+                            const mid = [1, pageProductos - 1, pageProductos, pageProductos + 1, totalPagesProd];
+                            pageNum = mid[i] ?? i + 1;
+                          }
+                          return (
+                            <PageBtn
+                              key={`pg-${pageNum}-${i}`}
+                              active={pageNum === pageProductos}
+                              onClick={() => setPageProductos(pageNum)}
+                            >
+                              {pageNum}
+                            </PageBtn>
+                          );
+                        })}
+                        <PageBtn onClick={() => setPageProductos(p => Math.min(totalPagesProd, p + 1))} disabled={pageProductos === totalPagesProd}>
+                          <ChevronRightIcon />
+                        </PageBtn>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-            );})()}
+                  )}
+                </>
+              );
+            })()}
           </div>
 
           {/* ── Panel carrito entrada ── */}
