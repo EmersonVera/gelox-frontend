@@ -259,10 +259,10 @@ export default function PedidoRural() {
         nombre:          producto.nombre,
         descripcion:     producto.descripcion ?? '',
         precioUnitario:  producto.precioVenta ?? 0,
-        unidadesPorCaja: producto.unidadesPorCaja ?? 12,
+        unidadesPorCaja: producto.unidadesPorCaja ?? null,
         imagen:          producto.imagenUrl ?? null,
-        cajas:           1,
-        unidadesSueltas: 0,
+        cajas:           producto.unidadesPorCaja != null ? 1 : 0,
+        unidadesSueltas: producto.unidadesPorCaja != null ? 0 : 1,
       }];
     });
     setErrores((p) => ({ ...p, items: '' }));
@@ -294,7 +294,7 @@ export default function PedidoRural() {
 
   const hayErroresCarrito = Object.keys(erroresCarrito).length > 0;
 
-  const calcSubCajas    = (it) => it.cajas * it.unidadesPorCaja * it.precioUnitario;
+  const calcSubCajas    = (it) => it.cajas * (it.unidadesPorCaja ?? 0) * it.precioUnitario;
   const calcSubUnidades = (it) => it.unidadesSueltas * it.precioUnitario;
   const calcSub         = (it) => calcSubCajas(it) + calcSubUnidades(it);
 
@@ -472,10 +472,10 @@ export default function PedidoRural() {
         )}
 
         {!ventaConfirmada && (
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
 
-            {/* ── COLUMNA IZQUIERDA (3/5) ── */}
-            <div className="lg:col-span-3 space-y-5">
+            {/* ── COLUMNA IZQUIERDA ── */}
+            <div className="lg:col-span-2 space-y-5">
 
               {/* § TIPO DE CLIENTE */}
               <section className="bg-white border border-zinc-200 rounded-2xl shadow-sm p-6 space-y-3">
@@ -732,22 +732,24 @@ export default function PedidoRural() {
                         </button>
                       </div>
 
-                      {/* Fila Caja */}
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-xs text-zinc-500 font-inter w-14 shrink-0">Caja</span>
-                        <div className="flex items-center gap-1.5">
-                          <QtyBtn onClick={() => updateCart(item.productoId, 'cajas', item.cajas - 1)}>−</QtyBtn>
-                          <input
-                            type="number" min="0" value={item.cajas}
-                            onChange={(e) => { const n = parseInt(e.target.value, 10); updateCart(item.productoId, 'cajas', isNaN(n) || n < 0 ? 0 : n); }}
-                            className="w-9 text-center text-sm font-bold text-zinc-800 border border-zinc-200 rounded-lg py-0.5 outline-none focus:border-[#9e2016] focus:ring-1 focus:ring-[#9e2016]/20 font-display [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                          />
-                          <QtyBtn onClick={() => updateCart(item.productoId, 'cajas', item.cajas + 1)}>+</QtyBtn>
+                      {/* Fila Caja — solo si el producto viene en cajas */}
+                      {item.unidadesPorCaja != null && (
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs text-zinc-500 font-inter w-14 shrink-0">Caja</span>
+                          <div className="flex items-center gap-1.5">
+                            <QtyBtn onClick={() => updateCart(item.productoId, 'cajas', item.cajas - 1)}>−</QtyBtn>
+                            <input
+                              type="number" min="0" value={item.cajas}
+                              onChange={(e) => { const n = parseInt(e.target.value, 10); updateCart(item.productoId, 'cajas', isNaN(n) || n < 0 ? 0 : n); }}
+                              className="w-9 text-center text-sm font-bold text-zinc-800 border border-zinc-200 rounded-lg py-0.5 outline-none focus:border-[#9e2016] focus:ring-1 focus:ring-[#9e2016]/20 font-display [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            />
+                            <QtyBtn onClick={() => updateCart(item.productoId, 'cajas', item.cajas + 1)}>+</QtyBtn>
+                          </div>
+                          <span className="text-sm font-bold text-zinc-800 font-display text-right min-w-[52px]">
+                            {formatCOP(calcSubCajas(item))}
+                          </span>
                         </div>
-                        <span className="text-sm font-bold text-zinc-800 font-display text-right min-w-[52px]">
-                          {formatCOP(calcSubCajas(item))}
-                        </span>
-                      </div>
+                      )}
 
                       {/* Fila Unidad */}
                       <div className="flex items-center justify-between gap-2">

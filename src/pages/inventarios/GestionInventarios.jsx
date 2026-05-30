@@ -20,7 +20,7 @@ const MOCK_ALERTAS = [
 ];
 
 const PAGE_SIZE = 10;
-const CATEGORIAS = ['Todos', 'Paletas', 'Conos', 'Familiares'];
+const CATEGORIAS = ['Todos', 'Paletas', 'Conos', 'Familiares', 'Vasos'];
 const ESTADOS_FILTRO = [
   { value: '',            label: 'Todos los estados' },
   { value: 'NORMAL',      label: 'Normal' },

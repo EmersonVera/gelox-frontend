@@ -7,7 +7,7 @@ import CantidadControl from '../../components/inventarios/CantidadControl';
 import CustomSelect from '../../components/ui/CustomSelect';
 import SuccessToast from '../../components/SuccessToast';
 
-const CATEGORIAS = ['Todos', 'Paletas', 'Conos', 'Vaso', 'Litros'];
+const CATEGORIAS = ['Todos', 'Paletas', 'Conos', 'Vasos', 'Familiares'];
 const base = import.meta.env.VITE_API_BASE_URL ?? '';
 
 const MESES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
@@ -58,8 +58,8 @@ export default function RegistroEntrada() {
     setCargando(true);
     setErrorProductos('');
     try {
-      const params = new URLSearchParams();
-      if (categoriaActiva !== 'Todos') params.set('categoria', categoriaActiva);
+      const params = new URLSearchParams({ page: 0, size: 300 });
+      if (categoriaActiva !== 'Todos') params.set('categoria', categoriaActiva.toUpperCase());
       const res = await fetch(`${base}/api/catalogo/productos?${params}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -70,7 +70,7 @@ export default function RegistroEntrada() {
         throw Object.assign(new Error(), { status: res.status });
       }
       const data = await res.json();
-      const list = data.productos ?? data.content ?? data;
+      const list = Array.isArray(data.content) ? data.content : (data.productos ?? data.content ?? data);
       setProductos(Array.isArray(list) ? list : []);
     } catch (e) {
       setProductos([]);
@@ -129,7 +129,11 @@ export default function RegistroEntrada() {
     if (enCarrito) {
       setCarrito(prev => prev.filter(i => i.producto.id !== p.id));
     } else {
-      setCarrito(prev => [...prev, { producto: p, cajas: 1, unidades: 0 }]);
+      setCarrito(prev => [...prev, {
+        producto: p,
+        cajas:    p.unidadesPorCaja != null ? 1 : 0,
+        unidades: p.unidadesPorCaja != null ? 0 : 1,
+      }]);
     }
   };
 
@@ -469,14 +473,16 @@ export default function RegistroEntrada() {
                             ✕
                           </button>
                         </div>
-                        <CantidadControl
-                          label="Caja"
-                          value={item.cajas}
-                          onMinus={() => actualizar(item.producto.id, 'cajas', item.cajas - 1)}
-                          onPlus={() => actualizar(item.producto.id, 'cajas', item.cajas + 1)}
-                          onChange={(v) => actualizar(item.producto.id, 'cajas', v)}
-                          hasError={!!errItem}
-                        />
+                        {item.producto.unidadesPorCaja != null && (
+                          <CantidadControl
+                            label="Caja"
+                            value={item.cajas}
+                            onMinus={() => actualizar(item.producto.id, 'cajas', item.cajas - 1)}
+                            onPlus={() => actualizar(item.producto.id, 'cajas', item.cajas + 1)}
+                            onChange={(v) => actualizar(item.producto.id, 'cajas', v)}
+                            hasError={!!errItem}
+                          />
+                        )}
                         <CantidadControl
                           label="Unidad"
                           value={item.unidades}
