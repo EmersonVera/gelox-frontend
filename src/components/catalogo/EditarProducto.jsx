@@ -23,6 +23,7 @@ const schema = yup.object({
   stockMedio:    yup.number().typeError('Número').min(0).required(),
   stockMinimo:   yup.number().typeError('Número').min(0).required(),
   unidadMedida:  yup.string().required(),
+  unidadesPorCaja: yup.number().typeError('Ingresa un número').min(1, 'Debe ser al menos 1').nullable().transform((val, orig) => (orig === '' || orig == null) ? null : val).optional(),
 });
 
 export default function EditarProducto({ producto, onClose, onSuccess }) {
@@ -56,6 +57,7 @@ export default function EditarProducto({ producto, onClose, onSuccess }) {
       stockMedio:    producto.stockMedio ?? 0,
       stockMinimo:   producto.stockMinimo ?? 0,
       unidadMedida:  producto.unidadMedida ?? 'Unidades',
+      unidadesPorCaja: producto.unidadesPorCaja ?? '',
     },
   });
 
@@ -80,6 +82,7 @@ export default function EditarProducto({ producto, onClose, onSuccess }) {
       if (data.descripcion)         fd.append('descripcion', data.descripcion);
       if (data.stockMinimo != null) fd.append('stockMinimo', data.stockMinimo);
       if (data.stockMedio  != null) fd.append('stockMedio',  data.stockMedio);
+      if (data.unidadesPorCaja != null) fd.append('unidadesPorCaja', data.unidadesPorCaja);
       if (imagenNueva) fd.append('imagen', imagenNueva); // ← campo "imagen", no "foto"
 
       const res = await api.put(`/api/catalogo/productos/${producto.id}`, fd);
@@ -235,6 +238,19 @@ export default function EditarProducto({ producto, onClose, onSuccess }) {
               <label className={labelClass}>Descripción Breve</label>
               <textarea {...register('descripcion')} className={`${inputClass} h-[96px] resize-none`} />
               {errors.descripcion && <p className={errorClass}>{errors.descripcion.message}</p>}
+            </div>
+
+            {/* Unidades por caja */}
+            <div>
+              <label className={labelClass}>
+                Unidades por Caja{' '}
+                <span className="font-normal text-[#a8a29e] normal-case tracking-normal">(opcional)</span>
+              </label>
+              <input {...register('unidadesPorCaja')} type="number" min="1" placeholder="Ej. 24" className={inputClass} />
+              <p className="font-['Inter'] text-[11px] text-[#a8a29e] mt-1">
+                Dejar vacío si el producto solo se vende por unidad.
+              </p>
+              {errors.unidadesPorCaja && <p className={errorClass}>{errors.unidadesPorCaja.message}</p>}
             </div>
 
             {/* Configuración alertas — mismo estilo que NuevoProducto */}

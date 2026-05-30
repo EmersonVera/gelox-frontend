@@ -10,8 +10,6 @@ import AppLayout from '../../components/AppLayout';
 import { getCatalogoVenta, calcularVenta, confirmarVenta } from '../../services/ventasService';
 import SuccessToast from '../../components/SuccessToast';
 
-const UNIDADES_POR_CAJA = 24;
-
 /* ──────────────────────────── UTILIDADES ──────────────────────────────── */
 const formatCOP = (n) =>
   '$' + Number(n || 0).toLocaleString('es-CO', { minimumFractionDigits: 0 });
@@ -130,6 +128,7 @@ export default function PedidoVentanilla() {
           precioVenta:   Number(p.precioUnitario),
           stockActual:   Number(p.stock),
           disponible:    p.disponible,
+          unidadesPorCaja: p.unidadesPorCaja ?? null,
         })));
       })
       .catch((err) => {
@@ -153,7 +152,7 @@ export default function PedidoVentanilla() {
    * Usa UNIDADES_POR_CAJA = 24, constante fijada por el backend.
    */
   const calcSubLocal = (it) =>
-    (it.cajas * UNIDADES_POR_CAJA + it.unidades) * (Number(it.precioVenta) || 0);
+    (it.cajas * (it.unidadesPorCaja ?? 0) + it.unidades) * (Number(it.precioVenta) || 0);
 
   /* ── Subtotal de ítem: usa valor backend cuando está disponible, local como fallback ── */
   const getItemSubtotal = (itemId) => {
@@ -209,8 +208,9 @@ export default function PedidoVentanilla() {
         precioVenta: producto.precioVenta,
         imagenUrl:   producto.imagenUrl,
         stockActual: producto.stockActual, // necesario para validación local
-        cajas:       1,
-        unidades:    0,
+        unidadesPorCaja: producto.unidadesPorCaja,
+        cajas:       producto.unidadesPorCaja != null ? 1 : 0,
+        unidades:    producto.unidadesPorCaja != null ? 0 : 1,
       }];
     });
   }, []);
@@ -293,7 +293,7 @@ export default function PedidoVentanilla() {
   const erroresCarrito = useMemo(() => {
     const errs = {};
     cartItems.forEach((it) => {
-      const totalUnidades = it.cajas * UNIDADES_POR_CAJA + it.unidades;
+      const totalUnidades = it.cajas * (it.unidadesPorCaja ?? 0) + it.unidades;
       if (it.cajas === 0 && it.unidades === 0) {
         errs[it.id] = 'Agrega al menos 1 caja o 1 unidad.';
       } else if (totalUnidades > (it.stockActual ?? Infinity)) {
@@ -565,7 +565,7 @@ export default function PedidoVentanilla() {
                     // Precio unitario: viene del calcResult backend si ya llegó, o del catálogo como estimación local
                     const backendItem   = calcResult?.items?.find((r) => r.productoId === item.id);
                     const precioUnit    = Number(backendItem?.precioUnitario ?? item.precioVenta) || 0;
-                    const subtotalCajas = item.cajas * UNIDADES_POR_CAJA * precioUnit;
+                    const subtotalCajas = item.cajas * (item.unidadesPorCaja ?? 0) * precioUnit;
                     const subtotalUnidades = item.unidades * precioUnit;
 
                     const errItem = erroresCarrito[item.id];
@@ -602,22 +602,24 @@ export default function PedidoVentanilla() {
                           </button>
                         </div>
 
-                        {/* Fila Cajas */}
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-xs text-zinc-500 font-inter w-14 shrink-0">Caja</span>
-                          <div className="flex items-center gap-1.5">
-                            <QtyBtn onClick={() => updateCart(item.id, 'cajas', item.cajas - 1)}>−</QtyBtn>
-                            <input
-                              type="number" min="0" value={item.cajas}
-                              onChange={(e) => { const n = parseInt(e.target.value, 10); updateCart(item.id, 'cajas', isNaN(n) || n < 0 ? 0 : n); }}
-                              className="w-9 text-center text-sm font-bold text-zinc-800 border border-zinc-200 rounded-lg py-0.5 outline-none focus:border-[#9e2016] focus:ring-1 focus:ring-[#9e2016]/20 font-display [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                            />
-                            <QtyBtn onClick={() => updateCart(item.id, 'cajas', item.cajas + 1)}>+</QtyBtn>
+                        {/* Fila Cajas — solo si el producto viene en cajas */}
+                        {item.unidadesPorCaja != null && (
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-xs text-zinc-500 font-inter w-14 shrink-0">Caja</span>
+                            <div className="flex items-center gap-1.5">
+                              <QtyBtn onClick={() => updateCart(item.id, 'cajas', item.cajas - 1)}>−</QtyBtn>
+                              <input
+                                type="number" min="0" value={item.cajas}
+                                onChange={(e) => { const n = parseInt(e.target.value, 10); updateCart(item.id, 'cajas', isNaN(n) || n < 0 ? 0 : n); }}
+                                className="w-9 text-center text-sm font-bold text-zinc-800 border border-zinc-200 rounded-lg py-0.5 outline-none focus:border-[#9e2016] focus:ring-1 focus:ring-[#9e2016]/20 font-display [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                              />
+                              <QtyBtn onClick={() => updateCart(item.id, 'cajas', item.cajas + 1)}>+</QtyBtn>
+                            </div>
+                            <span className="text-sm font-bold text-zinc-800 font-display text-right min-w-[52px]">
+                              {formatCOP(subtotalCajas)}
+                            </span>
                           </div>
-                          <span className="text-sm font-bold text-zinc-800 font-display text-right min-w-[52px]">
-                            {formatCOP(subtotalCajas)}
-                          </span>
-                        </div>
+                        )}
 
                         {/* Fila Unidades (unidades sueltas — campo "unidades" en el backend) */}
                         <div className="flex items-center justify-between gap-2">
