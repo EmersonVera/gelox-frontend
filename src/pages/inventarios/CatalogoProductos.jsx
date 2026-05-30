@@ -411,8 +411,9 @@ export default function CatalogoProductos() {
 
 function ProductoCard({ producto, onEditar, onEliminar }) {
   // Backend devuelve camelCase: codigoTecnico, precioVenta, stockMinimo, stockActual, imagenUrl
-  const { nombre, codigoTecnico, categoria, precioVenta, descripcion, stockMinimo, stockActual, unidadMedida, imagenUrl } = producto;
-  const stockBajo = stockActual !== null && stockActual <= stockMinimo;
+  const { nombre, codigoTecnico, categoria, precioVenta, descripcion, stockMinimo, stockMedio, stockActual, unidadMedida, imagenUrl } = producto;
+  const stockBajo  = stockActual != null && stockActual <= stockMinimo;
+  const stockMed   = !stockBajo && stockMedio != null && stockActual != null && stockActual <= stockMedio;
 
   return (
     <div className="bg-white rounded-[12px] border border-[#f5f5f4] overflow-hidden flex flex-col">
@@ -448,20 +449,32 @@ function ProductoCard({ producto, onEditar, onEliminar }) {
           </p>
         )}
 
-        {/* Stock mínimo */}
-        <div className={`flex items-center justify-between rounded-[8px] px-3 py-2 ${stockBajo ? 'bg-[#fef2f2]' : 'bg-[#f6f3f3]'}`}>
-          <div className="flex items-center gap-2">
-            <svg width="14" height="14" fill="none" viewBox="0 0 14 14">
-              <rect x="1" y="3" width="12" height="10" rx="1.5" stroke={stockBajo ? '#dc2626' : '#78716c'} strokeWidth="1.2"/>
-              <path d="M4 3V2a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1" stroke={stockBajo ? '#dc2626' : '#78716c'} strokeWidth="1.2"/>
-            </svg>
-            <span className={`font-['Inter'] font-bold text-[10px] uppercase tracking-[0.5px] ${stockBajo ? 'text-[#dc2626]' : 'text-[#78716c]'}`}>
-              Stock Mínimo
+        {/* Stock medio + mínimo */}
+        <div className="flex flex-col gap-1.5">
+          {stockMedio != null && stockMedio > 0 && (
+            <div className={`flex items-center justify-between rounded-[8px] px-3 py-2 ${stockMed ? 'bg-amber-50' : 'bg-[#f6f3f3]'}`}>
+              <span className={`font-['Inter'] font-bold text-[10px] uppercase tracking-[0.5px] ${stockMed ? 'text-amber-600' : 'text-[#78716c]'}`}>
+                Stock Medio
+              </span>
+              <span className={`font-['Inter'] font-bold text-[14px] ${stockMed ? 'text-amber-600' : 'text-[#1b1b1c]'}`}>
+                {stockMedio} <span className="font-normal text-[#a8a29e]">u</span>
+              </span>
+            </div>
+          )}
+          <div className={`flex items-center justify-between rounded-[8px] px-3 py-2 ${stockBajo ? 'bg-[#fef2f2]' : 'bg-[#f6f3f3]'}`}>
+            <div className="flex items-center gap-2">
+              <svg width="14" height="14" fill="none" viewBox="0 0 14 14">
+                <rect x="1" y="3" width="12" height="10" rx="1.5" stroke={stockBajo ? '#dc2626' : '#78716c'} strokeWidth="1.2"/>
+                <path d="M4 3V2a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1" stroke={stockBajo ? '#dc2626' : '#78716c'} strokeWidth="1.2"/>
+              </svg>
+              <span className={`font-['Inter'] font-bold text-[10px] uppercase tracking-[0.5px] ${stockBajo ? 'text-[#dc2626]' : 'text-[#78716c]'}`}>
+                Stock Mínimo
+              </span>
+            </div>
+            <span className={`font-['Inter'] font-bold text-[14px] ${stockBajo ? 'text-[#dc2626]' : 'text-[#1b1b1c]'}`}>
+              {stockMinimo} <span className="font-normal text-[#a8a29e]">u</span>
             </span>
           </div>
-          <span className={`font-['Inter'] font-bold text-[14px] ${stockBajo ? 'text-[#dc2626]' : 'text-[#1b1b1c]'}`}>
-            {stockMinimo} <span className="font-normal text-[#a8a29e]">u</span>
-          </span>
         </div>
 
         {/* Acciones */}

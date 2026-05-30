@@ -78,12 +78,28 @@ export default function PlanillaDetalle() {
 
       <div className="flex flex-col gap-4 sm:gap-5 animate-fade-in-up pb-40 sm:pb-28">
 
-        {/* Breadcrumb */}
-        <p className="font-['Inter'] font-bold text-[11px] uppercase tracking-[0.7px] text-[#78716c] no-print">
-          GESTIÓN DE DISTRIBUCIÓN{' '}
-          <span className="text-[#9e2016]">{'>'} PLANILLA</span>
-        </p>
+        {/* ── Volver al comerciante ── */}
+        {idComerciante && (
+          <button
+            onClick={() => navigate(`/ventas/comerciantes/${idComerciante}/informacion`, {
+              state: {
+                comerciante: {
+                  id: idComerciante,
+                  nombre: nombreComerciante !== '—' ? nombreComerciante : '',
+                  fotoUrl,
+                },
+              },
+            })}
+            className="flex items-center gap-1.5 text-[#78716c] hover:text-[#1b1b1c] transition-colors w-fit font-['Inter'] text-[13px] cursor-pointer no-print"
+          >
+            <svg width="16" height="16" fill="none" viewBox="0 0 16 16">
+              <path d="M10 12L6 8l4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            {nombreComerciante !== '—' ? `Volver a ${nombreComerciante}` : 'Volver al comerciante'}
+          </button>
+        )}
 
+        
         {/* Título + info comerciante */}
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2 sm:gap-4">
           <div>

@@ -282,6 +282,18 @@ export default function PedidoRural() {
     return productos.filter((p) => p.nombre?.toLowerCase().includes(q) || p.descripcion?.toLowerCase().includes(q));
   }, [productos, busquedaProd]);
 
+  const erroresCarrito = useMemo(() => {
+    const errs = {};
+    cartItems.forEach((it) => {
+      if (it.cajas === 0 && it.unidadesSueltas === 0) {
+        errs[it.productoId] = 'Agrega al menos 1 caja o 1 unidad.';
+      }
+    });
+    return errs;
+  }, [cartItems]);
+
+  const hayErroresCarrito = Object.keys(erroresCarrito).length > 0;
+
   const calcSubCajas    = (it) => it.cajas * it.unidadesPorCaja * it.precioUnitario;
   const calcSubUnidades = (it) => it.unidadesSueltas * it.precioUnitario;
   const calcSub         = (it) => calcSubCajas(it) + calcSubUnidades(it);
@@ -460,7 +472,7 @@ export default function PedidoRural() {
         )}
 
         {!ventaConfirmada && (
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 items-start">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
 
             {/* ── COLUMNA IZQUIERDA (3/5) ── */}
             <div className="lg:col-span-3 space-y-5">
@@ -671,8 +683,8 @@ export default function PedidoRural() {
               )}
             </div>
 
-            {/* ── CARRITO DERECHO (2/5) ── */}
-            <div className="lg:col-span-2 lg:sticky lg:top-0">
+            {/* ── CARRITO DERECHO (1/4) ── */}
+            <div className="lg:col-span-1 lg:sticky lg:top-0">
               <div className="bg-white border border-zinc-200 rounded-2xl shadow-sm overflow-hidden flex flex-col">
 
                 {/* Header */}
@@ -696,11 +708,13 @@ export default function PedidoRural() {
                       <div className="text-4xl mb-2">🛒</div>
                       Agrega productos desde el catálogo
                     </div>
-                  ) : cartItems.map((item) => (
+                  ) : cartItems.map((item) => {
+                    const errItem = erroresCarrito[item.productoId];
+                    return (
                     <div key={item.productoId} className="space-y-2.5">
                       {/* Producto info */}
                       <div className="flex items-start gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-zinc-100 flex items-center justify-center shrink-0 overflow-hidden border border-zinc-200">
+                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 overflow-hidden border ${errItem ? 'border-red-300 bg-red-50' : 'bg-zinc-100 border-zinc-200'}`}>
                           {item.imagen
                             ? <img src={item.imagen} alt={item.nombre} className="w-full h-full object-cover" />
                             : <span className="text-zinc-300 text-lg font-bold font-display">{item.nombre?.charAt(0)?.toUpperCase()}</span>}
@@ -708,6 +722,9 @@ export default function PedidoRural() {
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-bold text-zinc-900 font-display leading-tight truncate">{item.nombre}</p>
                           <p className="text-[11px] text-zinc-400 font-inter">Unitario: {formatCOP(item.precioUnitario)}</p>
+                          {errItem && (
+                            <p className="text-[10px] text-red-500 font-inter mt-0.5 font-semibold">⚠ {errItem}</p>
+                          )}
                         </div>
                         <button type="button" onClick={() => removeFromCart(item.productoId)}
                           className="text-zinc-300 hover:text-red-400 transition-colors p-0.5 shrink-0">
@@ -718,12 +735,16 @@ export default function PedidoRural() {
                       {/* Fila Caja */}
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-xs text-zinc-500 font-inter w-14 shrink-0">Caja</span>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5">
                           <QtyBtn onClick={() => updateCart(item.productoId, 'cajas', item.cajas - 1)}>−</QtyBtn>
-                          <span className="text-sm font-bold text-zinc-800 w-5 text-center font-display">{item.cajas}</span>
+                          <input
+                            type="number" min="0" value={item.cajas}
+                            onChange={(e) => { const n = parseInt(e.target.value, 10); updateCart(item.productoId, 'cajas', isNaN(n) || n < 0 ? 0 : n); }}
+                            className="w-9 text-center text-sm font-bold text-zinc-800 border border-zinc-200 rounded-lg py-0.5 outline-none focus:border-[#9e2016] focus:ring-1 focus:ring-[#9e2016]/20 font-display [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                          />
                           <QtyBtn onClick={() => updateCart(item.productoId, 'cajas', item.cajas + 1)}>+</QtyBtn>
                         </div>
-                        <span className="text-sm font-bold text-zinc-800 font-display text-right min-w-[60px]">
+                        <span className="text-sm font-bold text-zinc-800 font-display text-right min-w-[52px]">
                           {formatCOP(calcSubCajas(item))}
                         </span>
                       </div>
@@ -731,19 +752,24 @@ export default function PedidoRural() {
                       {/* Fila Unidad */}
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-xs text-zinc-500 font-inter w-14 shrink-0">Unidad</span>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5">
                           <QtyBtn onClick={() => updateCart(item.productoId, 'unidadesSueltas', item.unidadesSueltas - 1)}>−</QtyBtn>
-                          <span className="text-sm font-bold text-zinc-800 w-5 text-center font-display">{item.unidadesSueltas}</span>
+                          <input
+                            type="number" min="0" value={item.unidadesSueltas}
+                            onChange={(e) => { const n = parseInt(e.target.value, 10); updateCart(item.productoId, 'unidadesSueltas', isNaN(n) || n < 0 ? 0 : n); }}
+                            className="w-9 text-center text-sm font-bold text-zinc-800 border border-zinc-200 rounded-lg py-0.5 outline-none focus:border-[#9e2016] focus:ring-1 focus:ring-[#9e2016]/20 font-display [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                          />
                           <QtyBtn onClick={() => updateCart(item.productoId, 'unidadesSueltas', item.unidadesSueltas + 1)}>+</QtyBtn>
                         </div>
-                        <span className="text-sm font-bold text-zinc-800 font-display text-right min-w-[60px]">
+                        <span className="text-sm font-bold text-zinc-800 font-display text-right min-w-[52px]">
                           {formatCOP(calcSubUnidades(item))}
                         </span>
                       </div>
 
                       <div className="border-b border-zinc-100" />
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 {/* Footer: totales + envío + confirmar */}
@@ -778,8 +804,14 @@ export default function PedidoRural() {
                     </p>
                   )}
 
+                  {hayErroresCarrito && cartItems.length > 0 && (
+                    <p className="text-[11px] text-red-500 font-inter text-center">
+                      Corrige los errores en el carrito antes de continuar.
+                    </p>
+                  )}
+
                   <button type="button" onClick={abrirConfirm}
-                    disabled={enviando || cartItems.length === 0 || !destinatario.nombre.trim()}
+                    disabled={enviando || cartItems.length === 0 || !destinatario.nombre.trim() || hayErroresCarrito}
                     className="w-full bg-[#9e2016] hover:bg-[#7c0202] disabled:bg-zinc-300 disabled:cursor-not-allowed text-white rounded-xl py-3.5 text-sm font-bold tracking-wide font-display transition-all duration-200 active:scale-[0.98] shadow-lg shadow-[#9e2016]/25 flex items-center justify-center gap-2">
                     {enviando ? <><SpinIcon /> Procesando…</> : 'COMPLETAR VENTA →'}
                   </button>

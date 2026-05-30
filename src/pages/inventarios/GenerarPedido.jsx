@@ -71,11 +71,11 @@ export default function GenerarPedido() {
 
   const vaciarCarrito = () => setCarrito([]);
 
-  const actualizarCantidad = (id, campo, delta) => {
+  const actualizarCantidad = (id, campo, valor) => {
     setCarrito(prev =>
       prev.map(i =>
         i.producto.id === id
-          ? { ...i, [campo]: Math.max(0, i[campo] + delta) }
+          ? { ...i, [campo]: Math.max(0, Number(valor) || 0) }
           : i
       )
     );
@@ -83,6 +83,12 @@ export default function GenerarPedido() {
 
   const totalCajas    = carrito.reduce((s, i) => s + i.cajas, 0);
   const totalUnidades = carrito.reduce((s, i) => s + i.unidades, 0);
+
+  const erroresCarrito = carrito.reduce((acc, it) => {
+    if (it.cajas === 0 && it.unidades === 0) acc[it.producto.id] = 'Agrega al menos 1 caja o 1 unidad.';
+    return acc;
+  }, {});
+  const hayErroresCarrito = Object.keys(erroresCarrito).length > 0;
 
   const handleGenerarExcel = async () => {
     if (carrito.length === 0) return;
@@ -95,10 +101,10 @@ export default function GenerarPedido() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          // RF21 — CrearPedidoRequest: items[].productoId + cantidadSolicitada
           items: carrito.map(i => ({
-            productoId:         i.producto.id,
-            cantidadSolicitada: i.cajas + i.unidades,
+            productoId:       i.producto.id,
+            cantidadCajas:    i.cajas,
+            cantidadUnidades: i.unidades,
           })),
         }),
       });
@@ -298,7 +304,9 @@ export default function GenerarPedido() {
                 <>
                   {/* Ítems */}
                   <div className="flex flex-col gap-4 max-h-[400px] overflow-y-auto pr-1">
-                    {carrito.map(item => (
+                    {carrito.map(item => {
+                      const errItem = erroresCarrito[item.producto.id];
+                      return (
                       <div
                         key={item.producto.id}
                         className="flex flex-col gap-2 pb-3 border-b border-[#fafaf9]"
@@ -320,6 +328,9 @@ export default function GenerarPedido() {
                             <p className="font-['Inter'] font-normal text-[11px] text-[#a8a29e]">
                               {item.producto.unidadMedida ?? item.producto.unidad_medida}
                             </p>
+                            {errItem && (
+                              <p className="font-['Inter'] font-semibold text-[10px] text-[#dc2626] mt-0.5">⚠ {errItem}</p>
+                            )}
                           </div>
                           <button
                             onClick={() => eliminarDelCarrito(item.producto.id)}
@@ -331,17 +342,22 @@ export default function GenerarPedido() {
                         <CantidadControl
                           label="Caja"
                           value={item.cajas}
-                          onMinus={() => actualizarCantidad(item.producto.id, 'cajas', -1)}
-                          onPlus={() => actualizarCantidad(item.producto.id, 'cajas', 1)}
+                          onMinus={() => actualizarCantidad(item.producto.id, 'cajas', item.cajas - 1)}
+                          onPlus={() => actualizarCantidad(item.producto.id, 'cajas', item.cajas + 1)}
+                          onChange={(v) => actualizarCantidad(item.producto.id, 'cajas', v)}
+                          hasError={!!errItem}
                         />
                         <CantidadControl
                           label="Unidad"
                           value={item.unidades}
-                          onMinus={() => actualizarCantidad(item.producto.id, 'unidades', -1)}
-                          onPlus={() => actualizarCantidad(item.producto.id, 'unidades', 1)}
+                          onMinus={() => actualizarCantidad(item.producto.id, 'unidades', item.unidades - 1)}
+                          onPlus={() => actualizarCantidad(item.producto.id, 'unidades', item.unidades + 1)}
+                          onChange={(v) => actualizarCantidad(item.producto.id, 'unidades', v)}
+                          hasError={!!errItem}
                         />
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
 
                   {/* Totales */}
@@ -365,11 +381,18 @@ export default function GenerarPedido() {
                     </div>
                   </div>
 
+                  {/* Error global carrito */}
+                  {hayErroresCarrito && (
+                    <p className="font-['Inter'] text-[11px] text-[#dc2626] text-center">
+                      Corrige los errores en el carrito antes de continuar.
+                    </p>
+                  )}
+
                   {/* Botón Excel */}
                   <button
                     onClick={handleGenerarExcel}
-                    disabled={generando}
-                    className="w-full bg-[#9e2016] hover:bg-[#c0392b] disabled:opacity-70 text-white font-['Manrope'] font-bold text-[16px] rounded-[8px] py-3 flex items-center justify-center gap-2 cursor-pointer transition-colors"
+                    disabled={generando || hayErroresCarrito}
+                    className="w-full bg-[#9e2016] hover:bg-[#c0392b] disabled:opacity-70 disabled:cursor-not-allowed text-white font-['Manrope'] font-bold text-[16px] rounded-[8px] py-3 flex items-center justify-center gap-2 cursor-pointer transition-colors"
                   >
                     {generando ? (
                       <><span className="w-4 h-4 rounded-full border-2 border-white/40 border-t-white animate-spin shrink-0" />Generando...</>

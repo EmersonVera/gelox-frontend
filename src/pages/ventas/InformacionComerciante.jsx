@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { BarChart, Bar, XAxis, Cell, ResponsiveContainer } from 'recharts';
 import AppLayout from '../../components/AppLayout';
-import { getPlanillasComerciante } from '../../services/ventasService';
+import { getPlanillasComerciante, actualizarComerciante } from '../../services/ventasService';
 
 const MESES       = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
 const DIAS_SEMANA = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
@@ -49,6 +49,8 @@ export default function InformacionComerciante() {
   const location     = useLocation();
   const comerciante  = location.state?.comerciante;
 
+  const [comercianteLocal, setComerianteLocal] = useState(comerciante);
+
   const [planillas,     setPlanillas]     = useState([]);
   const [cargando,      setCargando]      = useState(true);
   const [error,         setError]         = useState('');
@@ -58,6 +60,12 @@ export default function InformacionComerciante() {
   const [pagina,        setPagina]        = useState(1);
   const [fechaElegida,  setFechaElegida]  = useState(new Date().toISOString().split('T')[0]);
   const [errorFecha,    setErrorFecha]    = useState('');
+
+  const [modalEditar,   setModalEditar]   = useState(false);
+  const [formEditar,    setFormEditar]    = useState({});
+  const [fotoPreview,   setFotoPreview]   = useState(null);
+  const [guardando,     setGuardando]     = useState(false);
+  const [errorEditar,   setErrorEditar]   = useState('');
 
   const cargar = useCallback(async (inicio, fin) => {
     setCargando(true);
@@ -93,6 +101,51 @@ export default function InformacionComerciante() {
   const planillasPagina = planillas.slice((pagina - 1) * POR_PAGINA, pagina * POR_PAGINA);
   const hoy            = new Date().toISOString().split('T')[0];
 
+  function abrirModalEditar() {
+    const c = comercianteLocal;
+    setFormEditar({
+      nombre:                       c.nombre ?? '',
+      municipio:                    c.municipio ?? '',
+      direccion:                    c.direccion ?? '',
+      telefono:                     c.telefono ?? '',
+      contactoEmergenciaNombre:     c.contactoEmergenciaNombre   ?? c.contacto_emergencia_nombre   ?? '',
+      contactoEmergenciaParentesco: c.contactoEmergenciaParentesco ?? c.contacto_emergencia_parentesco ?? '',
+      tallaUniforme:                c.tallaUniforme ?? c.talla_uniforme ?? '',
+      foto:                         null,
+    });
+    setFotoPreview(null);
+    setErrorEditar('');
+    setModalEditar(true);
+  }
+
+  async function submitEditar(e) {
+    e.preventDefault();
+    if (!formEditar.nombre?.trim()) {
+      setErrorEditar('El nombre es requerido.');
+      return;
+    }
+    setGuardando(true);
+    setErrorEditar('');
+    try {
+      const fd = new FormData();
+      fd.append('nombre', formEditar.nombre.trim());
+      if (formEditar.municipio)                    fd.append('municipio', formEditar.municipio);
+      if (formEditar.direccion)                    fd.append('direccion', formEditar.direccion);
+      if (formEditar.telefono)                     fd.append('telefono', formEditar.telefono);
+      if (formEditar.contactoEmergenciaNombre)     fd.append('contactoEmergenciaNombre', formEditar.contactoEmergenciaNombre);
+      if (formEditar.contactoEmergenciaParentesco) fd.append('contactoEmergenciaParentesco', formEditar.contactoEmergenciaParentesco);
+      if (formEditar.tallaUniforme)                fd.append('tallaUniforme', formEditar.tallaUniforme);
+      if (formEditar.foto)                         fd.append('foto', formEditar.foto);
+      const actualizado = await actualizarComerciante(id, fd);
+      setComerianteLocal(prev => ({ ...prev, ...actualizado }));
+      setModalEditar(false);
+    } catch {
+      setErrorEditar('No se pudo guardar los cambios. Intenta de nuevo.');
+    } finally {
+      setGuardando(false);
+    }
+  }
+
   // ── Guardia: sin datos de navegación ──────────────────────────────────────
   if (!comerciante) {
     return (
@@ -110,12 +163,12 @@ export default function InformacionComerciante() {
     );
   }
 
-  const iniciales = comerciante.nombre
+  const iniciales = comercianteLocal.nombre
     .split(' ').slice(0, 2).map(n => n[0]).join('').toUpperCase();
 
-  const emergNombre   = comerciante.contactoEmergenciaNombre   ?? comerciante.contacto_emergencia_nombre   ?? '';
-  const emergRelacion = comerciante.contactoEmergenciaParentesco ?? comerciante.contacto_emergencia_parentesco ?? '';
-  const emergTelefono = comerciante.contactoEmergenciaTelefono  ?? comerciante.contacto_emergencia_telefono  ?? '';
+  const emergNombre   = comercianteLocal.contactoEmergenciaNombre   ?? comercianteLocal.contacto_emergencia_nombre   ?? '';
+  const emergRelacion = comercianteLocal.contactoEmergenciaParentesco ?? comercianteLocal.contacto_emergencia_parentesco ?? '';
+  const emergTelefono = comercianteLocal.contactoEmergenciaTelefono  ?? comercianteLocal.contacto_emergencia_telefono  ?? '';
 
   return (
     <AppLayout>
@@ -138,10 +191,10 @@ export default function InformacionComerciante() {
 
             {/* Foto */}
             <div className="relative shrink-0">
-              {comerciante.fotoUrl ? (
+              {comercianteLocal.fotoUrl ? (
                 <img
-                  src={comerciante.fotoUrl}
-                  alt={comerciante.nombre}
+                  src={comercianteLocal.fotoUrl}
+                  alt={comercianteLocal.nombre}
                   className="w-[60px] h-[60px] sm:w-[80px] sm:h-[80px] rounded-[10px] object-cover"
                 />
               ) : (
@@ -149,7 +202,7 @@ export default function InformacionComerciante() {
                   <span className="font-['Manrope'] font-bold text-[20px] sm:text-[26px] text-[#9e2016]">{iniciales}</span>
                 </div>
               )}
-              {comerciante.activo && (
+              {comercianteLocal.activo && (
                 <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-[#16a34a] rounded-full border-2 border-white" />
               )}
             </div>
@@ -158,11 +211,23 @@ export default function InformacionComerciante() {
             <div className="flex-1 min-w-0">
               {/* Nombre + botón */}
               <div className="flex items-center justify-between gap-2">
-                <h1 className="font-['Manrope'] font-extrabold text-[18px] sm:text-[24px] text-[#1b1b1c] leading-tight truncate">
-                  {comerciante.nombre}
-                </h1>
+                <div className="flex items-center gap-2 min-w-0">
+                  <h1 className="font-['Manrope'] font-extrabold text-[18px] sm:text-[24px] text-[#1b1b1c] leading-tight truncate">
+                    {comercianteLocal.nombre}
+                  </h1>
+                  <button
+                    onClick={abrirModalEditar}
+                    title="Editar comerciante"
+                    className="shrink-0 w-7 h-7 flex items-center justify-center rounded-lg text-[#a8a29e] hover:text-[#9e2016] hover:bg-[#f6f3f3] transition-all duration-200 cursor-pointer"
+                  >
+                    <svg width="14" height="14" fill="none" viewBox="0 0 14 14">
+                      <path d="M9.5 2l2.5 2.5-7 7H2.5V9L9.5 2z" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M8 3.5l2.5 2.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+                    </svg>
+                  </button>
+                </div>
                 <button
-                  onClick={() => navigate(`/ventas/comerciantes/${id}/planilla-hoy`, { state: { comerciante } })}
+                  onClick={() => navigate(`/ventas/comerciantes/${id}/planilla-hoy`, { state: { comerciante: comercianteLocal } })}
                   className="shrink-0 flex items-center gap-1.5 sm:gap-2 bg-[#9e2016] hover:bg-[#c0392b] text-white font-['Manrope'] font-bold text-[12px] sm:text-[13px] rounded-[8px] px-3 sm:px-4 py-2 sm:py-2.5 transition-colors cursor-pointer shadow-sm"
                 >
                   <svg width="14" height="14" fill="none" viewBox="0 0 14 14">
@@ -176,15 +241,15 @@ export default function InformacionComerciante() {
 
               {/* Datos en grid — 1 col mobile, 2 col desktop */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-1.5 mt-2.5">
-                <DataItem icon="map" label={`Municipio de ${comerciante.municipio}`} />
-                {comerciante.direccion
-                  ? <DataItem icon="pin" label={comerciante.direccion} />
+                <DataItem icon="map" label={`Municipio de ${comercianteLocal.municipio}`} />
+                {comercianteLocal.direccion
+                  ? <DataItem icon="pin" label={comercianteLocal.direccion} />
                   : <span />}
-                {comerciante.telefono
-                  ? <DataItem icon="phone" label={comerciante.telefono} />
+                {comercianteLocal.telefono
+                  ? <DataItem icon="phone" label={comercianteLocal.telefono} />
                   : <span />}
-                {(comerciante.tallaUniforme ?? comerciante.talla_uniforme)
-                  ? <DataItem icon="person" label={`Talla de Uniforme: ${comerciante.tallaUniforme ?? comerciante.talla_uniforme}`} />
+                {(comercianteLocal.tallaUniforme ?? comercianteLocal.talla_uniforme)
+                  ? <DataItem icon="person" label={`Talla de Uniforme: ${comercianteLocal.tallaUniforme ?? comercianteLocal.talla_uniforme}`} />
                   : <span />}
               </div>
 
@@ -455,6 +520,173 @@ export default function InformacionComerciante() {
         </div>
 
       </div>
+
+      {/* ══ MODAL EDITAR COMERCIANTE ════════════════════════════════════════ */}
+      {modalEditar && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 px-4">
+          <div className="bg-white rounded-2xl shadow-xl border border-zinc-200 w-full max-w-md max-h-[90vh] flex flex-col">
+
+            {/* Header modal */}
+            <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-zinc-100 shrink-0">
+              <h2 className="font-['Manrope'] font-bold text-[16px] text-[#1b1b1c]">Editar Comerciante</h2>
+              <button
+                onClick={() => setModalEditar(false)}
+                className="w-8 h-8 flex items-center justify-center rounded-lg text-[#a8a29e] hover:text-[#1b1b1c] hover:bg-[#f6f3f3] transition-all duration-200 cursor-pointer"
+              >
+                <svg width="14" height="14" fill="none" viewBox="0 0 14 14">
+                  <path d="M2 2l10 10M12 2L2 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                </svg>
+              </button>
+            </div>
+
+            {/* Cuerpo scrollable */}
+            <form onSubmit={submitEditar} className="overflow-y-auto px-6 py-5 space-y-4">
+
+              {/* Nombre */}
+              <div>
+                <label className="text-sm font-medium text-zinc-700 mb-1.5 block">
+                  Nombre <span className="text-[#9e2016]">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={formEditar.nombre}
+                  onChange={e => setFormEditar(f => ({ ...f, nombre: e.target.value }))}
+                  placeholder="Nombre completo"
+                  className="w-full bg-zinc-100 border border-transparent focus:border-[#9e2016] focus:ring-2 focus:ring-[#9e2016]/20 rounded-xl px-4 py-3 outline-none transition-all duration-200 font-['Inter'] text-[14px] text-zinc-900 placeholder:text-zinc-400"
+                />
+              </div>
+
+              {/* Municipio */}
+              <div>
+                <label className="text-sm font-medium text-zinc-700 mb-1.5 block">Municipio</label>
+                <input
+                  type="text"
+                  value={formEditar.municipio}
+                  onChange={e => setFormEditar(f => ({ ...f, municipio: e.target.value }))}
+                  placeholder="Municipio"
+                  className="w-full bg-zinc-100 border border-transparent focus:border-[#9e2016] focus:ring-2 focus:ring-[#9e2016]/20 rounded-xl px-4 py-3 outline-none transition-all duration-200 font-['Inter'] text-[14px] text-zinc-900 placeholder:text-zinc-400"
+                />
+              </div>
+
+              {/* Dirección */}
+              <div>
+                <label className="text-sm font-medium text-zinc-700 mb-1.5 block">Dirección</label>
+                <input
+                  type="text"
+                  value={formEditar.direccion}
+                  onChange={e => setFormEditar(f => ({ ...f, direccion: e.target.value }))}
+                  placeholder="Dirección"
+                  className="w-full bg-zinc-100 border border-transparent focus:border-[#9e2016] focus:ring-2 focus:ring-[#9e2016]/20 rounded-xl px-4 py-3 outline-none transition-all duration-200 font-['Inter'] text-[14px] text-zinc-900 placeholder:text-zinc-400"
+                />
+              </div>
+
+              {/* Teléfono */}
+              <div>
+                <label className="text-sm font-medium text-zinc-700 mb-1.5 block">Teléfono</label>
+                <input
+                  type="tel"
+                  value={formEditar.telefono}
+                  onChange={e => setFormEditar(f => ({ ...f, telefono: e.target.value }))}
+                  placeholder="Teléfono"
+                  className="w-full bg-zinc-100 border border-transparent focus:border-[#9e2016] focus:ring-2 focus:ring-[#9e2016]/20 rounded-xl px-4 py-3 outline-none transition-all duration-200 font-['Inter'] text-[14px] text-zinc-900 placeholder:text-zinc-400"
+                />
+              </div>
+
+              {/* Contacto de emergencia */}
+              <div className="pt-1">
+                <p className="text-[11px] uppercase tracking-wider font-bold font-['Inter'] text-[#a8a29e] mb-3">
+                  Contacto de Emergencia
+                </p>
+                <div className="space-y-3">
+                  <input
+                    type="text"
+                    value={formEditar.contactoEmergenciaNombre}
+                    onChange={e => setFormEditar(f => ({ ...f, contactoEmergenciaNombre: e.target.value }))}
+                    placeholder="Nombre del contacto"
+                    className="w-full bg-zinc-100 border border-transparent focus:border-[#9e2016] focus:ring-2 focus:ring-[#9e2016]/20 rounded-xl px-4 py-3 outline-none transition-all duration-200 font-['Inter'] text-[14px] text-zinc-900 placeholder:text-zinc-400"
+                  />
+                  <input
+                    type="text"
+                    value={formEditar.contactoEmergenciaParentesco}
+                    onChange={e => setFormEditar(f => ({ ...f, contactoEmergenciaParentesco: e.target.value }))}
+                    placeholder="Parentesco (ej. Madre, Esposo)"
+                    className="w-full bg-zinc-100 border border-transparent focus:border-[#9e2016] focus:ring-2 focus:ring-[#9e2016]/20 rounded-xl px-4 py-3 outline-none transition-all duration-200 font-['Inter'] text-[14px] text-zinc-900 placeholder:text-zinc-400"
+                  />
+                </div>
+              </div>
+
+              {/* Talla de Uniforme */}
+              <div>
+                <label className="text-sm font-medium text-zinc-700 mb-1.5 block">Talla de Uniforme</label>
+                <input
+                  type="text"
+                  value={formEditar.tallaUniforme}
+                  onChange={e => setFormEditar(f => ({ ...f, tallaUniforme: e.target.value }))}
+                  placeholder="XS, S, M, L, XL…"
+                  className="w-full bg-zinc-100 border border-transparent focus:border-[#9e2016] focus:ring-2 focus:ring-[#9e2016]/20 rounded-xl px-4 py-3 outline-none transition-all duration-200 font-['Inter'] text-[14px] text-zinc-900 placeholder:text-zinc-400"
+                />
+              </div>
+
+              {/* Foto */}
+              <div>
+                <label className="text-sm font-medium text-zinc-700 mb-1.5 block">Foto</label>
+                <label className="flex items-center gap-3 bg-zinc-100 hover:bg-zinc-200 rounded-xl px-4 py-3 cursor-pointer transition-all duration-200 group">
+                  <svg width="16" height="16" fill="none" viewBox="0 0 16 16" className="text-[#a8a29e] group-hover:text-[#9e2016] transition-colors shrink-0">
+                    <rect x="1" y="3" width="14" height="10" rx="2" stroke="currentColor" strokeWidth="1.2"/>
+                    <circle cx="8" cy="8" r="2.5" stroke="currentColor" strokeWidth="1.2"/>
+                    <path d="M5.5 3L6.5 1.5h3L10.5 3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                  <span className="font-['Inter'] text-[13px] text-zinc-500 group-hover:text-zinc-700 transition-colors truncate">
+                    {formEditar.foto ? formEditar.foto.name : 'Seleccionar foto…'}
+                  </span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={e => {
+                      const file = e.target.files?.[0] ?? null;
+                      setFormEditar(f => ({ ...f, foto: file }));
+                      setFotoPreview(file ? URL.createObjectURL(file) : null);
+                    }}
+                  />
+                </label>
+                {fotoPreview && (
+                  <img
+                    src={fotoPreview}
+                    alt="Vista previa"
+                    className="mt-2 w-16 h-16 rounded-xl object-cover border border-zinc-200"
+                  />
+                )}
+              </div>
+
+              {/* Error */}
+              {errorEditar && (
+                <p className="text-sm text-red-600 mt-1">{errorEditar}</p>
+              )}
+            </form>
+
+            {/* Footer modal */}
+            <div className="flex gap-3 px-6 py-4 border-t border-zinc-100 shrink-0">
+              <button
+                type="button"
+                onClick={() => setModalEditar(false)}
+                disabled={guardando}
+                className="flex-1 bg-zinc-200 hover:bg-zinc-300 text-zinc-900 font-['Manrope'] font-bold text-[14px] rounded-xl py-2.5 transition-all duration-200 active:scale-95 disabled:opacity-50 cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={submitEditar}
+                disabled={guardando}
+                className="flex-1 bg-[#9e2016] hover:bg-[#7c0202] text-white font-['Manrope'] font-bold text-[14px] rounded-xl py-2.5 transition-all duration-200 active:scale-95 shadow-lg shadow-red-700/20 disabled:opacity-50 cursor-pointer"
+              >
+                {guardando ? 'Guardando…' : 'Guardar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </AppLayout>
   );
 }
