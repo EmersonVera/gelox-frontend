@@ -151,11 +151,11 @@ export default function RegistroEntrada() {
         method:  'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
         body:    JSON.stringify({
-          // RF22+RF23 — RegistrarEntradaRequest: pedidoId (opcional) + items[].productoId + cantidadRecibida
           pedidoId: pedidoSeleccionado || null,
           items: carrito.map(i => ({
             productoId:       i.producto.id,
-            cantidadRecibida: i.cajas + i.unidades,
+            cantidadCajas:    i.cajas,
+            cantidadUnidades: i.unidades,
           })),
         }),
       });
