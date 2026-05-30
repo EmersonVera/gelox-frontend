@@ -492,13 +492,16 @@ export default function ReporteVentasDia() {
 
                 {/* Productos */}
                 <div className="flex flex-col gap-0.5">
-                  {tx.tipo === 'PLANILLA' ? (
-                    <p className="font-['Inter'] font-normal text-[14px] text-[#57534e] leading-[20px]">
-                      {tx.detallesProductos?.length > 0
-                        ? `${tx.detallesProductos.length} producto${tx.detallesProductos.length !== 1 ? 's' : ''} vendido${tx.detallesProductos.length !== 1 ? 's' : ''}`
-                        : '—'}
-                    </p>
-                  ) : tx.detallesProductos?.length ? (
+                  {tx.tipo === 'PLANILLA' ? (() => {
+                    const totalU = tx.detallesProductos?.reduce((s, d) => s + (Number(d.cantidad) || 0), 0) ?? 0;
+                    return (
+                      <p className="font-['Inter'] font-normal text-[14px] text-[#57534e] leading-[20px]">
+                        {totalU > 0
+                          ? <><span className="font-semibold text-[#1b1b1c]">{totalU}</span> unidades vendidas</>
+                          : '—'}
+                      </p>
+                    );
+                  })() : tx.detallesProductos?.length ? (
                     tx.detallesProductos.map((d, i) => (
                       <p key={i} className="font-['Inter'] font-normal text-[14px] text-[#57534e] leading-[20px]">
                         {d.nombre}{' '}
