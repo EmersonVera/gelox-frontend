@@ -108,6 +108,7 @@ export default function InformacionComerciante() {
       municipio:                    c.municipio ?? '',
       direccion:                    c.direccion ?? '',
       telefono:                     c.telefono ?? '',
+      placa:                        c.placa ?? '',
       contactoEmergenciaNombre:     c.contactoEmergenciaNombre   ?? c.contacto_emergencia_nombre   ?? '',
       contactoEmergenciaParentesco: c.contactoEmergenciaParentesco ?? c.contacto_emergencia_parentesco ?? '',
       tallaUniforme:                c.tallaUniforme ?? c.talla_uniforme ?? '',
@@ -132,6 +133,7 @@ export default function InformacionComerciante() {
       if (formEditar.municipio)                    fd.append('municipio', formEditar.municipio);
       if (formEditar.direccion)                    fd.append('direccion', formEditar.direccion);
       if (formEditar.telefono)                     fd.append('telefono', formEditar.telefono);
+      fd.append('placa', formEditar.placa ?? '');
       if (formEditar.contactoEmergenciaNombre)     fd.append('contactoEmergenciaNombre', formEditar.contactoEmergenciaNombre);
       if (formEditar.contactoEmergenciaParentesco) fd.append('contactoEmergenciaParentesco', formEditar.contactoEmergenciaParentesco);
       if (formEditar.tallaUniforme)                fd.append('tallaUniforme', formEditar.tallaUniforme);
@@ -250,6 +252,9 @@ export default function InformacionComerciante() {
                   : <span />}
                 {(comercianteLocal.tallaUniforme ?? comercianteLocal.talla_uniforme)
                   ? <DataItem icon="person" label={`Talla de Uniforme: ${comercianteLocal.tallaUniforme ?? comercianteLocal.talla_uniforme}`} />
+                  : <span />}
+                {comercianteLocal.placa
+                  ? <DataItem icon="pin" label={`Placa del Carrito: ${comercianteLocal.placa}`} />
                   : <span />}
               </div>
 
@@ -588,6 +593,18 @@ export default function InformacionComerciante() {
                   value={formEditar.telefono}
                   onChange={e => setFormEditar(f => ({ ...f, telefono: e.target.value }))}
                   placeholder="Teléfono"
+                  className="w-full bg-zinc-100 border border-transparent focus:border-[#9e2016] focus:ring-2 focus:ring-[#9e2016]/20 rounded-xl px-4 py-3 outline-none transition-all duration-200 font-['Inter'] text-[14px] text-zinc-900 placeholder:text-zinc-400"
+                />
+              </div>
+
+              {/* Placa del carrito */}
+              <div>
+                <label className="text-sm font-medium text-zinc-700 mb-1.5 block">Placa del Carrito</label>
+                <input
+                  type="text"
+                  value={formEditar.placa}
+                  onChange={e => setFormEditar(f => ({ ...f, placa: e.target.value }))}
+                  placeholder="Ej: ABC-123"
                   className="w-full bg-zinc-100 border border-transparent focus:border-[#9e2016] focus:ring-2 focus:ring-[#9e2016]/20 rounded-xl px-4 py-3 outline-none transition-all duration-200 font-['Inter'] text-[14px] text-zinc-900 placeholder:text-zinc-400"
                 />
               </div>

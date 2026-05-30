@@ -14,6 +14,7 @@ export default function NuevoComerciante({ onClose, onSuccess }) {
     municipio: 'Ocaña',
     direccion: '',
     telefono: '',
+    placa: '',
     contacto_emergencia_nombre: '',
     contacto_emergencia_parentesco: '',
     talla_uniforme: 'M',
@@ -55,6 +56,7 @@ export default function NuevoComerciante({ onClose, onSuccess }) {
       if (form.municipio)                        fd.append('municipio',                    form.municipio);
       if (form.direccion)                        fd.append('direccion',                    form.direccion);
       if (form.telefono)                         fd.append('telefono',                     form.telefono);
+      if (form.placa)                            fd.append('placa',                        form.placa);
       if (form.contacto_emergencia_nombre)       fd.append('contactoEmergenciaNombre',     form.contacto_emergencia_nombre);
       if (form.contacto_emergencia_parentesco)   fd.append('contactoEmergenciaParentesco', form.contacto_emergencia_parentesco);
       if (form.talla_uniforme)                   fd.append('tallaUniforme',                form.talla_uniforme);
@@ -158,6 +160,17 @@ export default function NuevoComerciante({ onClose, onSuccess }) {
                   value={form.telefono}
                   onChange={handleChange}
                   placeholder="+57 ..."
+                  className={inputClass}
+                />
+              </div>
+
+              <div>
+                <label className={labelClass}>Placa del Carrito</label>
+                <input
+                  name="placa"
+                  value={form.placa}
+                  onChange={handleChange}
+                  placeholder="Ej: ABC-123"
                   className={inputClass}
                 />
               </div>
