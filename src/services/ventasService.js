@@ -85,6 +85,12 @@ export async function actualizarComerciante(id, formData) {
   return data;
 }
 
+// RF34 — Activar o desactivar un comerciante
+export async function cambiarEstadoComerciante(id, activo) {
+  const { data } = await api.patch(`/api/comerciantes/${id}/estado`, { activo });
+  return data;
+}
+
 // RF39 — Productos del inventario con stock disponible
 export async function getProductosEnStock() {
   const { data } = await api.get('/api/inventario/productos');
