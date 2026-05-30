@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import AppLayout from '../../components/AppLayout';
 import CantidadControl from '../../components/inventarios/CantidadControl';
 import SuccessToast from '../../components/SuccessToast';
+import Pagination from '../../components/ui/Pagination';
 
 const CATEGORIAS = ['Todos', 'Paletas', 'Conos', 'Vasos', 'Familiares'];
 const base = import.meta.env.VITE_API_BASE_URL ?? '';
@@ -292,18 +293,11 @@ export default function GenerarPedido() {
                   <span className="font-['Inter'] text-[12px] text-[#a8a29e]">
                     {pageProd * 9 + 1}–{Math.min((pageProd + 1) * 9, productosFiltrados.length)} de {productosFiltrados.length}
                   </span>
-                  <div className="flex gap-1">
-                    <button
-                      onClick={() => setPageProd(p => p - 1)}
-                      disabled={pageProd === 0}
-                      className="w-8 h-8 border border-[#e7e5e4] rounded-[8px] flex items-center justify-center text-[#78716c] hover:bg-[#f6f3f3] disabled:opacity-30 disabled:cursor-not-allowed"
-                    >‹</button>
-                    <button
-                      onClick={() => setPageProd(p => p + 1)}
-                      disabled={pageProd >= totalPags - 1}
-                      className="w-8 h-8 border border-[#e7e5e4] rounded-[8px] flex items-center justify-center text-[#78716c] hover:bg-[#f6f3f3] disabled:opacity-30 disabled:cursor-not-allowed"
-                    >›</button>
-                  </div>
+                  <Pagination
+                    page={pageProd + 1}
+                    totalPages={totalPags}
+                    onPageChange={(p) => setPageProd(p - 1)}
+                  />
                 </div>
               )}
               </>

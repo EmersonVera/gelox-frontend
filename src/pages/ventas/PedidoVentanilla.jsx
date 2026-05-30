@@ -9,6 +9,7 @@ import { useNavigate } from 'react-router-dom';
 import AppLayout from '../../components/AppLayout';
 import { getCatalogoVenta, calcularVenta, confirmarVenta } from '../../services/ventasService';
 import SuccessToast from '../../components/SuccessToast';
+import Pagination from '../../components/ui/Pagination';
 
 /* ──────────────────────────── UTILIDADES ──────────────────────────────── */
 const formatCOP = (n) =>
@@ -543,16 +544,11 @@ export default function PedidoVentanilla() {
                       <span className="text-xs text-zinc-400 font-inter">
                         {pageProd * 6 + 1}–{Math.min((pageProd + 1) * 6, productosFiltrados.length)} de {productosFiltrados.length} productos
                       </span>
-                      <div className="flex gap-1.5">
-                        <button onClick={() => setPageProd(p => p - 1)} disabled={pageProd === 0}
-                          className="w-8 h-8 border border-zinc-200 rounded-lg flex items-center justify-center text-zinc-500 hover:bg-zinc-50 disabled:opacity-30 disabled:cursor-not-allowed text-base">
-                          ‹
-                        </button>
-                        <button onClick={() => setPageProd(p => p + 1)} disabled={pageProd >= totalProdPags - 1}
-                          className="w-8 h-8 border border-zinc-200 rounded-lg flex items-center justify-center text-zinc-500 hover:bg-zinc-50 disabled:opacity-30 disabled:cursor-not-allowed text-base">
-                          ›
-                        </button>
-                      </div>
+                      <Pagination
+                        page={pageProd + 1}
+                        totalPages={totalProdPags}
+                        onPageChange={(p) => setPageProd(p - 1)}
+                      />
                     </div>
                   )}
                   </>

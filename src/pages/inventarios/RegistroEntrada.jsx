@@ -6,42 +6,11 @@ import AppLayout from '../../components/AppLayout';
 import CantidadControl from '../../components/inventarios/CantidadControl';
 import CustomSelect from '../../components/ui/CustomSelect';
 import SuccessToast from '../../components/SuccessToast';
+import Pagination from '../../components/ui/Pagination';
 
 const CATEGORIAS = ['Todos', 'Paletas', 'Conos', 'Vasos', 'Familiares'];
 const PAGE_PRODUCTOS = 9;
 const base = import.meta.env.VITE_API_BASE_URL ?? '';
-
-function ChevronLeftIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="15 18 9 12 15 6" />
-    </svg>
-  );
-}
-
-function ChevronRightIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="9 18 15 12 9 6" />
-    </svg>
-  );
-}
-
-function PageBtn({ children, onClick, active, disabled }) {
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      className={`w-8 h-8 rounded-full font-['Inter'] font-medium text-sm flex items-center justify-center transition-colors ${
-        active   ? 'bg-[#9e2016] text-white' :
-        disabled ? 'text-zinc-300 cursor-not-allowed' :
-                   'text-zinc-600 hover:bg-zinc-100'
-      }`}
-    >
-      {children}
-    </button>
-  );
-}
 
 const MESES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
 function formatFecha(fecha) {
@@ -460,38 +429,7 @@ export default function RegistroEntrada() {
                       <p className="font-['Inter'] text-sm text-zinc-500">
                         Mostrando {Math.min((pageProductos - 1) * PAGE_PRODUCTOS + 1, totalProd)}–{Math.min(pageProductos * PAGE_PRODUCTOS, totalProd)} de {totalProd} productos
                       </p>
-                      <div className="flex items-center gap-1">
-                        <PageBtn onClick={() => setPageProductos(p => Math.max(1, p - 1))} disabled={pageProductos === 1}>
-                          <ChevronLeftIcon />
-                        </PageBtn>
-                        {Array.from({ length: Math.min(totalPagesProd, 7) }, (_, i) => {
-                          let pageNum;
-                          if (totalPagesProd <= 7) {
-                            pageNum = i + 1;
-                          } else if (pageProductos <= 4) {
-                            pageNum = i + 1;
-                            if (i === 6) pageNum = totalPagesProd;
-                          } else if (pageProductos >= totalPagesProd - 3) {
-                            pageNum = totalPagesProd - 6 + i;
-                            if (i === 0) pageNum = 1;
-                          } else {
-                            const mid = [1, pageProductos - 1, pageProductos, pageProductos + 1, totalPagesProd];
-                            pageNum = mid[i] ?? i + 1;
-                          }
-                          return (
-                            <PageBtn
-                              key={`pg-${pageNum}-${i}`}
-                              active={pageNum === pageProductos}
-                              onClick={() => setPageProductos(pageNum)}
-                            >
-                              {pageNum}
-                            </PageBtn>
-                          );
-                        })}
-                        <PageBtn onClick={() => setPageProductos(p => Math.min(totalPagesProd, p + 1))} disabled={pageProductos === totalPagesProd}>
-                          <ChevronRightIcon />
-                        </PageBtn>
-                      </div>
+                      <Pagination page={pageProductos} totalPages={totalPagesProd} onPageChange={setPageProductos} />
                     </div>
                   )}
                 </>
