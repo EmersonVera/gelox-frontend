@@ -6,6 +6,7 @@ import CustomSelect from '../ui/CustomSelect';
 
 const MUNICIPIOS = ['Ocaña', 'Cúcuta', 'Villa del Rosario', 'Los Patios', 'El Zulia', 'Tibú', 'Otro'];
 const TALLAS = ['S', 'M', 'L', 'XL'];
+const TIPOS_DOCUMENTO = ['CC', 'PPT'];
 
 export default function NuevoComerciante({ onClose, onSuccess }) {
   const { token } = useAuth();
@@ -15,6 +16,9 @@ export default function NuevoComerciante({ onClose, onSuccess }) {
     direccion: '',
     telefono: '',
     placa: '',
+    documento: '',
+    tipoDocumento: 'CC',
+    eps: '',
     contacto_emergencia_nombre: '',
     contacto_emergencia_parentesco: '',
     talla_uniforme: 'M',
@@ -57,6 +61,9 @@ export default function NuevoComerciante({ onClose, onSuccess }) {
       if (form.direccion)                        fd.append('direccion',                    form.direccion);
       if (form.telefono)                         fd.append('telefono',                     form.telefono);
       if (form.placa)                            fd.append('placa',                        form.placa);
+      if (form.documento)                        fd.append('documento',                    form.documento);
+      if (form.tipoDocumento)                    fd.append('tipoDocumento',                form.tipoDocumento);
+      if (form.eps)                              fd.append('eps',                          form.eps);
       if (form.contacto_emergencia_nombre)       fd.append('contactoEmergenciaNombre',     form.contacto_emergencia_nombre);
       if (form.contacto_emergencia_parentesco)   fd.append('contactoEmergenciaParentesco', form.contacto_emergencia_parentesco);
       if (form.talla_uniforme)                   fd.append('tallaUniforme',                form.talla_uniforme);
@@ -171,6 +178,48 @@ export default function NuevoComerciante({ onClose, onSuccess }) {
                   value={form.placa}
                   onChange={handleChange}
                   placeholder="Ej: ABC-123"
+                  className={inputClass}
+                />
+              </div>
+
+              <div>
+                <label className={labelClass}>Documento</label>
+                <input
+                  name="documento"
+                  value={form.documento}
+                  onChange={handleChange}
+                  placeholder="Número de documento"
+                  className={inputClass}
+                />
+              </div>
+
+              <div>
+                <label className={labelClass}>Tipo de Documento</label>
+                <div className="flex gap-2">
+                  {TIPOS_DOCUMENTO.map(t => (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => setForm(prev => ({ ...prev, tipoDocumento: t }))}
+                      className={`flex-1 py-2.5 rounded-[8px] font-['Manrope'] font-semibold text-[15px] cursor-pointer transition-colors ${
+                        form.tipoDocumento === t
+                          ? 'bg-[#9e2016] text-white'
+                          : 'bg-[#f6f3f3] text-[#1b1b1c] hover:bg-[#e7e5e4]'
+                      }`}
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className={labelClass}>EPS</label>
+                <input
+                  name="eps"
+                  value={form.eps}
+                  onChange={handleChange}
+                  placeholder="Ej: Sura, Nueva EPS..."
                   className={inputClass}
                 />
               </div>

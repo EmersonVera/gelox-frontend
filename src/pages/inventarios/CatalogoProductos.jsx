@@ -9,8 +9,7 @@ import SuccessToast from '../../components/SuccessToast';
 
 const SAVED_STOCK_MS = 700;
 
-// Categorías que acepta el backend: PALETAS, CONOS, FAMILIARES
-const CATEGORIAS = ['Todos', 'Paletas', 'Conos', 'Familiares'];
+const CATEGORIAS = ['Todos', 'Paletas', 'Conos', 'Familiares', 'Vasos'];
 const PAGE_SIZE = 8;
 
 const formatCOP = (n) => '$' + Number(n).toLocaleString('es-CO');
@@ -19,6 +18,7 @@ const CAT_LABEL = {
   PALETAS: 'Paletas',
   CONOS: 'Conos',
   FAMILIARES: 'Familiares',
+  VASOS: 'Vasos',
 };
 
 function AlertIcon() {
@@ -43,11 +43,28 @@ export default function CatalogoProductos() {
   const [modalNuevo, setModalNuevo]           = useState(false);
   const [productoEditar, setProductoEditar]   = useState(null);
   const [productoEliminar, setProductoEliminar] = useState(null);
+  const [productosInactivos, setProductosInactivos] = useState([]);
   const filtroRef       = useRef(null);
   const savedStockTimer = useRef(null);
   const filtroCloseTimer = useRef(null);
 
   const showToast = (msg, type = 'success') => setToast({ show: true, msg, type });
+
+  const handleActivar = async (producto) => {
+    const base = import.meta.env.VITE_API_BASE_URL ?? '';
+    try {
+      const res = await fetch(`${base}/api/catalogo/productos/${producto.id}/activar`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error('No se pudo activar el producto.');
+      setProductosInactivos(prev => prev.filter(p => p.id !== producto.id));
+      fetchProductos();
+      showToast(`"${producto.nombre}" activado correctamente.`);
+    } catch (e) {
+      showToast(e.message, 'error');
+    }
+  };
 
   const closeFiltro = useCallback(() => {
     setFiltroClosing(true);
@@ -343,23 +360,15 @@ export default function CatalogoProductos() {
                 onEliminar={() => setProductoEliminar(p)}
               />
             ))}
-            {/* Card añadir */}
-            <button
-              onClick={() => setModalNuevo(true)}
-              className="border-2 border-dashed border-[#e7e5e4] rounded-[12px] flex flex-col items-center justify-center gap-3 p-8 hover:border-[#9e2016] cursor-pointer transition-colors group"
-            >
-              <div className="w-10 h-10 rounded-full bg-[#f6f3f3] flex items-center justify-center group-hover:bg-[#fef2f2] transition-colors">
-                <span className="text-[#a8a29e] text-[20px] group-hover:text-[#9e2016]">+</span>
-              </div>
-              <div className="text-center">
-                <p className="font-['Manrope'] font-semibold text-[16px] text-[#a8a29e] group-hover:text-[#9e2016]">
-                  Añadir Nueva Referencia
-                </p>
-                <p className="font-['Inter'] font-normal text-[13px] text-[#a8a29e] mt-1">
-                  Define nuevos sabores, presentaciones y precios para tu catálogo.
-                </p>
-              </div>
-            </button>
+            {/* Productos inactivos (desactivados en esta sesión) */}
+            {productosInactivos.map((p) => (
+              <ProductoCardInactivo
+                key={p.id}
+                producto={p}
+                onActivar={() => handleActivar(p)}
+              />
+            ))}
+
           </div>
         )}
 
@@ -401,7 +410,13 @@ export default function CatalogoProductos() {
           <ModalConfirmarEliminar
             producto={productoEliminar}
             onClose={() => setProductoEliminar(null)}
-            onSuccess={(msg) => { fetchProductos(); if (msg) showToast(msg); }}
+            onSuccess={(msg) => {
+              const p = productoEliminar;
+              setProductos(prev => prev.filter(x => x.id !== p.id));
+              setProductosInactivos(prev => [...prev, p]);
+              setProductoEliminar(null);
+              if (msg) showToast(msg);
+            }}
           />
         )}
       </div>
@@ -494,6 +509,49 @@ function ProductoCard({ producto, onEditar, onEliminar }) {
             </svg>
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function ProductoCardInactivo({ producto, onActivar }) {
+  const { nombre, codigoTecnico, categoria, precioVenta, imagenUrl } = producto;
+  return (
+    <div className="bg-white rounded-[12px] border border-dashed border-[#e7e5e4] overflow-hidden flex flex-col opacity-60">
+      <div className="relative h-[180px]">
+        {imagenUrl ? (
+          <img src={imagenUrl} alt={nombre} className="w-full h-full object-cover grayscale" />
+        ) : (
+          <div className="w-full h-full bg-[#f6f3f3] flex items-center justify-center">
+            <span className="text-[#a8a29e] text-[12px]">Sin imagen</span>
+          </div>
+        )}
+        <span className="absolute top-3 left-3 bg-[#78716c] text-white text-[10px] uppercase tracking-[1px] px-2 py-1 rounded-full">
+          Inactivo
+        </span>
+        <span className="absolute top-3 right-3 bg-[#1b1b1c]/60 text-white text-[10px] uppercase tracking-[1px] px-2 py-1 rounded-full">
+          {CAT_LABEL[categoria] ?? categoria}
+        </span>
+      </div>
+      <div className="p-4 flex flex-col gap-3 flex-1">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex flex-col gap-0.5">
+            <span className="font-['Manrope'] font-semibold text-[16px] text-[#78716c] leading-[22px]">{nombre}</span>
+            {codigoTecnico && (
+              <span className="font-['Inter'] font-normal text-[11px] text-[#a8a29e] tracking-wide">{codigoTecnico}</span>
+            )}
+          </div>
+          <span className="font-['Manrope'] font-bold text-[18px] text-[#a8a29e] shrink-0">{formatCOP(precioVenta)}</span>
+        </div>
+        <p className="font-['Inter'] font-normal text-[13px] text-[#a8a29e] text-center mt-auto">
+          Producto desactivado
+        </p>
+        <button
+          onClick={onActivar}
+          className="w-full border border-[#22c55e] text-[#16a34a] rounded-[8px] py-2 font-['Inter'] font-semibold text-[14px] hover:bg-[#22c55e] hover:text-white transition-colors cursor-pointer"
+        >
+          Activar
+        </button>
       </div>
     </div>
   );

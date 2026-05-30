@@ -9,9 +9,9 @@ import api from '../../api/axiosConfig';
 import ModalConfirmarEliminar from './ModalConfirmarEliminar';
 import CustomSelect from '../ui/CustomSelect';
 
-const CATEGORIAS_OPT = ['Paletas', 'Conos', 'Familiares'];
+const CATEGORIAS_OPT = ['Paletas', 'Conos', 'Familiares', 'Vasos'];
 const UNIDADES_OPT   = ['Unidades', 'Cajas', 'Litros'];
-const CAT_LABEL      = { PALETAS: 'Paletas', CONOS: 'Conos', FAMILIARES: 'Familiares' };
+const CAT_LABEL      = { PALETAS: 'Paletas', CONOS: 'Conos', FAMILIARES: 'Familiares', VASOS: 'Vasos' };
 
 const schema = yup.object({
   nombre:        yup.string().required('Requerido'),

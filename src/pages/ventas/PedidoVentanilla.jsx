@@ -427,10 +427,10 @@ export default function PedidoVentanilla() {
 
         {/* ══════════════ FORMULARIO DE VENTA ══════════════ */}
         {!ventaConfirmada && (
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
 
-            {/* ── COLUMNA IZQUIERDA (3/5) ── */}
-            <div className="lg:col-span-3 space-y-5">
+            {/* ── COLUMNA IZQUIERDA ── */}
+            <div className="lg:col-span-2 space-y-5">
 
               {/* § TIPO DE CLIENTE */}
               <section className="bg-white border border-zinc-200 rounded-2xl shadow-sm p-6 space-y-3">

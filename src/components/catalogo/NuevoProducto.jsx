@@ -8,7 +8,7 @@ import { useAuth } from '../../context/AuthContext';
 import api from '../../api/axiosConfig';
 import CustomSelect from '../ui/CustomSelect';
 
-const CATEGORIAS_OPT = ['Paletas', 'Conos', 'Familiares'];
+const CATEGORIAS_OPT = ['Paletas', 'Conos', 'Familiares', 'Vasos'];
 const UNIDADES_OPT   = ['Unidades', 'Cajas', 'Litros'];
 
 const schema = yup.object({
