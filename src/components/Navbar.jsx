@@ -49,12 +49,20 @@ function getInitials(nombre) {
 }
 
 /* ── Componente campana de alertas ── */
+const ALERTS_STORAGE_KEY = 'gelox_read_alert_ids';
+
 function AlertasBell({ token }) {
   const [alertas, setAlertas]   = useState([]);
   const [open, setOpen]         = useState(false);
   const [cargando, setCargando] = useState(false);
-  const [readIds, setReadIds]   = useState(new Set());
-  const ref                     = useRef(null);
+  const [readIds, setReadIds]   = useState(() => {
+    try {
+      return new Set(JSON.parse(localStorage.getItem(ALERTS_STORAGE_KEY) || '[]'));
+    } catch {
+      return new Set();
+    }
+  });
+  const ref = useRef(null);
 
   const fetchAlertas = () => {
     setCargando(true);
@@ -62,7 +70,20 @@ function AlertasBell({ token }) {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(r => r.ok ? r.json() : [])
-      .then(data => setAlertas(Array.isArray(data) ? data : []))
+      .then(data => {
+        const alertList = Array.isArray(data) ? data : [];
+        setAlertas(alertList);
+        // Limpiar IDs obsoletos: mantener solo los que siguen en la lista de alertas activas
+        const currentIds = new Set(alertList.map(a => String(a.id)));
+        try {
+          const stored = JSON.parse(localStorage.getItem(ALERTS_STORAGE_KEY) || '[]');
+          const valid = stored.filter(id => currentIds.has(id));
+          localStorage.setItem(ALERTS_STORAGE_KEY, JSON.stringify(valid));
+          setReadIds(new Set(valid));
+        } catch {
+          setReadIds(new Set());
+        }
+      })
       .catch(() => {})
       .finally(() => setCargando(false));
   };
@@ -84,10 +105,14 @@ function AlertasBell({ token }) {
   }, [open]);
 
   const count = alertas.length;
-  const unreadCount = alertas.filter((a, i) => !readIds.has(a.id ?? i)).length;
+  const unreadCount = alertas.filter(a => !readIds.has(String(a.id))).length;
 
   const handleLeerTodo = () => {
-    setReadIds(new Set(alertas.map((a, i) => a.id ?? i)));
+    const ids = alertas.map(a => String(a.id));
+    try {
+      localStorage.setItem(ALERTS_STORAGE_KEY, JSON.stringify(ids));
+    } catch { /* localStorage no disponible */ }
+    setReadIds(new Set(ids));
   };
 
   return (
@@ -162,7 +187,7 @@ function AlertasBell({ token }) {
             ) : (
               alertas.map((a, i) => {
                 const esBajoStock = a.estado === 'BAJO_STOCK';
-                const isRead = readIds.has(a.id ?? i);
+                const isRead = readIds.has(String(a.id));
                 return (
                   <div
                     key={a.id ?? i}

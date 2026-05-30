@@ -2,6 +2,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import AppLayout from '../../components/AppLayout';
 import CustomSelect from '../../components/ui/CustomSelect';
+import Pagination from '../../components/ui/Pagination';
 import {
   getProductosInventario,
   getAlertasStock,
@@ -66,23 +67,6 @@ function SearchIcon() {
   );
 }
 
-function ChevronLeftIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="15 18 9 12 15 6" />
-    </svg>
-  );
-}
-
-function ChevronRightIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="9 18 15 12 9 6" />
-    </svg>
-  );
-}
 
 /* ─── Badge de estado ─── */
 function EstadoBadge({ estado }) {
@@ -121,24 +105,6 @@ function SkeletonRows() {
   );
 }
 
-/* ─── Botón de paginación ─── */
-function PageBtn({ children, onClick, active, disabled }) {
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      className={`w-8 h-8 rounded-full font-inter font-medium text-sm flex items-center justify-center transition-colors ${
-        active
-          ? 'bg-red-700 text-white'
-          : disabled
-          ? 'text-zinc-300 cursor-not-allowed'
-          : 'text-zinc-600 hover:bg-zinc-100'
-      }`}
-    >
-      {children}
-    </button>
-  );
-}
 
 /* ══════════════════════════════════════════════════
    PÁGINA PRINCIPAL
@@ -468,46 +434,7 @@ export default function GestionInventarios() {
                 {Math.min(page * PAGE_SIZE, productosFiltrados.length)} de{' '}
                 {productosFiltrados.length} productos
               </p>
-              <div className="flex items-center gap-1">
-                <PageBtn
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={page === 1}
-                >
-                  <ChevronLeftIcon />
-                </PageBtn>
-
-                {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
-                  let pageNum;
-                  if (totalPages <= 7) {
-                    pageNum = i + 1;
-                  } else if (page <= 4) {
-                    pageNum = i + 1;
-                    if (i === 6) pageNum = totalPages;
-                  } else if (page >= totalPages - 3) {
-                    pageNum = totalPages - 6 + i;
-                    if (i === 0) pageNum = 1;
-                  } else {
-                    const mid = [1, page - 1, page, page + 1, totalPages];
-                    pageNum = mid[i] ?? i + 1;
-                  }
-                  return (
-                    <PageBtn
-                      key={`pg-${pageNum}-${i}`}
-                      active={pageNum === page}
-                      onClick={() => setPage(pageNum)}
-                    >
-                      {pageNum}
-                    </PageBtn>
-                  );
-                })}
-
-                <PageBtn
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={page === totalPages}
-                >
-                  <ChevronRightIcon />
-                </PageBtn>
-              </div>
+              <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
             </div>
           )}
         </div>

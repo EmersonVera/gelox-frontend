@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import AppLayout from '../../components/AppLayout';
 import CustomSelect from '../../components/ui/CustomSelect';
+import Pagination from '../../components/ui/Pagination';
 
 const BASE_API = import.meta.env.VITE_API_BASE_URL ?? '';
 
@@ -69,6 +70,7 @@ function VariacionBadge({ valor }) {
   );
 }
 
+// BtnPagina mantenido para compatibilidad con otros usos en el archivo
 function BtnPagina({ children, onClick, disabled }) {
   return (
     <button
@@ -545,23 +547,7 @@ export default function ReporteVentasDia() {
             <p className="font-['Inter'] font-normal text-[14px] text-[#a8a29e]">
               Mostrando {txFiltradas.length} de {totalElementos} transacciones registradas hoy.
             </p>
-            <div className="flex items-center gap-1">
-              <BtnPagina
-                onClick={() => setPage(p => Math.max(1, p - 1))}
-                disabled={page === 1}
-              >
-                ‹
-              </BtnPagina>
-              <span className="w-8 h-8 flex items-center justify-center font-['Inter'] text-[13px] text-[#78716c]">
-                {page}
-              </span>
-              <BtnPagina
-                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                disabled={page >= totalPages}
-              >
-                ›
-              </BtnPagina>
-            </div>
+            <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
           </div>
         </div>
 

@@ -6,6 +6,7 @@ import NuevoProducto from '../../components/catalogo/NuevoProducto';
 import EditarProducto from '../../components/catalogo/EditarProducto';
 import ModalConfirmarEliminar from '../../components/catalogo/ModalConfirmarEliminar';
 import SuccessToast from '../../components/SuccessToast';
+import Pagination from '../../components/ui/Pagination';
 
 const SAVED_STOCK_MS = 700;
 
@@ -378,38 +379,7 @@ export default function CatalogoProductos() {
             <p className="font-['Inter'] text-sm text-zinc-500">
               Mostrando {Math.min((page - 1) * PAGE_SIZE + 1, total)}–{Math.min(page * PAGE_SIZE, total)} de {total} productos
             </p>
-            <div className="flex items-center gap-1">
-              <PaginaBtn onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}>
-                <ChevronLeftIcon />
-              </PaginaBtn>
-              {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
-                let pageNum;
-                if (totalPages <= 7) {
-                  pageNum = i + 1;
-                } else if (page <= 4) {
-                  pageNum = i + 1;
-                  if (i === 6) pageNum = totalPages;
-                } else if (page >= totalPages - 3) {
-                  pageNum = totalPages - 6 + i;
-                  if (i === 0) pageNum = 1;
-                } else {
-                  const mid = [1, page - 1, page, page + 1, totalPages];
-                  pageNum = mid[i] ?? i + 1;
-                }
-                return (
-                  <PaginaBtn
-                    key={`pg-${pageNum}-${i}`}
-                    activo={pageNum === page}
-                    onClick={() => setPage(pageNum)}
-                  >
-                    {pageNum}
-                  </PaginaBtn>
-                );
-              })}
-              <PaginaBtn onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages}>
-                <ChevronRightIcon />
-              </PaginaBtn>
-            </div>
+            <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
           </div>
         )}
 
@@ -594,34 +564,3 @@ function ProductoCardInactivo({ producto, onActivar }) {
   );
 }
 
-function ChevronLeftIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="15 18 9 12 15 6" />
-    </svg>
-  );
-}
-
-function ChevronRightIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="9 18 15 12 9 6" />
-    </svg>
-  );
-}
-
-function PaginaBtn({ children, onClick, activo, disabled }) {
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      className={`w-8 h-8 rounded-full font-['Inter'] font-medium text-sm flex items-center justify-center transition-colors ${
-        activo   ? 'bg-[#9e2016] text-white' :
-        disabled ? 'text-zinc-300 cursor-not-allowed' :
-                   'text-zinc-600 hover:bg-zinc-100'
-      }`}
-    >
-      {children}
-    </button>
-  );
-}
