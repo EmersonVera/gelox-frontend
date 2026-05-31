@@ -360,8 +360,9 @@ export default function RegistroEntrada() {
                   )
                 : productos;
               productosFiltrados.sort((a, b) => {
-                const sc = (a.stockActual ?? 0) - (b.stockActual ?? 0);
-                if (sc !== 0) return sc;
+                const aTiene = (a.stockActual ?? 0) > 0 ? 0 : 1;
+                const bTiene = (b.stockActual ?? 0) > 0 ? 0 : 1;
+                if (aTiene !== bTiene) return aTiene - bTiene;
                 return (a.nombre ?? '').localeCompare(b.nombre ?? '', 'es');
               });
               const totalProd       = productosFiltrados.length;
