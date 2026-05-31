@@ -133,22 +133,35 @@ export default function ReportePedido() {
             });
             if (!r.ok) return;
             const det = await r.json();
-            const totalRecibido = (det.items ?? []).reduce(
-              (s, item) => s + (item.cantidadRecibida ?? 0), 0
-            );
+            const items = det.items ?? [];
+            const totalRecibido = items.reduce((s, item) => s + (item.cantidadRecibida ?? 0), 0);
+
+            // Desglose recibido: sumar cajas y unidades deducidas por ítem usando upC
+            let totalCajasR = 0, totalUnidadesR = 0;
+            items.forEach(item => {
+              const upC = item.unidadesPorCaja ?? 1;
+              const rec = item.cantidadRecibida ?? 0;
+              if (upC > 1) {
+                totalCajasR    += Math.floor(rec / upC);
+                totalUnidadesR += rec % upC;
+              } else {
+                totalUnidadesR += rec;
+              }
+            });
+
             // Comparar en unidades reales: recibida vs cajas×upC + unidades
-            const tieneFaltante = (det.items ?? []).some(item => {
+            const tieneFaltante = items.some(item => {
               const upC = item.unidadesPorCaja ?? 1;
               const sol = (item.cantidadCajas ?? 0) * upC + (item.cantidadUnidades ?? 0);
               return (item.cantidadRecibida ?? 0) < sol;
             });
-            const tieneSobrante = (det.items ?? []).some(item => {
+            const tieneSobrante = items.some(item => {
               const upC = item.unidadesPorCaja ?? 1;
               const sol = (item.cantidadCajas ?? 0) * upC + (item.cantidadUnidades ?? 0);
               return (item.cantidadRecibida ?? 0) > sol;
             });
             const tieneDiscrepancia = tieneFaltante || tieneSobrante;
-            detallesMap[p.id] = { totalRecibido, tieneDiscrepancia, tieneFaltante, tieneSobrante };
+            detallesMap[p.id] = { totalRecibido, totalCajasR, totalUnidadesR, tieneDiscrepancia, tieneFaltante, tieneSobrante };
           } catch { /* ignorar errores individuales */ }
         })
       );
@@ -187,7 +200,7 @@ export default function ReportePedido() {
 
       const discrepancias = Object.values(detallesMap).filter(d => d.tieneDiscrepancia).length;
       setKpis({
-        totalUnidades: todos.reduce((s, p) => s + (p.totalSolicitado ?? 0), 0),
+        totalUnidades: todos.reduce((s, p) => s + (p.totalCajas ?? 0) + (p.totalUnidades ?? 0), 0),
         discrepancias,
       });
     } catch (e) {
@@ -381,15 +394,33 @@ export default function ReportePedido() {
                 <span className="font-['Inter'] font-medium text-[14px] text-[#1b1b1c]">
                   {formatFecha(p.fecha)}
                 </span>
-                {/* Total pedido — campo: totalSolicitado */}
+                {/* Total pedido — desglosa cajas y unidades separadas */}
                 <span className="font-['Inter'] font-medium text-[14px] text-[#1b1b1c]">
-                  {p.totalSolicitado?.toLocaleString() ?? '—'}
+                  {p.totalCajas != null || p.totalUnidades != null
+                    ? (() => {
+                        const cj = p.totalCajas ?? 0;
+                        const un = p.totalUnidades ?? 0;
+                        if (cj > 0 && un > 0) return `${cj} Cj / ${un} Un`;
+                        if (cj > 0) return `${cj} Cj`;
+                        if (un > 0) return `${un} Un`;
+                        return '0';
+                      })()
+                    : '—'}
                 </span>
                 {/* Total recibido — enriquecido desde el detalle del pedido */}
                 <span className={`font-['Inter'] font-medium text-[14px] ${
-                  p.totalRecibido != null ? 'text-[#1b1b1c]' : 'text-[#a8a29e]'
+                  p.totalCajasR != null || p.totalUnidadesR != null ? 'text-[#1b1b1c]' : 'text-[#a8a29e]'
                 }`}>
-                  {p.totalRecibido != null ? p.totalRecibido.toLocaleString() : '—'}
+                  {p.totalCajasR != null || p.totalUnidadesR != null
+                    ? (() => {
+                        const cj = p.totalCajasR ?? 0;
+                        const un = p.totalUnidadesR ?? 0;
+                        if (cj > 0 && un > 0) return `${cj} Cj / ${un} Un`;
+                        if (cj > 0) return `${cj} Cj`;
+                        if (un > 0) return `${un} Un`;
+                        return '0';
+                      })()
+                    : '—'}
                 </span>
                 {/* Badge estado */}
                 <span

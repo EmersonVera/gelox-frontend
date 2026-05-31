@@ -109,11 +109,11 @@ export default function CatalogoProductos() {
       if (filtroStock === 'bajo')  lista = lista.filter(p => p.stockActual != null && p.stockActual <= p.stockMinimo);
       if (filtroStock === 'sin')   lista = lista.filter(p => p.stockActual === 0 || p.stockActual == null);
 
-      // Ordenar por nombre ASC, luego stock_actual ASC
+      // Ordenar por stock_actual ASC (menor primero), luego nombre ASC
       lista.sort((a, b) => {
-        const nc = (a.nombre ?? '').localeCompare(b.nombre ?? '', 'es');
-        if (nc !== 0) return nc;
-        return (a.stockActual ?? 0) - (b.stockActual ?? 0);
+        const sc = (a.stockActual ?? 0) - (b.stockActual ?? 0);
+        if (sc !== 0) return sc;
+        return (a.nombre ?? '').localeCompare(b.nombre ?? '', 'es');
       });
 
       // Filtrado client-side por nombre o código técnico (búsqueda)

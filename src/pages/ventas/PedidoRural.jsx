@@ -279,9 +279,9 @@ export default function PedidoRural() {
 
   const productosFiltrados = useMemo(() => {
     const sorted = [...productos].sort((a, b) => {
-      const nc = (a.nombre ?? '').localeCompare(b.nombre ?? '', 'es');
-      if (nc !== 0) return nc;
-      return (a.stockActual ?? 0) - (b.stockActual ?? 0);
+      const sc = (a.stockActual ?? 0) - (b.stockActual ?? 0);
+      if (sc !== 0) return sc;
+      return (a.nombre ?? '').localeCompare(b.nombre ?? '', 'es');
     });
     if (!busquedaProd.trim()) return sorted;
     const q = busquedaProd.toLowerCase();
