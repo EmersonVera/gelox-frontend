@@ -109,10 +109,20 @@ export default function CatalogoProductos() {
       if (filtroStock === 'bajo')  lista = lista.filter(p => p.stockActual != null && p.stockActual <= p.stockMinimo);
       if (filtroStock === 'sin')   lista = lista.filter(p => p.stockActual === 0 || p.stockActual == null);
 
-      // Filtrado client-side por nombre (búsqueda)
+      // Ordenar por nombre ASC, luego stock_actual ASC
+      lista.sort((a, b) => {
+        const nc = (a.nombre ?? '').localeCompare(b.nombre ?? '', 'es');
+        if (nc !== 0) return nc;
+        return (a.stockActual ?? 0) - (b.stockActual ?? 0);
+      });
+
+      // Filtrado client-side por nombre o código técnico (búsqueda)
       if (hayBusqueda) {
         const q = busqueda.trim().toLowerCase();
-        lista = lista.filter(p => p.nombre?.toLowerCase().includes(q));
+        lista = lista.filter(p =>
+          p.nombre?.toLowerCase().includes(q) ||
+          p.codigoTecnico?.toLowerCase().includes(q)
+        );
         // Paginación local sobre resultados filtrados
         setTotal(lista.length);
         setTotalPages(Math.max(1, Math.ceil(lista.length / PAGE_SIZE)));
@@ -132,7 +142,7 @@ export default function CatalogoProductos() {
       if (!status || e instanceof TypeError)
         setErrorProductos('Sin conexión a internet. No se pudo cargar el catálogo.');
       else if (status === 401)
-        setErrorProductos('Tu sesión ha expirado. Vuelve a iniciar sesión.');
+        setErrorProductos('');
       else if (status === 403)
         setErrorProductos('No tienes permisos para ver el catálogo de productos.');
       else if (status >= 500)
@@ -296,7 +306,7 @@ export default function CatalogoProductos() {
           <input
             value={busqueda}
             onChange={handleBusqueda}
-            placeholder="Buscar producto por nombre..."
+            placeholder="Buscar por nombre o código técnico..."
             className="bg-[#f6f3f3] border-none rounded-[8px] pl-10 pr-10 py-2.5 w-full font-['Inter'] text-[14px] text-[#1b1b1c] outline-none focus:ring-2 focus:ring-[#9e2016]/20"
           />
           {busqueda && (

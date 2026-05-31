@@ -115,6 +115,14 @@ function AlertasBell({ token }) {
     setReadIds(new Set(ids));
   };
 
+  const handleLeerUna = (id) => {
+    const newIds = new Set([...readIds, String(id)]);
+    setReadIds(newIds);
+    try {
+      localStorage.setItem(ALERTS_STORAGE_KEY, JSON.stringify([...newIds]));
+    } catch { /* localStorage no disponible */ }
+  };
+
   return (
     <div ref={ref} className="relative">
       {/* Botón campana */}
@@ -191,7 +199,8 @@ function AlertasBell({ token }) {
                 return (
                   <div
                     key={a.id ?? i}
-                    className={`flex items-start gap-3 px-4 py-3 border-b border-[#fafaf9] last:border-0 hover:bg-surface transition-colors ${isRead ? 'opacity-50' : ''}`}
+                    onClick={() => !isRead && handleLeerUna(a.id)}
+                    className={`flex items-start gap-3 px-4 py-3 border-b border-[#fafaf9] last:border-0 hover:bg-surface transition-colors ${isRead ? 'opacity-50' : 'cursor-pointer'}`}
                   >
                     {/* Icono estado */}
                     <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${

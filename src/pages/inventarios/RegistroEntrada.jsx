@@ -81,7 +81,7 @@ export default function RegistroEntrada() {
       if (!status || e instanceof TypeError)
         setErrorProductos('Sin conexión a internet. No se pudo cargar el catálogo de productos.');
       else if (status === 401)
-        setErrorProductos('Tu sesión ha expirado. Vuelve a iniciar sesión.');
+        setErrorProductos('');
       else if (status === 403)
         setErrorProductos('No tienes permisos para ver el catálogo de productos.');
       else if (status >= 500)
@@ -320,7 +320,7 @@ export default function RegistroEntrada() {
               <input
                 value={busqueda}
                 onChange={e => setBusqueda(e.target.value)}
-                placeholder="Buscar producto..."
+                placeholder="Buscar por nombre o código técnico..."
                 className="bg-[#f6f3f3] border-none rounded-[8px] pl-10 pr-4 py-2.5 w-full font-['Inter'] text-[14px] text-[#1b1b1c] outline-none focus:ring-2 focus:ring-[#9e2016]/20"
               />
               {busqueda && (
@@ -352,9 +352,18 @@ export default function RegistroEntrada() {
 
             {/* Grid productos con paginación */}
             {(() => {
+              const q = busqueda.toLowerCase();
               const productosFiltrados = busqueda
-                ? productos.filter(p => p.nombre?.toLowerCase().includes(busqueda.toLowerCase()))
+                ? productos.filter(p =>
+                    p.nombre?.toLowerCase().includes(q) ||
+                    p.codigoTecnico?.toLowerCase().includes(q)
+                  )
                 : productos;
+              productosFiltrados.sort((a, b) => {
+                const nc = (a.nombre ?? '').localeCompare(b.nombre ?? '', 'es');
+                if (nc !== 0) return nc;
+                return (a.stockActual ?? 0) - (b.stockActual ?? 0);
+              });
               const totalProd       = productosFiltrados.length;
               const totalPagesProd  = Math.max(1, Math.ceil(totalProd / PAGE_PRODUCTOS));
               const productosPagina = productosFiltrados.slice(
@@ -396,9 +405,18 @@ export default function RegistroEntrada() {
                                 <span className="font-['Manrope'] font-semibold text-[15px] text-[#1b1b1c]">
                                   {p.nombre}
                                 </span>
-                                <span className="bg-[#f6f3f3] text-[#57534e] font-['Inter'] font-medium text-[11px] uppercase px-2 py-0.5 rounded-full shrink-0">
-                                  {p.categoria}
-                                </span>
+                                <div className="flex items-center gap-1 shrink-0">
+                                  <span className={`font-['Inter'] font-bold text-[10px] uppercase px-2 py-0.5 rounded-full ${
+                                    p.unidadesPorCaja != null
+                                      ? 'bg-blue-100 text-blue-700'
+                                      : 'bg-zinc-100 text-zinc-600'
+                                  }`}>
+                                    {p.unidadesPorCaja != null ? 'CJ' : 'UN'}
+                                  </span>
+                                  <span className="bg-[#f6f3f3] text-[#57534e] font-['Inter'] font-medium text-[11px] uppercase px-2 py-0.5 rounded-full">
+                                    {p.categoria}
+                                  </span>
+                                </div>
                               </div>
                               <p className="font-['Inter'] font-normal text-[13px] text-[#78716c] leading-[18px] line-clamp-2 flex-1">
                                 {p.descripcion}
