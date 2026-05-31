@@ -109,10 +109,11 @@ export default function CatalogoProductos() {
       if (filtroStock === 'bajo')  lista = lista.filter(p => p.stockActual != null && p.stockActual <= p.stockMinimo);
       if (filtroStock === 'sin')   lista = lista.filter(p => p.stockActual === 0 || p.stockActual == null);
 
-      // Ordenar por stock_actual ASC (menor primero), luego nombre ASC
+      // Primero productos CON stock, luego sin stock; dentro de cada grupo por nombre ASC
       lista.sort((a, b) => {
-        const sc = (a.stockActual ?? 0) - (b.stockActual ?? 0);
-        if (sc !== 0) return sc;
+        const aTiene = (a.stockActual ?? 0) > 0 ? 0 : 1;
+        const bTiene = (b.stockActual ?? 0) > 0 ? 0 : 1;
+        if (aTiene !== bTiene) return aTiene - bTiene;
         return (a.nombre ?? '').localeCompare(b.nombre ?? '', 'es');
       });
 

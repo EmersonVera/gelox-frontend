@@ -10,6 +10,7 @@ import AppLayout from '../../components/AppLayout';
 import api from '../../api/axiosConfig';
 import CustomSelect from '../../components/ui/CustomSelect';
 import SuccessToast from '../../components/SuccessToast';
+import Pagination from '../../components/ui/Pagination';
 
 const formatCOP = (n) => '$' + Number(n || 0).toLocaleString('es-CO', { minimumFractionDigits: 0 });
 const fechaHoy  = () => new Date().toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -279,8 +280,9 @@ export default function PedidoRural() {
 
   const productosFiltrados = useMemo(() => {
     const sorted = [...productos].sort((a, b) => {
-      const sc = (a.stockActual ?? 0) - (b.stockActual ?? 0);
-      if (sc !== 0) return sc;
+      const aTiene = (a.stockActual ?? 0) > 0 ? 0 : 1;
+      const bTiene = (b.stockActual ?? 0) > 0 ? 0 : 1;
+      if (aTiene !== bTiene) return aTiene - bTiene;
       return (a.nombre ?? '').localeCompare(b.nombre ?? '', 'es');
     });
     if (!busquedaProd.trim()) return sorted;
@@ -696,16 +698,11 @@ export default function PedidoRural() {
                           <span className="text-xs text-zinc-400 font-inter">
                             {pageProd * 6 + 1}–{Math.min((pageProd + 1) * 6, productosFiltrados.length)} de {productosFiltrados.length} productos
                           </span>
-                          <div className="flex gap-1.5">
-                            <button onClick={() => setPageProd(p => p - 1)} disabled={pageProd === 0}
-                              className="w-8 h-8 border border-zinc-100 rounded-lg flex items-center justify-center text-zinc-500 hover:bg-zinc-50 disabled:opacity-30 disabled:cursor-not-allowed text-base">
-                              ‹
-                            </button>
-                            <button onClick={() => setPageProd(p => p + 1)} disabled={pageProd >= totalProdPags - 1}
-                              className="w-8 h-8 border border-zinc-100 rounded-lg flex items-center justify-center text-zinc-500 hover:bg-zinc-50 disabled:opacity-30 disabled:cursor-not-allowed text-base">
-                              ›
-                            </button>
-                          </div>
+                          <Pagination
+                            page={pageProd + 1}
+                            totalPages={totalProdPags}
+                            onPageChange={(p) => setPageProd(p - 1)}
+                          />
                         </div>
                       )}
                       </>

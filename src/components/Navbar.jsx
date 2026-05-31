@@ -104,6 +104,14 @@ function AlertasBell({ token }) {
     return () => document.removeEventListener('mousedown', handler);
   }, [open]);
 
+  // Cuando el dropdown está abierto y llegan alertas (carga inicial o refresco) → marcar todo leído
+  useEffect(() => {
+    if (!open || alertas.length === 0) return;
+    const ids = alertas.map(a => String(a.id));
+    try { localStorage.setItem(ALERTS_STORAGE_KEY, JSON.stringify(ids)); } catch { /**/ }
+    setReadIds(new Set(ids));
+  }, [open, alertas]);
+
   const count = alertas.length;
   const unreadCount = alertas.filter(a => !readIds.has(String(a.id))).length;
 
