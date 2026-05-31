@@ -139,9 +139,10 @@ export default function DetallePedido() {
             </div>
           ) : (
             pedido.items.map(item => {
-              // Campos del backend: productoId, codigoTecnico, nombre, cantidadCajas, cantidadUnidades, cantidadRecibida
-              const recibida   = item.cantidadRecibida  ?? 0;
-              const solicitada = (item.cantidadCajas ?? 0) + (item.cantidadUnidades ?? 0);
+              // cantidadRecibida ya está en unidades totales (backend convierte cajas×upC + unidades)
+              const upC        = item.unidadesPorCaja ?? 1;
+              const recibida   = item.cantidadRecibida ?? 0;
+              const solicitada = (item.cantidadCajas ?? 0) * upC + (item.cantidadUnidades ?? 0);
               const dif        = recibida - solicitada;
               // Solo mostrar estado de comparación si el pedido ya fue recibido
               const mostrarComparacion = pedido.estado === 'RECIBIDO' || pedido.estado === 'CANCELADO';
@@ -173,9 +174,20 @@ export default function DetallePedido() {
                   <span className="font-['Inter'] font-medium text-[14px] text-[#1b1b1c]">
                     {item.cantidadCajas ?? 0} Cj / {item.cantidadUnidades ?? 0} Un
                   </span>
-                  {/* Cant. recibida */}
+                  {/* Cant. recibida — desglosar en cajas y unidades si el producto las tiene */}
                   <span className="font-['Inter'] font-medium text-[14px] text-[#1b1b1c]">
-                    {mostrarComparacion ? recibida : '—'}
+                    {mostrarComparacion
+                      ? (() => {
+                          if (item.unidadesPorCaja && item.unidadesPorCaja > 1) {
+                            const cj = Math.floor(recibida / item.unidadesPorCaja);
+                            const un = recibida % item.unidadesPorCaja;
+                            if (cj > 0 && un > 0) return `${cj} Cj / ${un} Un`;
+                            if (cj > 0) return `${cj} Cj`;
+                            return `${un} Un`;
+                          }
+                          return `${recibida} Un`;
+                        })()
+                      : '—'}
                   </span>
                   {/* Diferencia */}
                   <span

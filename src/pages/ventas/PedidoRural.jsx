@@ -105,7 +105,7 @@ export default function PedidoRural() {
         setProductos([]);
         const status = err?.response?.status;
         if (!err?.response) setErrorCatalogo('Sin conexión a internet. No se pudo cargar el catálogo.');
-        else if (status === 401) setErrorCatalogo('Tu sesión ha expirado. Vuelve a iniciar sesión.');
+        else if (status === 401) setErrorCatalogo('');
         else if (status === 403) setErrorCatalogo('No tienes permisos para ver el catálogo de productos.');
         else if (status >= 500) setErrorCatalogo('Error en el servidor al cargar el catálogo. Intenta más tarde.');
         else setErrorCatalogo(err?.response?.data?.mensaje ?? 'No se pudo cargar el catálogo.');
@@ -129,7 +129,7 @@ export default function PedidoRural() {
           setClientes([]);
           const status = err2?.response?.status;
           if (!err2?.response) setErrorClientes('Sin conexión a internet. No se pudo cargar la lista de clientes.');
-          else if (status === 401) setErrorClientes('Tu sesión ha expirado. Vuelve a iniciar sesión.');
+          else if (status === 401) setErrorClientes('');
           else if (status === 403) setErrorClientes('No tienes permisos para ver los clientes rurales.');
           else if (status >= 500) setErrorClientes('Error en el servidor al cargar clientes. Intenta más tarde.');
           else setErrorClientes('No se pudo cargar la lista de clientes rurales.');
@@ -278,9 +278,18 @@ export default function PedidoRural() {
   }, []);
 
   const productosFiltrados = useMemo(() => {
-    if (!busquedaProd.trim()) return productos;
+    const sorted = [...productos].sort((a, b) => {
+      const nc = (a.nombre ?? '').localeCompare(b.nombre ?? '', 'es');
+      if (nc !== 0) return nc;
+      return (a.stockActual ?? 0) - (b.stockActual ?? 0);
+    });
+    if (!busquedaProd.trim()) return sorted;
     const q = busquedaProd.toLowerCase();
-    return productos.filter((p) => p.nombre?.toLowerCase().includes(q) || p.descripcion?.toLowerCase().includes(q));
+    return sorted.filter((p) =>
+      p.nombre?.toLowerCase().includes(q) ||
+      p.descripcion?.toLowerCase().includes(q) ||
+      p.codigoTecnico?.toLowerCase().includes(q)
+    );
   }, [productos, busquedaProd]);
 
   useEffect(() => setPageProd(0), [busquedaProd]);
@@ -598,7 +607,7 @@ export default function PedidoRural() {
 
                     <div className="relative">
                       <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400"><SearchIcon /></span>
-                      <input type="text" placeholder="Buscar productos..." value={busquedaProd}
+                      <input type="text" placeholder="Buscar por nombre o código técnico..." value={busquedaProd}
                         onChange={(e) => setBusquedaProd(e.target.value)} className={`${inputCls} pl-10`} />
                     </div>
 

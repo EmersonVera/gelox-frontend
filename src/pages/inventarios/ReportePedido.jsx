@@ -14,6 +14,9 @@ const BADGE = {
   CANCELADO: 'bg-[#fef2f2] text-[#dc2626]',
 };
 
+// Pseudo-estados para filtro avanzado dentro de RECIBIDO
+const PSEUDO_ESTADOS = new Set(['RECIBIDO_FALTANTE', 'RECIBIDO_SOBRANTE', 'RECIBIDO_PERFECTO']);
+
 const MESES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
 function formatFecha(fecha) {
   if (!fecha) return '—';
@@ -101,30 +104,24 @@ export default function ReportePedido() {
     setCargando(true);
     setErrorRed(false);
     try {
-      // 1. Obtener pedidos del backend (sin periodo — workaround del bug de LocalDate)
+      // 1. Determinar si es un pseudo-estado de sub-filtro dentro de RECIBIDO
+      const isPseudo = PSEUDO_ESTADOS.has(estado);
+
+      // 2. Obtener pedidos del backend (sin periodo — workaround del bug de LocalDate)
       let todos = [];
-      const estadosFetch = estado ? [estado] : ESTADOS_POSIBLES;
+      const estadosFetch = isPseudo
+        ? ['RECIBIDO']
+        : (estado ? [estado] : ESTADOS_POSIBLES);
       const resultados = await Promise.all(
         estadosFetch.map(e => fetchEstado(token, e, busqueda))
       );
       todos = resultados.flat();
 
-      // 2. Filtrar por rango de fechas en el frontend
+      // 3. Filtrar por rango de fechas en el frontend
       todos = filtrarPorRango(todos, fechaDesde, fechaHasta);
 
-      // 3. Ordenar por fecha descendente
-      todos.sort((a, b) => String(b.fecha ?? '').localeCompare(String(a.fecha ?? '')));
-
-      // 4. Paginación local
-      const totalEl  = todos.length;
-      const totalPgs = Math.max(1, Math.ceil(totalEl / PAGE_SIZE));
-      const safePage = Math.min(Math.max(1, page), totalPgs);
-      const from     = (safePage - 1) * PAGE_SIZE;
-      const pagina   = todos.slice(from, from + PAGE_SIZE);
-
-      // 5. Enriquecer TODOS los pedidos RECIBIDOS con su detalle (en paralelo).
-      //    Se necesitan todos (no solo la página) para calcular el KPI de discrepancias
-      //    correctamente aunque haya varias páginas.
+      // 4. Enriquecer TODOS los pedidos RECIBIDOS con su detalle.
+      //    Necesario para: KPI de discrepancias y filtros pseudo-estado.
       const recibidosEnDataset = todos.filter(p => p.estado === 'RECIBIDO');
       const detallesMap = {};
 
@@ -139,16 +136,46 @@ export default function ReportePedido() {
             const totalRecibido = (det.items ?? []).reduce(
               (s, item) => s + (item.cantidadRecibida ?? 0), 0
             );
-            // Hay discrepancia si algún ítem tiene cantidades distintas
-            const tieneDiscrepancia = (det.items ?? []).some(
-              item => (item.cantidadRecibida ?? 0) !== ((item.cantidadCajas ?? 0) + (item.cantidadUnidades ?? 0))
-            );
-            detallesMap[p.id] = { totalRecibido, tieneDiscrepancia };
+            // Comparar en unidades reales: recibida vs cajas×upC + unidades
+            const tieneFaltante = (det.items ?? []).some(item => {
+              const upC = item.unidadesPorCaja ?? 1;
+              const sol = (item.cantidadCajas ?? 0) * upC + (item.cantidadUnidades ?? 0);
+              return (item.cantidadRecibida ?? 0) < sol;
+            });
+            const tieneSobrante = (det.items ?? []).some(item => {
+              const upC = item.unidadesPorCaja ?? 1;
+              const sol = (item.cantidadCajas ?? 0) * upC + (item.cantidadUnidades ?? 0);
+              return (item.cantidadRecibida ?? 0) > sol;
+            });
+            const tieneDiscrepancia = tieneFaltante || tieneSobrante;
+            detallesMap[p.id] = { totalRecibido, tieneDiscrepancia, tieneFaltante, tieneSobrante };
           } catch { /* ignorar errores individuales */ }
         })
       );
 
-      // 6. Aplicar enriquecimiento solo a la página visible
+      // 5. Si es pseudo-estado, filtrar dataset por criterio de discrepancia
+      if (isPseudo) {
+        todos = todos.filter(p => {
+          const d = detallesMap[p.id];
+          if (!d) return false;
+          if (estado === 'RECIBIDO_FALTANTE') return d.tieneFaltante;
+          if (estado === 'RECIBIDO_SOBRANTE') return d.tieneSobrante;
+          if (estado === 'RECIBIDO_PERFECTO') return !d.tieneDiscrepancia;
+          return true;
+        });
+      }
+
+      // 6. Ordenar por fecha descendente
+      todos.sort((a, b) => String(b.fecha ?? '').localeCompare(String(a.fecha ?? '')));
+
+      // 7. Paginación local
+      const totalEl  = todos.length;
+      const totalPgs = Math.max(1, Math.ceil(totalEl / PAGE_SIZE));
+      const safePage = Math.min(Math.max(1, page), totalPgs);
+      const from     = (safePage - 1) * PAGE_SIZE;
+      const pagina   = todos.slice(from, from + PAGE_SIZE);
+
+      // 8. Aplicar enriquecimiento solo a la página visible
       const paginaEnriquecida = pagina.map(p => {
         const extra = detallesMap[p.id];
         return extra ? { ...p, ...extra } : p;
@@ -158,11 +185,7 @@ export default function ReportePedido() {
       setTotal(totalEl);
       setTotalPages(totalPgs);
 
-      // KPI de discrepancias: pedidos RECIBIDOS donde totalRecibido ≠ totalSolicitado
-      const discrepancias = Object.entries(detallesMap).filter(
-        ([id, d]) => d.tieneDiscrepancia
-      ).length;
-
+      const discrepancias = Object.values(detallesMap).filter(d => d.tieneDiscrepancia).length;
       setKpis({
         totalUnidades: todos.reduce((s, p) => s + (p.totalSolicitado ?? 0), 0),
         discrepancias,
@@ -254,10 +277,13 @@ export default function ReportePedido() {
               value={estado}
               onChange={v => { setEstado(v); setPage(1); }}
               options={[
-                { value: '', label: 'Todos los estados' },
-                { value: 'PENDIENTE', label: 'Pendiente' },
-                { value: 'RECIBIDO',  label: 'Recibido' },
-                { value: 'CANCELADO', label: 'Cancelado' },
+                { value: '',                   label: 'Todos los estados' },
+                { value: 'PENDIENTE',           label: 'Pendiente' },
+                { value: 'RECIBIDO',            label: 'Recibido' },
+                { value: 'RECIBIDO_PERFECTO',   label: 'Recibido perfecto' },
+                { value: 'RECIBIDO_FALTANTE',   label: 'Recibido pero faltante' },
+                { value: 'RECIBIDO_SOBRANTE',   label: 'Recibido pero sobrante' },
+                { value: 'CANCELADO',           label: 'Faltante' },
               ]}
               size="sm"
             />
@@ -365,15 +391,23 @@ export default function ReportePedido() {
                 }`}>
                   {p.totalRecibido != null ? p.totalRecibido.toLocaleString() : '—'}
                 </span>
-                {/* Badge estado — naranja si fue recibido con discrepancia */}
+                {/* Badge estado */}
                 <span
                   className={`inline-flex items-center gap-1 font-['Inter'] font-bold text-[12px] uppercase px-3 py-1 rounded-full ${
-                    p.estado === 'RECIBIDO' && p.tieneDiscrepancia
+                    p.estado === 'RECIBIDO' && p.tieneFaltante
                       ? 'bg-[#fff7ed] text-[#c2410c]'
+                      : p.estado === 'RECIBIDO' && p.tieneSobrante
+                      ? 'bg-[#fefce8] text-[#b45309]'
                       : BADGE[p.estado] ?? BADGE.PENDIENTE
                   }`}
                 >
-                  {p.estado === 'RECIBIDO' && p.tieneDiscrepancia ? '⚠ FALTANTE' : p.estado}
+                  {p.estado === 'RECIBIDO' && p.tieneFaltante
+                    ? '⚠ FALTANTE'
+                    : p.estado === 'RECIBIDO' && p.tieneSobrante
+                    ? '↑ SOBRANTE'
+                    : p.estado === 'CANCELADO'
+                    ? 'FALTANTE'
+                    : p.estado}
                 </span>
               </div>
             ))
