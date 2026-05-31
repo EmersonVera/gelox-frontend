@@ -127,7 +127,15 @@ function AlertasBell({ token }) {
     <div ref={ref} className="relative">
       {/* Botón campana */}
       <button
-        onClick={() => setOpen(o => !o)}
+        onClick={() => {
+          const opening = !open;
+          setOpen(opening);
+          if (opening) {
+            const ids = alertas.map(a => String(a.id));
+            try { localStorage.setItem(ALERTS_STORAGE_KEY, JSON.stringify(ids)); } catch { /**/ }
+            setReadIds(new Set(ids));
+          }
+        }}
         className={`relative flex items-center justify-center w-8 h-8 rounded-xl transition-colors ${
           open ? 'bg-primary-tint text-primary' : 'text-muted hover:bg-surface hover:text-ink'
         }`}
