@@ -2,7 +2,7 @@
 // Vista editable de planilla del día para un comerciante específico.
 // Comerciante recibido vía location.state desde InformacionComerciante.
 import { useState, useEffect, useMemo } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import AppLayout from '../../components/AppLayout';
 import {
   getProductosEnStock,
@@ -48,12 +48,26 @@ function CheckIcon() {
 
 /* ═══════════════════════ COMPONENTE PRINCIPAL ══════════════════════════════ */
 export default function PlanillaDiaria() {
-  const location    = useLocation();
-  const navigate    = useNavigate();
-  const comerciante = location.state?.comerciante;
+  const location               = useLocation();
+  const navigate               = useNavigate();
+  const { id: comercianteIdUrl } = useParams();
+
+  // Bug 2: persistir el comerciante en sessionStorage para sobrevivir la navegación
+  const comerciante = useMemo(() => {
+    const fromState = location.state?.comerciante;
+    if (fromState) {
+      try { sessionStorage.setItem(`planilla_com_${fromState.id}`, JSON.stringify(fromState)); } catch {}
+      return fromState;
+    }
+    try {
+      const cached = sessionStorage.getItem(`planilla_com_${comercianteIdUrl}`);
+      return cached ? JSON.parse(cached) : null;
+    } catch { return null; }
+  }, [location.state?.comerciante, comercianteIdUrl]);
 
   /* ── State ── */
   const [filas, setFilas]                     = useState([]);
+  const [filasInicial, setFilasInicial]       = useState([]); // Bug 1: lista completa para restaurar en edición
   const [estadoPlanilla, setEstadoPlanilla]   = useState('NUEVA'); // NUEVA | DESPACHADO | CERRADO
   const [planillaId, setPlanillaId]           = useState(null);
   const [busquedaFila, setBusquedaFila]       = useState('');
@@ -84,16 +98,16 @@ export default function PlanillaDiaria() {
         if (!planillaHoy) {
           const productos = await getProductosEnStock();
           if (!vivo) return;
-          setFilas(
-            productos.map(p => ({
-              productoId: p.id,
-              nombre:     p.nombre,
-              precio:     Number(p.precioUnitario ?? p.precio ?? 0),
-              disponible: Number(p.cantidadDisponible ?? 0),
-              salida:     '',
-              entrada:    '',
-            }))
-          );
+          const nuevasFilas = productos.map(p => ({
+            productoId: p.id,
+            nombre:     p.nombre,
+            precio:     Number(p.precioUnitario ?? p.precio ?? 0),
+            disponible: Number(p.cantidadDisponible ?? 0),
+            salida:     '',
+            entrada:    '',
+          }));
+          setFilas(nuevasFilas);
+          setFilasInicial(nuevasFilas); // guardar lista completa para restaurar en edición
           setEstadoPlanilla('NUEVA');
         } else if (planillaHoy.cerrada) {
           setPlanillaId(planillaHoy.planillaId);
@@ -188,6 +202,37 @@ export default function PlanillaDiaria() {
     filas.length > 0 &&
     filas.every(f => f.entrada !== '' && Number(f.entrada) >= 0) &&
     !hayErrorEntrada;
+
+  /* ── Entrar a modo edición: restaurar lista completa de productos (Bug 1) ── */
+  const handleEntrarEdicion = async () => {
+    let listaBase = filasInicial;
+
+    if (listaBase.length === 0) {
+      // Si se perdió el estado por navegación, recargar desde la API
+      try {
+        const productos = await getProductosEnStock();
+        listaBase = productos.map(p => ({
+          productoId: p.id,
+          nombre:     p.nombre,
+          precio:     Number(p.precioUnitario ?? p.precio ?? 0),
+          disponible: Number(p.cantidadDisponible ?? 0),
+          salida:     '',
+          entrada:    '',
+        }));
+        setFilasInicial(listaBase);
+      } catch { listaBase = filas; }
+    }
+
+    // Superponer salida y detalleIds de los productos que ya se despacharon
+    const despachadoMap = Object.fromEntries(filas.map(f => [f.productoId, f]));
+    setFilas(listaBase.map(f => ({
+      ...f,
+      salida:     despachadoMap[f.productoId]?.salida     ?? 0,
+      detalleIds: despachadoMap[f.productoId]?.detalleIds ?? [],
+      entrada:    '',
+    })));
+    setEditandoMatutino(true);
+  };
 
   /* ── Cierre Matutino (despacho) ── */
   const handleCierreMatutino = async () => {
@@ -565,28 +610,35 @@ export default function PlanillaDiaria() {
                 </p>
               </div>
 
-              {/* Botones */}
+              {/* Botones — un solo botón que cambia según el estado */}
               <div className="flex items-center gap-3 shrink-0 flex-wrap">
 
-                {/* Editar Cierre Matutino — solo cuando ya fue despachado y no se está editando */}
-                {estadoPlanilla === 'DESPACHADO' && !editandoMatutino && (
-                  <button
-                    onClick={() => setEditandoMatutino(true)}
-                    className="flex items-center gap-2 border border-[#1b2d4f] text-[#1b2d4f] hover:bg-[#1b2d4f] hover:text-white font-['Manrope'] font-bold text-[13px] sm:text-[14px] rounded-[10px] px-4 sm:px-5 py-2.5 transition-colors cursor-pointer"
-                  >
-                    <svg width="13" height="13" fill="none" viewBox="0 0 14 14"><path d="M9.5 2l2.5 2.5-7 7H2.5V9L9.5 2z" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/><path d="M8 3.5l2.5 2.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
-                    Editar Cierre Matutino
-                  </button>
-                )}
-
-                {/* Cierre Matutino / Guardar cambios */}
+                {/* Cierre Matutino / Editar Cierre / Guardar Cambios */}
                 <button
-                  onClick={editandoMatutino ? () => setEditandoMatutino(false) : handleCierreMatutino}
-                  disabled={!cierreMatutinoHabilitado || enviando}
+                  onClick={
+                    estadoPlanilla === 'DESPACHADO' && !editandoMatutino
+                      ? handleEntrarEdicion
+                      : editandoMatutino
+                        ? () => setEditandoMatutino(false)
+                        : handleCierreMatutino
+                  }
+                  disabled={
+                    enviando ||
+                    (estadoPlanilla === 'NUEVA' && !cierreMatutinoHabilitado) ||
+                    (editandoMatutino && !cierreMatutinoHabilitado)
+                  }
                   className="flex items-center gap-2 bg-[#1b2d4f] hover:bg-[#152240] text-white font-['Manrope'] font-bold text-[13px] sm:text-[14px] rounded-[10px] px-4 sm:px-5 py-2.5 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {enviando && estadoPlanilla === 'NUEVA' ? <SpinIcon /> : <CheckIcon />}
-                  {editandoMatutino ? 'Guardar Cambios' : 'Cierre Matutino'}
+                  {enviando ? <SpinIcon /> : editandoMatutino ? (
+                    <CheckIcon />
+                  ) : estadoPlanilla === 'DESPACHADO' ? (
+                    <svg width="13" height="13" fill="none" viewBox="0 0 14 14"><path d="M9.5 2l2.5 2.5-7 7H2.5V9L9.5 2z" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/><path d="M8 3.5l2.5 2.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
+                  ) : <CheckIcon />}
+                  {estadoPlanilla === 'DESPACHADO' && !editandoMatutino
+                    ? 'Editar Cierre'
+                    : editandoMatutino
+                      ? 'Guardar Cambios'
+                      : 'Cierre Matutino'}
                 </button>
 
                 {/* Cierre Diario */}
