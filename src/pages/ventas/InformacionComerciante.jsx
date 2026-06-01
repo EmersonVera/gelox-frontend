@@ -63,7 +63,11 @@ export default function InformacionComerciante() {
   const [fechaFin,       setFechaFin]       = useState('');
   const [filtroActivo,   setFiltroActivo]   = useState({ inicio: '', fin: '' });
   const [pagina,         setPagina]         = useState(1);
-  const [fechaElegida,   setFechaElegida]   = useState(new Date().toISOString().split('T')[0]);
+  const [fechaElegida,   setFechaElegida]   = useState(() => {
+    const d = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  });
   const [errorFecha,     setErrorFecha]     = useState('');
 
   const [modalEditar,    setModalEditar]    = useState(false);
