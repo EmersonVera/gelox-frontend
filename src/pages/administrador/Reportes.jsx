@@ -48,14 +48,15 @@ function rangoFromFiltro(filtro) {
     return { fechaInicio: `${hoy.getFullYear()}-01-01`, fechaFin: today };
 }
 
-function KpiCard({ label, value, sub, positive }) {
+function KpiCard({ label, value, sub, positive, negative }) {
+    const colorClass = negative ? 'text-red-600' : positive ? 'text-green-600' : 'text-ink';
     return (
-        <div className="bg-white rounded-2xl border border-border shadow-sm p-6 flex flex-col gap-1 min-w-0">
+        <div className={`bg-white rounded-2xl border shadow-sm p-6 flex flex-col gap-1 min-w-0 ${negative ? 'border-red-200' : 'border-border'}`}>
             <span className="text-[11px] font-bold uppercase tracking-wider text-muted font-inter">{label}</span>
-            <span className={`font-display text-2xl font-bold truncate ${positive ? 'text-green-600' : 'text-ink'}`}>
+            <span className={`font-display text-2xl font-bold truncate ${colorClass}`}>
                 {value}
             </span>
-            {sub && <span className="text-xs text-muted">{sub}</span>}
+            {sub && <span className={`text-xs ${negative ? 'text-red-500 font-semibold' : 'text-muted'}`}>{sub}</span>}
         </div>
     );
 }
@@ -156,7 +157,15 @@ export default function Reportes() {
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                 <KpiCard label="Inversión Total"    value={loading ? '…' : fmt(reporte?.totalInversion)}  sub={reporte ? '+4.2% vs mes anterior' : undefined} />
                 <KpiCard label="Ingresos Totales"   value={loading ? '…' : fmt(reporte?.ingresosTotales)} sub={reporte ? '+12.8% vs mes anterior' : undefined} />
-                <KpiCard label="Utilidad Bruta"     value={loading ? '…' : fmt(reporte?.utilidadNeta)}    sub={reporte ? 'Meta alcanzada' : undefined} positive />
+                <KpiCard
+                    label="Utilidad Bruta"
+                    value={loading ? '…' : fmt(reporte?.utilidadNeta)}
+                    sub={reporte
+                        ? ((reporte.utilidadNeta ?? 0) < 0 ? 'Utilidad negativa' : 'Meta alcanzada')
+                        : undefined}
+                    positive={!!reporte && (reporte.utilidadNeta ?? 0) >= 0}
+                    negative={!!reporte && (reporte.utilidadNeta ?? 0) < 0}
+                />
                 <KpiCard label="Margen de Ganancia" value={loading ? '…' : reporte ? `${(reporte.margenGanancia ?? 0).toFixed(0)}%` : '—'} />
             </div>
 
