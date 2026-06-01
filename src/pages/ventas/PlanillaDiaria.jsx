@@ -716,7 +716,14 @@ export default function PlanillaDiaria() {
                     estadoPlanilla === 'DESPACHADO' && !editandoMatutino
                       ? handleEntrarEdicion
                       : editandoMatutino
-                        ? () => setEditandoMatutino(false)
+                        ? () => {
+                            // Restaurar solo ítems despachados con entrada=0 para que el cierre diario funcione
+                            setFilas(prev => prev
+                              .filter(f => (f.detalleIds?.length ?? 0) > 0)
+                              .map(f => ({ ...f, entrada: 0 }))
+                            );
+                            setEditandoMatutino(false);
+                          }
                         : handleCierreMatutino
                   }
                   disabled={
