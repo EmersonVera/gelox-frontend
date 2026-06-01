@@ -194,13 +194,16 @@ export default function PlanillaDiaria() {
     setEnviando(true);
     setErrorMsg('');
     try {
-      const items = filas.map(f => ({
-        productoId:     f.productoId,
-        unidades:       Number(f.salida) || 0,
-        precioUnitario: f.precio,
-      }));
-      const totalGanancia = items.reduce(
-        (acc, it) => acc + it.unidades * it.precioUnitario, 0
+      // Solo enviar ítems con salida > 0: evita validación @Positive en items con precio=0
+      const items = filas
+        .filter(f => Number(f.salida) > 0)
+        .map(f => ({
+          productoId:     f.productoId,
+          unidades:       Number(f.salida),
+          precioUnitario: Math.max(f.precio, 0.01), // fallback mínimo si precio_venta = 0
+        }));
+      const totalGanancia = filas.reduce(
+        (acc, f) => acc + (Number(f.salida) || 0) * f.precio, 0
       );
       const result = await registrarDespacho({
         comercianteId: comerciante.id,
