@@ -21,7 +21,12 @@ const MESES = [
 const formatCOP = (n) =>
   '$' + Number(n ?? 0).toLocaleString('es-CO', { minimumFractionDigits: 0 });
 
-const hoyISO = () => new Date().toISOString().split('T')[0];
+// Usa la fecha LOCAL del usuario (no UTC) para evitar desfase en timezone Colombia (UTC-5)
+const hoyISO = () => {
+  const d   = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+};
 
 const fechaBadge = () => {
   const d = new Date();
@@ -282,7 +287,45 @@ export default function PlanillaDiaria() {
       });
       setFilas(Object.values(agrupado));
     } catch (e) {
-      setErrorMsg(e?.response?.data?.mensaje ?? 'Error al registrar el despacho. Intenta de nuevo.');
+      const status = e?.response?.status;
+      if (status === 409) {
+        // La planilla ya existe (desfase de zona horaria o doble envío).
+        // Cargar la planilla existente en vez de mostrar error.
+        try {
+          const lista = await getPlanillasComerciante(comerciante.id);
+          const planillaExistente = Array.isArray(lista)
+            ? lista.find(p => p.fecha === hoyISO() && !p.cerrada)
+            : null;
+          if (planillaExistente) {
+            setPlanillaId(planillaExistente.planillaId);
+            setEstadoPlanilla('DESPACHADO');
+            const detalle = await getDatosPlanillaImpresion(planillaExistente.planillaId);
+            const rawItems = detalle?.items ?? detalle?.detalles ?? detalle?.productos ?? [];
+            const agrupado = {};
+            rawItems.forEach(it => {
+              const pid = it.productoId;
+              if (!agrupado[pid]) {
+                agrupado[pid] = {
+                  productoId: pid, detalleIds: [],
+                  nombre:     it.productoNombre ?? it.nombre ?? '—',
+                  precio:     Number(it.precioVenta ?? it.precioUnitario ?? 0),
+                  disponible: 0, salida: 0, entrada: 0,
+                };
+              }
+              agrupado[pid].detalleIds.push(it.id ?? it.detalleId);
+              agrupado[pid].disponible += Number(it.unidadesDespachadas ?? it.unidades ?? 0);
+              agrupado[pid].salida     += Number(it.unidadesDespachadas ?? it.unidades ?? 0);
+            });
+            setFilas(Object.values(agrupado));
+          } else {
+            setErrorMsg('La planilla ya fue registrada hoy. Recarga la página.');
+          }
+        } catch {
+          setErrorMsg('La planilla ya fue registrada. Recarga la página para verla.');
+        }
+      } else {
+        setErrorMsg(e?.response?.data?.mensaje ?? 'Error al registrar el despacho. Intenta de nuevo.');
+      }
     } finally {
       setEnviando(false);
     }
