@@ -104,14 +104,6 @@ function AlertasBell({ token }) {
     return () => document.removeEventListener('mousedown', handler);
   }, [open]);
 
-  // Cuando el dropdown está abierto y llegan alertas (carga inicial o refresco) → marcar todo leído
-  useEffect(() => {
-    if (!open || alertas.length === 0) return;
-    const ids = alertas.map(a => String(a.id));
-    try { localStorage.setItem(ALERTS_STORAGE_KEY, JSON.stringify(ids)); } catch { /**/ }
-    setReadIds(new Set(ids));
-  }, [open, alertas]);
-
   const count = alertas.length;
   const unreadCount = alertas.filter(a => !readIds.has(String(a.id))).length;
 
@@ -135,15 +127,7 @@ function AlertasBell({ token }) {
     <div ref={ref} className="relative">
       {/* Botón campana */}
       <button
-        onClick={() => {
-          const opening = !open;
-          setOpen(opening);
-          if (opening) {
-            const ids = alertas.map(a => String(a.id));
-            try { localStorage.setItem(ALERTS_STORAGE_KEY, JSON.stringify(ids)); } catch { /**/ }
-            setReadIds(new Set(ids));
-          }
-        }}
+        onClick={() => setOpen(o => !o)}
         className={`relative flex items-center justify-center w-8 h-8 rounded-xl transition-colors ${
           open ? 'bg-primary-tint text-primary' : 'text-muted hover:bg-surface hover:text-ink'
         }`}
