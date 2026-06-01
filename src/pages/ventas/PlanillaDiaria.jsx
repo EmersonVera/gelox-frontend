@@ -101,16 +101,58 @@ export default function PlanillaDiaria() {
           : null;
 
         if (!planillaHoy) {
+          // Obtener saldos del día anterior (unidades_devueltas de la última planilla cerrada)
+          const ultimaAnterior = Array.isArray(lista)
+            ? lista.find(p => p.cerrada && p.fecha < hoyISO())
+            : null;
+          const saldosAnteriores = {}; // { productoId → { saldo, nombre, precio } }
+          if (ultimaAnterior) {
+            try {
+              const detalleAnterior = await getDatosPlanillaImpresion(ultimaAnterior.planillaId);
+              const itemsAnt = detalleAnterior?.items ?? [];
+              itemsAnt.forEach(it => {
+                if ((it.unidadesDevueltas ?? 0) > 0) {
+                  saldosAnteriores[it.productoId] = {
+                    saldo:  it.unidadesDevueltas,
+                    nombre: it.productoNombre ?? it.nombre,
+                    precio: Number(it.precioVenta ?? it.precioUnitario ?? 0),
+                  };
+                }
+              });
+            } catch { /* sin planilla anterior: continuar sin saldos */ }
+          }
+
           const productos = await getProductosEnStock();
           if (!vivo) return;
-          const nuevasFilas = productos.map(p => ({
-            productoId: p.id,
-            nombre:     p.nombre,
-            precio:     Number(p.precioUnitario ?? p.precio ?? 0),
-            disponible: Number(p.cantidadDisponible ?? 0),
-            salida:     '',
-            entrada:    '',
-          }));
+
+          // Mapa de productos en stock para merge con saldos anteriores
+          const productosMap = {};
+          productos.forEach(p => { productosMap[p.id] = p; });
+
+          // Productos con saldo anterior que ya no están en stock general (devueltos)
+          Object.entries(saldosAnteriores).forEach(([pid, datos]) => {
+            if (!productosMap[pid]) {
+              productosMap[pid] = {
+                id: pid, nombre: datos.nombre,
+                precioUnitario: datos.precio, cantidadDisponible: 0,
+              };
+            }
+          });
+
+          const nuevasFilas = Object.values(productosMap).map(p => {
+            const saldoInfo = saldosAnteriores[p.id];
+            const saldo = saldoInfo?.saldo ?? 0;
+            return {
+              productoId:     p.id,
+              nombre:         p.nombre,
+              precio:         Number(p.precioUnitario ?? p.precio ?? 0),
+              disponible:     Number(p.cantidadDisponible ?? 0),
+              saldoAnterior:  saldo,
+              salida:         saldo > 0 ? saldo : '', // pre-fill con saldo anterior
+              entrada:        '',
+            };
+          });
+
           setFilas(nuevasFilas);
           setFilasInicial(nuevasFilas); // guardar lista completa para restaurar en edición
           setEstadoPlanilla('NUEVA');
@@ -244,13 +286,14 @@ export default function PlanillaDiaria() {
     setEnviando(true);
     setErrorMsg('');
     try {
-      // Solo enviar ítems con salida > 0: evita validación @Positive en items con precio=0
+      // Solo enviar ítems con salida > 0. saldoAnterior indica unidades ya con el comerciante
       const items = filas
         .filter(f => Number(f.salida) > 0)
         .map(f => ({
           productoId:     f.productoId,
           unidades:       Number(f.salida),
-          precioUnitario: Math.max(f.precio, 0.01), // fallback mínimo si precio_venta = 0
+          precioUnitario: Math.max(f.precio, 0.01),
+          saldoAnterior:  Math.min(f.saldoAnterior ?? 0, Number(f.salida)), // no puede superar la salida
         }));
       const totalGanancia = filas.reduce(
         (acc, f) => acc + (Number(f.salida) || 0) * f.precio, 0
@@ -523,7 +566,7 @@ export default function PlanillaDiaria() {
                   <table className="w-full min-w-[720px]">
                     <thead>
                       <tr className="bg-[#f6f3f3]">
-                        {['Producto','Salida (und)','Entrada (und)','Vendidas','Precio Unitario','Total ($)'].map((h, i) => (
+                        {['Producto','Saldo ant.','Salida (und)','Entrada (und)','Vendidas','Precio Unitario','Total ($)'].map((h, i) => (
                           <th
                             key={h}
                             className={`px-5 py-3 font-['Inter'] font-bold text-[10px] uppercase tracking-[0.8px] text-[#a8a29e] ${
@@ -551,6 +594,18 @@ export default function PlanillaDiaria() {
                               <span className="font-['Inter'] text-[14px] text-[#1b1b1c]">
                                 {fila.nombre}
                               </span>
+                            </td>
+
+                            {/* SALDO ANTERIOR */}
+                            <td className="px-5 py-3.5 text-center">
+                              {(fila.saldoAnterior ?? 0) > 0 ? (
+                                <span className="inline-flex items-center gap-1 font-['Manrope'] font-bold text-[14px] text-[#9e2016]">
+                                  {fila.saldoAnterior}
+                                  <span className="font-['Inter'] font-normal text-[11px] text-[#a8a29e]">u</span>
+                                </span>
+                              ) : (
+                                <span className="font-['Inter'] text-[13px] text-[#d6d3d1]">—</span>
+                              )}
                             </td>
 
                             {/* SALIDA */}

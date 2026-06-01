@@ -150,9 +150,9 @@ function AlertasBell({ token }) {
             <div className="flex items-center gap-2">
               <span className="text-primary"><BellIcon /></span>
               <span className="font-semibold text-[14px] text-ink">Alertas de Stock</span>
-              {count > 0 && (
+              {unreadCount > 0 && (
                 <span className="bg-primary text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
-                  {count}
+                  {unreadCount}
                 </span>
               )}
             </div>
