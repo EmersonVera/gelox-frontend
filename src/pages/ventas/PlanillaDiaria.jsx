@@ -599,9 +599,8 @@ export default function PlanillaDiaria() {
                             {/* SALDO ANTERIOR */}
                             <td className="px-5 py-3.5 text-center">
                               {(fila.saldoAnterior ?? 0) > 0 ? (
-                                <span className="inline-flex items-center gap-1 font-['Manrope'] font-bold text-[14px] text-[#9e2016]">
+                                <span className="font-['Manrope'] font-bold text-[14px] text-[#9e2016]">
                                   {fila.saldoAnterior}
-                                  <span className="font-['Inter'] font-normal text-[11px] text-[#a8a29e]">u</span>
                                 </span>
                               ) : (
                                 <span className="font-['Inter'] text-[13px] text-[#d6d3d1]">—</span>
