@@ -103,8 +103,9 @@ export default function PlanillaDiaria() {
 
         if (!planillaHoy) {
           // Obtener saldos del día anterior (unidades_devueltas de la última planilla cerrada)
+          // Última planilla CERRADA (la más reciente de todas, sin importar la fecha)
           const ultimaAnterior = Array.isArray(lista)
-            ? lista.find(p => p.cerrada && p.fecha < hoyISO())
+            ? lista.find(p => p.cerrada)
             : null;
           const saldosAnteriores = {}; // { productoId → { saldo, nombre, precio } }
           if (ultimaAnterior) {
@@ -146,11 +147,11 @@ export default function PlanillaDiaria() {
             return {
               productoId:     p.id,
               nombre:         p.nombre,
-              precio:         Number(p.precioUnitario ?? p.precio ?? 0),
+              precio:         Number(p.precioComerciente ?? p.precioUnitario ?? p.precio ?? 0),
               disponible:     Number(p.cantidadDisponible ?? 0),
               saldoAnterior:  saldo,
-              salida:         saldo > 0 ? saldo : '', // pre-fill con saldo anterior
-              entrada:        '',
+              salida:         saldo > 0 ? saldo : 0, // pre-fill con saldo anterior, 0 si no hay
+              entrada:        0,
             };
           });
 
@@ -267,7 +268,7 @@ export default function PlanillaDiaria() {
         const todos = productos.map(p => ({
           productoId:    p.id,
           nombre:        p.nombre,
-          precio:        Number(p.precioUnitario ?? p.precio ?? 0),
+          precio:        Number(p.precioComerciente ?? p.precioUnitario ?? p.precio ?? 0),
           disponible:    Number(p.cantidadDisponible ?? 0),
           saldoAnterior: 0,
           salida:        '',

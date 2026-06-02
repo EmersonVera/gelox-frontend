@@ -417,9 +417,21 @@ export default function InformacionComerciante() {
                 <h2 className="font-['Manrope'] font-bold text-[15px] sm:text-[16px] text-[#1b1b1c]">
                   Historial de Cierres Diarios
                 </h2>
-                <span className="font-['Inter'] text-[11px] sm:text-[12px] text-[#a8a29e]">
-                  {planillasFiltradas.length} de {planillas.length} registros
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="font-['Inter'] text-[11px] sm:text-[12px] text-[#a8a29e]">
+                    {planillasFiltradas.length} de {planillas.length} registros
+                  </span>
+                  <button
+                    onClick={() => cargar(filtroActivo.inicio, filtroActivo.fin)}
+                    title="Actualizar historial"
+                    className="w-7 h-7 flex items-center justify-center text-[#a8a29e] hover:text-[#9e2016] hover:bg-[#fef2f2] rounded-lg transition-all cursor-pointer"
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="23 4 23 10 17 10"/>
+                      <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                    </svg>
+                  </button>
+                </div>
               </div>
 
               {/* Búsqueda planillas */}

@@ -242,9 +242,9 @@ export default function GestionUsuarios() {
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
                             <div className="w-9 h-9 rounded-full bg-primary-tint text-primary text-xs font-bold flex items-center justify-center shrink-0 overflow-hidden">
-                              {u.foto_url ? (
+                              {u.fotoUrl ? (
                                 <img
-                                  src={u.foto_url}
+                                  src={u.fotoUrl}
                                   alt={u.nombre}
                                   className="w-full h-full object-cover"
                                 />

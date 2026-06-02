@@ -66,7 +66,8 @@ export default function NuevoProducto({ onClose, onSuccess }) {
       if (data.descripcion)         fd.append('descripcion', data.descripcion);
       if (data.stockMinimo != null) fd.append('stockMinimo', data.stockMinimo);
       if (data.stockMedio  != null) fd.append('stockMedio',  data.stockMedio);
-      if (data.unidadesPorCaja != null) fd.append('unidadesPorCaja', data.unidadesPorCaja);
+      if (data.unidadesPorCaja    != null) fd.append('unidadesPorCaja', data.unidadesPorCaja);
+      if (data.precioComerciente  != null && data.precioComerciente !== '') fd.append('precioComerciente', data.precioComerciente);
       if (imagen) fd.append('imagen', imagen); // ← campo "imagen", no "foto"
 
       const res = await api.post('/api/catalogo/productos', fd);
@@ -200,6 +201,19 @@ export default function NuevoProducto({ onClose, onSuccess }) {
                 Dejar vacío si el producto solo se vende por unidad.
               </p>
               {errors.unidadesPorCaja && <p className={errorClass}>{errors.unidadesPorCaja.message}</p>}
+            </div>
+
+            {/* Precio Comerciante */}
+            <div>
+              <label className={labelClass}>
+                Precio Comerciante{' '}
+                <span className="font-normal text-[#a8a29e] normal-case tracking-normal">(opcional — diferente al precio de venta)</span>
+              </label>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 font-['Inter'] text-[16px] text-[#a8a29e]">$</span>
+                <input {...register('precioComerciente')} type="number" step="0.01" placeholder="0.00" className={`${inputClass} pl-8`} />
+              </div>
+              {errors.precioComerciente && <p className={errorClass}>{errors.precioComerciente.message}</p>}
             </div>
 
             {/* Configuración alertas */}

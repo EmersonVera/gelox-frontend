@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import AppLayout from '../../components/AppLayout';
-import { imprimirPlanilla } from '../../services/ventasService';
+import { imprimirPlanilla, liquidarPlanilla } from '../../services/ventasService';
 
 const MESES_LARGO = [
   'ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO',
@@ -23,10 +23,15 @@ export default function PlanillaDetalle() {
   const location                       = useLocation();
   const { comercianteId, planillaId }  = location.state ?? {};
 
-  const [datos,      setDatos]      = useState(null);
-  const [cargando,   setCargando]   = useState(true);
-  const [error,      setError]      = useState('');
-  const [imprimiendo, setImprimiendo] = useState(false);
+  const [datos,        setDatos]        = useState(null);
+  const [cargando,     setCargando]     = useState(true);
+  const [error,        setError]        = useState('');
+  const [imprimiendo,  setImprimiendo]  = useState(false);
+  const [entradas,     setEntradas]     = useState({});   // { itemId → valor }
+  const [cerrando,     setCerrando]     = useState(false);
+  const [errorCierre,  setErrorCierre]  = useState('');
+
+  const estaAbierta = datos && !datos.cerrada;
 
   useEffect(() => {
     if (!planillaId) {
@@ -37,11 +42,38 @@ export default function PlanillaDetalle() {
     let vivo = true;
     setCargando(true);
     imprimirPlanilla(planillaId)
-      .then((data) => { if (vivo) setDatos(data); })
+      .then((data) => {
+        if (!vivo) return;
+        setDatos(data);
+        // Inicializar entradas en 0 para cada ítem (para cierre diario de planillas abiertas)
+        if (data?.items) {
+          const init = {};
+          data.items.forEach(it => { init[it.id] = 0; });
+          setEntradas(init);
+        }
+      })
       .catch(() => { if (vivo) setError('No existe una planilla en esta fecha'); })
       .finally(() => { if (vivo) setCargando(false); });
     return () => { vivo = false; };
   }, [planillaId]);
+
+  async function handleCierreDiario() {
+    setCerrando(true);
+    setErrorCierre('');
+    try {
+      const devoluciones = (datos?.items ?? []).map(it => ({
+        detalleId:         it.id,
+        unidadesDevueltas: Math.min(Number(entradas[it.id]) || 0, it.unidadesDespachadas ?? 0),
+      }));
+      await liquidarPlanilla(planillaId, devoluciones);
+      navigate(-1);
+    } catch (e) {
+      const msg = e?.response?.data?.mensaje ?? e?.response?.data?.message ?? '';
+      setErrorCierre(msg || 'No se pudo realizar el cierre. Intenta de nuevo.');
+    } finally {
+      setCerrando(false);
+    }
+  }
 
   async function handleImprimir() {
     setImprimiendo(true);
@@ -180,21 +212,48 @@ export default function PlanillaDetalle() {
                   </thead>
                   <tbody>
                     {items.map((it, idx) => {
-                      const vendidas = (it.unidadesDespachadas ?? 0) - (it.unidadesDevueltas ?? 0);
-                      const total    = it.ganancia ?? vendidas * Number(it.precioVenta ?? 0);
+                      const devActual = estaAbierta
+                        ? (Number(entradas[it.id]) || 0)
+                        : (it.unidadesDevueltas ?? 0);
+                      const vendidas  = (it.unidadesDespachadas ?? 0) - devActual;
+                      const total     = estaAbierta
+                        ? Math.max(0, vendidas) * Number(it.precioVenta ?? 0)
+                        : (it.ganancia ?? vendidas * Number(it.precioVenta ?? 0));
+                      const errFila   = estaAbierta && devActual > (it.unidadesDespachadas ?? 0);
                       return (
-                        <tr key={it.productoId ?? idx} className="border-b border-[#f5f5f4] last:border-b-0">
+                        <tr key={it.id ?? it.productoId ?? idx} className="border-b border-[#f5f5f4] last:border-b-0">
                           <td className="px-5 py-4 font-['Inter'] text-[14px] text-[#1b1b1c]">
                             {it.nombre ?? it.productoNombre ?? '—'}
                           </td>
                           <td className="px-5 py-4 text-center font-['Manrope'] font-bold text-[14px] text-[#1b1b1c]">
                             {it.unidadesDespachadas ?? 0}
                           </td>
-                          <td className="px-5 py-4 text-center font-['Manrope'] font-bold text-[14px] text-[#1b1b1c]">
-                            {it.unidadesDevueltas ?? 0}
+                          <td className="px-5 py-4 text-center">
+                            {estaAbierta ? (
+                              <div className="flex flex-col items-center gap-1">
+                                <input
+                                  type="number" min="0"
+                                  value={entradas[it.id] ?? 0}
+                                  onChange={e => setEntradas(prev => ({
+                                    ...prev,
+                                    [it.id]: Math.max(0, Number(e.target.value) || 0),
+                                  }))}
+                                  className={`w-20 rounded-[8px] px-2 py-1.5 text-center font-['Inter'] text-[14px] text-[#1b1b1c] outline-none transition-all ${
+                                    errFila
+                                      ? 'border border-[#9e2016] bg-[#fff1f0]'
+                                      : 'border border-transparent bg-[#f6f3f3] focus:border-[#9e2016]'
+                                  }`}
+                                />
+                                {errFila && <p className="font-['Inter'] text-[10px] text-[#9e2016]">Supera lo despachado</p>}
+                              </div>
+                            ) : (
+                              <span className="font-['Manrope'] font-bold text-[14px] text-[#1b1b1c]">
+                                {it.unidadesDevueltas ?? 0}
+                              </span>
+                            )}
                           </td>
                           <td className="px-5 py-4 text-center font-['Inter'] text-[14px] text-[#a8a29e]">
-                            {vendidas}
+                            {Math.max(0, vendidas)}
                           </td>
                           <td className="px-5 py-4 text-center font-['Inter'] text-[14px] text-[#1b1b1c]">
                             {formatCOP(it.precioVenta)}
@@ -304,13 +363,34 @@ export default function PlanillaDetalle() {
             </div>
           </div>
 
-          {/* Botón volver */}
-          <button
-            onClick={() => navigate(-1)}
-            className="w-full sm:w-auto bg-[#9e2016] hover:bg-[#c0392b] text-white font-['Manrope'] font-bold text-[13px] sm:text-[14px] rounded-[10px] px-5 py-2.5 sm:py-3 transition-colors cursor-pointer shadow-sm text-center"
-          >
-            Volver a Información Comerciante
-          </button>
+          {/* Error cierre */}
+          {errorCierre && (
+            <p className="font-['Inter'] text-[12px] text-[#9e2016] text-center sm:text-left flex-1">{errorCierre}</p>
+          )}
+
+          {/* Botones */}
+          <div className="flex gap-3 w-full sm:w-auto">
+            <button
+              onClick={() => navigate(-1)}
+              className="flex-1 sm:flex-none bg-[#f6f3f3] hover:bg-[#e7e5e4] text-[#1b1b1c] font-['Manrope'] font-bold text-[13px] sm:text-[14px] rounded-[10px] px-5 py-2.5 sm:py-3 transition-colors cursor-pointer text-center"
+            >
+              Volver
+            </button>
+            {estaAbierta && (
+              <button
+                onClick={handleCierreDiario}
+                disabled={cerrando || Object.values(entradas).some((v, i) => {
+                  const it = items[i];
+                  return Number(v) > (it?.unidadesDespachadas ?? 0);
+                })}
+                className="flex-1 sm:flex-none bg-[#9e2016] hover:bg-[#c0392b] disabled:opacity-60 disabled:cursor-not-allowed text-white font-['Manrope'] font-bold text-[13px] sm:text-[14px] rounded-[10px] px-5 py-2.5 sm:py-3 transition-colors cursor-pointer shadow-sm text-center flex items-center justify-center gap-2"
+              >
+                {cerrando ? (
+                  <><svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>Cerrando...</>
+                ) : 'Hacer Cierre Diario ✓'}
+              </button>
+            )}
+          </div>
         </div>
       )}
     </AppLayout>

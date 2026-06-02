@@ -134,7 +134,7 @@ export default function EditarUsuario() {
 
   const [rolSeleccionado, setRolSeleccionado] = useState(rolInicial);
   const [foto, setFoto]                       = useState(null);
-  const [fotoPreview, setFotoPreview]         = useState(usuario.foto_url ?? null);
+  const [fotoPreview, setFotoPreview]         = useState(usuario.fotoUrl ?? null);
   const [guardando, setGuardando]             = useState(false);
   const [cambiandoEstado, setCambiandoEstado] = useState(false);
   const [toast, setToast]                     = useState({ show: false, msg: '', type: 'success' });
