@@ -269,17 +269,28 @@ export default function InformacionComerciante() {
                     </svg>
                   </button>
                 </div>
-                <button
-                  onClick={() => navigate(`/ventas/comerciantes/${id}/planilla-hoy`, { state: { comerciante: comercianteLocal } })}
-                  className="shrink-0 flex items-center gap-1.5 sm:gap-2 bg-[#9e2016] hover:bg-[#c0392b] text-white font-['Manrope'] font-bold text-[12px] sm:text-[13px] rounded-[8px] px-3 sm:px-4 py-2 sm:py-2.5 transition-colors cursor-pointer shadow-sm"
-                >
-                  <svg width="14" height="14" fill="none" viewBox="0 0 14 14">
-                    <path d="M3 2a1 1 0 0 1 1-1h4.586a1 1 0 0 1 .707.293l2.414 2.414A1 1 0 0 1 12 4.414V12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2z"
-                      stroke="currentColor" strokeWidth="1.2"/>
-                    <path d="M8 1v3h3M5 7h4M5 9.5h3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
-                  </svg>
-                  <span className="hidden sm:inline">Planilla Hoy</span>
-                </button>
+                {comercianteLocal.activo ? (
+                  <button
+                    onClick={() => navigate(`/ventas/comerciantes/${id}/planilla-hoy`, { state: { comerciante: comercianteLocal } })}
+                    className="shrink-0 flex items-center gap-1.5 sm:gap-2 bg-[#9e2016] hover:bg-[#c0392b] text-white font-['Manrope'] font-bold text-[12px] sm:text-[13px] rounded-[8px] px-3 sm:px-4 py-2 sm:py-2.5 transition-colors cursor-pointer shadow-sm"
+                  >
+                    <svg width="14" height="14" fill="none" viewBox="0 0 14 14">
+                      <path d="M3 2a1 1 0 0 1 1-1h4.586a1 1 0 0 1 .707.293l2.414 2.414A1 1 0 0 1 12 4.414V12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2z"
+                        stroke="currentColor" strokeWidth="1.2"/>
+                      <path d="M8 1v3h3M5 7h4M5 9.5h3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+                    </svg>
+                    <span className="hidden sm:inline">Planilla Hoy</span>
+                  </button>
+                ) : (
+                  <div className="shrink-0 flex items-center gap-1.5 sm:gap-2 bg-[#f5f5f4] text-[#a8a29e] font-['Manrope'] font-bold text-[12px] sm:text-[13px] rounded-[8px] px-3 sm:px-4 py-2 sm:py-2.5 cursor-not-allowed"
+                    title="Activa el comerciante para crear una planilla">
+                    <svg width="14" height="14" fill="none" viewBox="0 0 14 14">
+                      <circle cx="7" cy="7" r="6" stroke="currentColor" strokeWidth="1.2"/>
+                      <path d="M4.5 4.5l5 5M9.5 4.5l-5 5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+                    </svg>
+                    <span className="hidden sm:inline">Inactivo</span>
+                  </div>
+                )}
               </div>
 
               {/* Datos en grid — 1 col mobile, 2 col desktop */}

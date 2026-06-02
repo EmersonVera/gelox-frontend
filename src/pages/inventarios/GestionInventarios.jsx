@@ -201,11 +201,18 @@ export default function GestionInventarios() {
   /* ── RF27: filtro local por nombre / código técnico (instantáneo) ── */
   const productosFiltrados = useMemo(() => {
     const q = busqueda.trim().toLowerCase();
-    if (!q) return productos;
-    return productos.filter((p) =>
-      p.nombre?.toLowerCase().includes(q) ||
-      p.codigoTecnico?.toLowerCase().includes(q)
-    );
+    const lista = q
+      ? productos.filter((p) =>
+          p.nombre?.toLowerCase().includes(q) ||
+          p.codigoTecnico?.toLowerCase().includes(q)
+        )
+      : productos;
+    return [...lista].sort((a, b) => {
+      const stockA = a.cantidadDisponible ?? a.stockActual ?? 0;
+      const stockB = b.cantidadDisponible ?? b.stockActual ?? 0;
+      if (stockA !== stockB) return stockA - stockB;
+      return (a.nombre ?? '').localeCompare(b.nombre ?? '', 'es');
+    });
   }, [productos, busqueda]);
 
   // Resetear página al cambiar texto de búsqueda o categoría

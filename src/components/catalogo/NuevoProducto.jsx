@@ -167,15 +167,25 @@ export default function NuevoProducto({ onClose, onSuccess }) {
               </div>
             </div>
 
-            {/* Precio Costo — ADMINISTRADOR y ENCARGADO_INVENTARIO */}
+            {/* Precio Costo + Precio Comerciante — ADMINISTRADOR y ENCARGADO_INVENTARIO */}
             {puedeVerCosto && (
-              <div>
-                <label className={labelClass}>Precio de Costo COP</label>
-                <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 font-['Inter'] text-[16px] text-[#a8a29e]">$</span>
-                  <input {...register('precioCosto')} type="number" step="0.01" placeholder="0.00" className={`${inputClass} pl-8`} />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className={labelClass}>Precio de Costo COP</label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 font-['Inter'] text-[16px] text-[#a8a29e]">$</span>
+                    <input {...register('precioCosto')} type="number" step="0.01" placeholder="0.00" className={`${inputClass} pl-8`} />
+                  </div>
+                  {errors.precioCosto && <p className={errorClass}>{errors.precioCosto.message}</p>}
                 </div>
-                {errors.precioCosto && <p className={errorClass}>{errors.precioCosto.message}</p>}
+                <div>
+                  <label className={labelClass}>Precio Comerciante COP</label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 font-['Inter'] text-[16px] text-[#a8a29e]">$</span>
+                    <input {...register('precioComerciente')} type="number" step="0.01" placeholder="0.00" className={`${inputClass} pl-8`} />
+                  </div>
+                  {errors.precioComerciente && <p className={errorClass}>{errors.precioComerciente.message}</p>}
+                </div>
               </div>
             )}
 
@@ -201,19 +211,6 @@ export default function NuevoProducto({ onClose, onSuccess }) {
                 Dejar vacío si el producto solo se vende por unidad.
               </p>
               {errors.unidadesPorCaja && <p className={errorClass}>{errors.unidadesPorCaja.message}</p>}
-            </div>
-
-            {/* Precio Comerciante */}
-            <div>
-              <label className={labelClass}>
-                Precio Comerciante{' '}
-                <span className="font-normal text-[#a8a29e] normal-case tracking-normal">(opcional — diferente al precio de venta)</span>
-              </label>
-              <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 font-['Inter'] text-[16px] text-[#a8a29e]">$</span>
-                <input {...register('precioComerciente')} type="number" step="0.01" placeholder="0.00" className={`${inputClass} pl-8`} />
-              </div>
-              {errors.precioComerciente && <p className={errorClass}>{errors.precioComerciente.message}</p>}
             </div>
 
             {/* Configuración alertas */}
