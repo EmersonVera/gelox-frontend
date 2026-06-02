@@ -341,14 +341,6 @@ src/
 └── main.jsx                  # Punto de entrada de React
 ```
 
----
-
-## 📸 Capturas de pantalla
-
-> 📸 Capturas de pantalla pendientes de agregar
-
----
-
 ## 🔌 Conexión con el backend
 
 ### URL base
