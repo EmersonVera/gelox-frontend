@@ -210,7 +210,7 @@ export default function GestionInventarios() {
     return [...lista].sort((a, b) => {
       const stockA = a.cantidadDisponible ?? a.stockActual ?? 0;
       const stockB = b.cantidadDisponible ?? b.stockActual ?? 0;
-      if (stockA !== stockB) return stockA - stockB;
+      if (stockA !== stockB) return stockB - stockA;
       return (a.nombre ?? '').localeCompare(b.nombre ?? '', 'es');
     });
   }, [productos, busqueda]);
