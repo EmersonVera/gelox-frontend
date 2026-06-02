@@ -250,34 +250,38 @@ export default function PlanillaDiaria() {
     filas.every(f => f.entrada !== '' && Number(f.entrada) >= 0) &&
     !hayErrorEntrada;
 
-  /* ── Entrar a modo edición: restaurar lista completa de productos (Bug 1) ── */
+  /* ── Entrar a modo edición: muestra planilla completa con cantidades reales ── */
   const handleEntrarEdicion = async () => {
-    let listaBase = filasInicial;
+    // Los ítems despachados son la fuente de verdad (preservar su salida)
+    const despachadoMap = Object.fromEntries(filas.map(f => [f.productoId, f]));
+    const despachadoIds = new Set(filas.map(f => f.productoId));
 
-    if (listaBase.length === 0) {
-      // Si se perdió el estado por navegación, recargar desde la API
+    // Cargar productos no despachados (del catálogo con stock)
+    let noDespachadosBase = filasInicial.filter(f => !despachadoIds.has(f.productoId));
+    if (filasInicial.length === 0) {
       try {
         const productos = await getProductosEnStock();
-        listaBase = productos.map(p => ({
-          productoId: p.id,
-          nombre:     p.nombre,
-          precio:     Number(p.precioUnitario ?? p.precio ?? 0),
-          disponible: Number(p.cantidadDisponible ?? 0),
-          salida:     '',
-          entrada:    '',
+        const todos = productos.map(p => ({
+          productoId:    p.id,
+          nombre:        p.nombre,
+          precio:        Number(p.precioUnitario ?? p.precio ?? 0),
+          disponible:    Number(p.cantidadDisponible ?? 0),
+          saldoAnterior: 0,
+          salida:        '',
+          entrada:       '',
         }));
-        setFilasInicial(listaBase);
-      } catch { listaBase = filas; }
+        setFilasInicial(todos);
+        noDespachadosBase = todos.filter(f => !despachadoIds.has(f.productoId));
+      } catch { noDespachadosBase = []; }
     }
 
-    // Superponer salida y detalleIds de los productos que ya se despacharon
-    const despachadoMap = Object.fromEntries(filas.map(f => [f.productoId, f]));
-    setFilas(listaBase.map(f => ({
-      ...f,
-      salida:     despachadoMap[f.productoId]?.salida     ?? 0,
-      detalleIds: despachadoMap[f.productoId]?.detalleIds ?? [],
-      entrada:    '',
-    })));
+    // Resultado = despachados (con su salida real) + no despachados (con salida 0)
+    const resultado = [
+      ...filas.map(f => ({ ...f, entrada: '' })),          // despachados: salida intacta
+      ...noDespachadosBase.map(f => ({ ...f, salida: 0, detalleIds: [], entrada: '' })),
+    ];
+
+    setFilas(resultado);
     setEditandoMatutino(true);
   };
 
