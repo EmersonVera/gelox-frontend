@@ -297,8 +297,8 @@ export default function PlanillaDiaria() {
       const items = filas
         .filter(f => (f.detalleIds?.length ?? 0) > 0)
         .map(f => ({
-          detalleId: f.detalleIds[0],
-          unidades:  Number(f.salida) ?? 0,
+          productoId: f.productoId,
+          unidades:   Number(f.salida) || 0,
         }));
 
       await actualizarDespacho(planillaId, items);

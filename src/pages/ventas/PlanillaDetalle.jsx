@@ -113,15 +113,7 @@ export default function PlanillaDetalle() {
         {/* ── Volver al comerciante ── */}
         {idComerciante && (
           <button
-            onClick={() => navigate(`/ventas/comerciantes/${idComerciante}/informacion`, {
-              state: {
-                comerciante: {
-                  id: idComerciante,
-                  nombre: nombreComerciante !== '—' ? nombreComerciante : '',
-                  fotoUrl,
-                },
-              },
-            })}
+            onClick={() => navigate(-1)}
             className="flex items-center gap-1.5 text-[#78716c] hover:text-[#1b1b1c] transition-colors w-fit font-['Inter'] text-[13px] cursor-pointer no-print"
           >
             <svg width="16" height="16" fill="none" viewBox="0 0 16 16">
