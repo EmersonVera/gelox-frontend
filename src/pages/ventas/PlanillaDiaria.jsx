@@ -298,21 +298,40 @@ export default function PlanillaDiaria() {
         .filter(f => (f.detalleIds?.length ?? 0) > 0)
         .map(f => ({
           detalleId: f.detalleIds[0],
-          unidades:  Number(f.salida) || 0,
+          unidades:  Number(f.salida) ?? 0,
         }));
 
       await actualizarDespacho(planillaId, items);
 
-      // Mantener solo los despachados (con entrada = 0 para habilitar cierre diario)
-      setFilas(prev => prev
-        .filter(f => (f.detalleIds?.length ?? 0) > 0)
-        .map(f => ({ ...f, entrada: 0 }))
-      );
+      // Recargar los ítems desde el servidor para confirmar que los cambios se aplicaron
+      const detalle = await getDatosPlanillaImpresion(planillaId);
+      const rawItems = detalle?.items ?? [];
+      const agrupado = {};
+      rawItems.forEach(it => {
+        const pid = it.productoId;
+        if (!agrupado[pid]) {
+          agrupado[pid] = {
+            productoId: pid,
+            detalleIds: [],
+            nombre:     it.productoNombre ?? it.nombre ?? '—',
+            precio:     Number(it.precioVenta ?? it.precioUnitario ?? 0),
+            disponible: 0,
+            salida:     0,
+            entrada:    0,
+          };
+        }
+        agrupado[pid].detalleIds.push(it.id ?? it.detalleId);
+        agrupado[pid].disponible += Number(it.unidadesDespachadas ?? 0);
+        agrupado[pid].salida     += Number(it.unidadesDespachadas ?? 0);
+      });
+      setFilas(Object.values(agrupado));
       setEditandoMatutino(false);
     } catch (e) {
-      const msg = e?.response?.data?.mensaje ?? e?.response?.data?.message ?? '';
+      const msg = e?.response?.data?.error
+        ?? e?.response?.data?.mensaje
+        ?? e?.response?.data?.message
+        ?? '';
       setErrorMsg(msg || 'No se pudo guardar la edición. Intenta de nuevo.');
-      setEnviando(false);
     } finally {
       setEnviando(false);
     }
@@ -404,7 +423,8 @@ export default function PlanillaDiaria() {
           setErrorMsg('La planilla ya fue registrada. Recarga la página para verla.');
         }
       } else {
-        setErrorMsg(e?.response?.data?.mensaje ?? 'Error al registrar el despacho. Intenta de nuevo.');
+        const msg = e?.response?.data?.error ?? e?.response?.data?.mensaje ?? e?.response?.data?.message ?? '';
+        setErrorMsg(msg || 'Error al registrar el despacho. Intenta de nuevo.');
       }
     } finally {
       setEnviando(false);
@@ -431,7 +451,8 @@ export default function PlanillaDiaria() {
       await liquidarPlanilla(planillaId, items);
       navigate(-1);
     } catch (e) {
-      setErrorMsg(e?.response?.data?.mensaje ?? 'Error al cerrar la planilla. Intenta de nuevo.');
+      const msg = e?.response?.data?.error ?? e?.response?.data?.mensaje ?? e?.response?.data?.message ?? '';
+      setErrorMsg(msg || 'Error al cerrar la planilla. Intenta de nuevo.');
     } finally {
       setEnviando(false);
     }
