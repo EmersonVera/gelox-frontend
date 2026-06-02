@@ -91,6 +91,12 @@ export async function cambiarEstadoComerciante(id, activo) {
   return data;
 }
 
+// Editar cantidades despachadas en un cierre matutino ya registrado
+export async function actualizarDespacho(planillaId, items) {
+  const { data } = await api.put(`/api/planillas/${planillaId}/despacho`, items);
+  return data;
+}
+
 // RF39 — Productos del inventario con stock disponible
 export async function getProductosEnStock() {
   const { data } = await api.get('/api/inventario/productos');

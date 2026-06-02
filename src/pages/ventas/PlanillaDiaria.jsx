@@ -10,6 +10,7 @@ import {
   getPlanillasComerciante,
   registrarDespacho,
   liquidarPlanilla,
+  actualizarDespacho,
 } from '../../services/ventasService';
 
 /* ── Utilidades ─────────────────────────────────────────────────────────── */
@@ -205,7 +206,9 @@ export default function PlanillaDiaria() {
   const updateSalida = (productoId, value) => {
     setFilas(prev => prev.map(f => {
       if (f.productoId !== productoId) return f;
-      const clamped = value === '' ? '' : Math.max(0, Math.min(f.disponible, Number(value) || 0));
+      // En modo edición no hay límite superior (el backend valida el stock disponible)
+      const max = editandoMatutino ? Infinity : f.disponible;
+      const clamped = value === '' ? '' : Math.max(0, Math.min(max, Number(value) || 0));
       return { ...f, salida: clamped };
     }));
   };
@@ -283,6 +286,35 @@ export default function PlanillaDiaria() {
 
     setFilas(resultado);
     setEditandoMatutino(true);
+  };
+
+  /* ── Guardar edición del cierre matutino → llama al backend ── */
+  const handleGuardarEdicion = async () => {
+    setEnviando(true);
+    setErrorMsg('');
+    try {
+      const items = filas
+        .filter(f => (f.detalleIds?.length ?? 0) > 0)
+        .map(f => ({
+          detalleId: f.detalleIds[0],
+          unidades:  Number(f.salida) || 0,
+        }));
+
+      await actualizarDespacho(planillaId, items);
+
+      // Mantener solo los despachados (con entrada = 0 para habilitar cierre diario)
+      setFilas(prev => prev
+        .filter(f => (f.detalleIds?.length ?? 0) > 0)
+        .map(f => ({ ...f, entrada: 0 }))
+      );
+      setEditandoMatutino(false);
+    } catch (e) {
+      const msg = e?.response?.data?.mensaje ?? e?.response?.data?.message ?? '';
+      setErrorMsg(msg || 'No se pudo guardar la edición. Intenta de nuevo.');
+      setEnviando(false);
+    } finally {
+      setEnviando(false);
+    }
   };
 
   /* ── Cierre Matutino (despacho) ── */
@@ -720,14 +752,7 @@ export default function PlanillaDiaria() {
                     estadoPlanilla === 'DESPACHADO' && !editandoMatutino
                       ? handleEntrarEdicion
                       : editandoMatutino
-                        ? () => {
-                            // Restaurar solo ítems despachados con entrada=0 para que el cierre diario funcione
-                            setFilas(prev => prev
-                              .filter(f => (f.detalleIds?.length ?? 0) > 0)
-                              .map(f => ({ ...f, entrada: 0 }))
-                            );
-                            setEditandoMatutino(false);
-                          }
+                        ? handleGuardarEdicion
                         : handleCierreMatutino
                   }
                   disabled={
