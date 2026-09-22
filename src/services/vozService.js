@@ -1,8 +1,26 @@
-import api from "../api/axiosConfig";
+import api from '../api/axiosConfig';
+import { interpretar as interpretarVozMock, confirmar as confirmarVozMock } from './vozMock';
 
-// NOTA T48: este archivo no existía todavía en la rama. Se crea aquí con lo
-// mínimo que pide T48-FE2; cualquier otra función de voz (interpretar,
-// confirmar, etc.) la agregan Zharick/Angie según sus propias tareas.
+// Mientras el backend de voz no esté listo, las funciones responden con datos
+// simulados (ver vozMock.js). Pasar al backend real es poner
+// VITE_USAR_MOCK_VOZ=false en el .env, sin tocar código.
+const USAR_MOCK_VOZ = import.meta.env.VITE_USAR_MOCK_VOZ !== 'false';
+
+export async function interpretarComando(texto, confianza) {
+  if (USAR_MOCK_VOZ) {
+    return interpretarVozMock(texto, confianza);
+  }
+  const { data } = await api.post('/api/voz/interpretar', { texto, confianza });
+  return data;
+}
+
+export async function confirmarComando(comandoId, confirmar) {
+  if (USAR_MOCK_VOZ) {
+    return confirmarVozMock(comandoId, confirmar);
+  }
+  const { data } = await api.post('/api/voz/confirmar', { comandoId, confirmar });
+  return data;
+}
 
 function nombreDesdeContentDisposition(headerValue, fallback) {
   if (!headerValue) return fallback;
@@ -16,13 +34,13 @@ function nombreDesdeContentDisposition(headerValue, fallback) {
  * que pages/inventarios/GenerarPedido.jsx (líneas ~125-126), sin tocar ese archivo.
  */
 export async function descargarExportacionPedido(exportUrl) {
-  const respuesta = await api.get(exportUrl, { responseType: "blob" });
+  const respuesta = await api.get(exportUrl, { responseType: 'blob' });
   const nombre = nombreDesdeContentDisposition(
-    respuesta.headers["content-disposition"],
-    "pedido.xlsx"
+    respuesta.headers['content-disposition'],
+    'pedido.xlsx'
   );
   const url = URL.createObjectURL(respuesta.data);
-  const a = document.createElement("a");
+  const a = document.createElement('a');
   a.href = url;
   a.download = nombre;
   a.click();

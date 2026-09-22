@@ -1,38 +1,65 @@
-// Mock de voz para RF52 (GENERAR_PEDIDO).
-// Simula "Genera un pedido con 20 cajas de Solo Lack y 15 de Festival" con la
-// forma exacta del contrato (FP-15 §2.2/2.4-2.6). `respuesta` es el estado
-// antes de confirmar (solo items); `respuestaConfirmada` es lo que devuelve
-// POST /api/voz/confirmar una vez el backend crea el pedido (T47).
+// Mock de voz para RF52 (GENERAR_PEDIDO). Sigue el contrato real de
+// vozMock.js: cada mock exporta coincide(texto), interpretar(texto, confianza)
+// y confirmar(comandoId, confirmar) — no hay que tocar vozMock.js, se detecta
+// solo vía import.meta.glob.
 
-export default {
-  frase: "Genera un pedido con 20 cajas de Solo Lack y 15 de Festival",
-  respuesta: {
-    comandoId: "mock-generar-pedido-001",
-    intencion: "GENERAR_PEDIDO",
+const ITEMS = [
+  { productoId: 'prod-solo-lack', nombre: 'Solo Lack', cantidadCajas: 20, cantidadUnidades: 0 },
+  { productoId: 'prod-festival', nombre: 'Festival', cantidadCajas: 15, cantidadUnidades: 0 },
+];
+const PEDIDO_ID = '3f8a92b1-4c2d-4e1f-8a3b-1c2d3e4f5a6b';
+
+function normalizar(texto) {
+  return (texto || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '');
+}
+
+export function coincide(texto) {
+  const t = normalizar(texto);
+  // Exige el verbo de creación: si no, "festival" haría que esto le gane a
+  // mockModificarPedido cuando la frase es de modificación, no de creación.
+  const esCreacion = t.includes('genera') || t.includes('crea el pedido') || t.includes('crear pedido') || t.includes('hacer pedido');
+  return esCreacion && t.includes('pedido');
+}
+
+let contador = 0;
+
+export function interpretar() {
+  contador += 1;
+  return {
+    comandoId: `mock-generar-pedido-${contador}`,
+    intencion: 'GENERAR_PEDIDO',
     requiereConfirmacion: true,
     expiraEnSegundos: 15,
     textoRespuesta:
-      "Armé un borrador con 20 cajas de Solo Lack y 15 cajas de Festival. ¿Confirmas el pedido?",
-    datos: {
-      items: [
-        { productoId: "prod-solo-lack", nombre: "Solo Lack", cantidadCajas: 20, cantidadUnidades: 0 },
-        { productoId: "prod-festival", nombre: "Festival", cantidadCajas: 15, cantidadUnidades: 0 },
-      ],
-    },
-  },
-  respuestaConfirmada: {
-    comandoId: "mock-generar-pedido-001",
-    intencion: "GENERAR_PEDIDO",
+      'Armé un borrador con 20 cajas de Solo Lack y 15 cajas de Festival. ¿Confirmas el pedido?',
+    datos: { items: ITEMS },
+  };
+}
+
+export function confirmar(comandoId, confirmarValor) {
+  if (!confirmarValor) {
+    return {
+      comandoId,
+      intencion: 'GENERAR_PEDIDO',
+      requiereConfirmacion: false,
+      expiraEnSegundos: null,
+      textoRespuesta: 'Pedido cancelado.',
+      datos: null,
+    };
+  }
+  return {
+    comandoId,
+    intencion: 'GENERAR_PEDIDO',
     requiereConfirmacion: false,
     expiraEnSegundos: null,
-    textoRespuesta: "Pedido registrado correctamente.",
+    textoRespuesta: 'Pedido registrado correctamente.',
     datos: {
-      items: [
-        { productoId: "prod-solo-lack", nombre: "Solo Lack", cantidadCajas: 20, cantidadUnidades: 0 },
-        { productoId: "prod-festival", nombre: "Festival", cantidadCajas: 15, cantidadUnidades: 0 },
-      ],
-      pedidoId: "3f8a92b1-4c2d-4e1f-8a3b-1c2d3e4f5a6b",
-      exportUrl: "/api/inventario/pedidos/3f8a92b1-4c2d-4e1f-8a3b-1c2d3e4f5a6b/exportar",
+      items: ITEMS,
+      pedidoId: PEDIDO_ID,
+      exportUrl: `/api/inventario/pedidos/${PEDIDO_ID}/exportar`,
     },
-  },
-};
+  };
+}
