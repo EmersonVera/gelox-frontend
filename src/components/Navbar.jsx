@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
+import AsistenteVoz from './voz/AsistenteVoz';
 
 const base = import.meta.env.VITE_API_BASE_URL ?? '';
 
@@ -285,6 +286,9 @@ export default function Navbar({ onToggle, sidebarOpen }) {
 
       {/* Spacer */}
       <div className="flex-1" />
+
+      {/* Asistente de voz — visible para todos los roles (RF46) */}
+      <AsistenteVoz />
 
       {/* Campana de alertas — solo ADMINISTRADOR y ENCARGADO_INVENTARIO */}
       {puedeVerAlertas && <AlertasBell token={token} />}
