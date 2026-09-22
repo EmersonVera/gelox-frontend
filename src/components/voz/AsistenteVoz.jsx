@@ -17,6 +17,7 @@ export default function AsistenteVoz() {
     respuesta,
     iniciar,
     cancelar,
+    confirmar,
   } = useAsistenteVoz();
 
   const [open, setOpen] = useState(false);
@@ -67,6 +68,8 @@ export default function AsistenteVoz() {
           respuesta={respuesta}
           permisoDenegado={permisoDenegado}
           onCancelar={handleCancelar}
+          onConfirmarVenta={() => confirmar(true)}
+          onCancelarVenta={() => confirmar(false)}
         />
       )}
     </div>

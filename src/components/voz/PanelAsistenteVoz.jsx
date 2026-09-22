@@ -17,6 +17,8 @@ export default function PanelAsistenteVoz({
   respuesta,
   permisoDenegado,
   onCancelar,
+  onConfirmarVenta,
+  onCancelarVenta,
 }) {
   const escuchando = estado === ESTADOS_VOZ.ESCUCHANDO || estado === ESTADOS_VOZ.TRANSCRIBIENDO;
   const interpretando = estado === ESTADOS_VOZ.INTERPRETANDO;
@@ -71,7 +73,13 @@ export default function PanelAsistenteVoz({
             {respuesta.textoRespuesta}
           </div>
         ) : (
-          respuesta && <VistaRespuesta respuesta={respuesta} />
+          respuesta && (
+            <VistaRespuesta
+              respuesta={respuesta}
+              onConfirmar={onConfirmarVenta}
+              onCancelar={onCancelarVenta}
+            />
+          )
         )}
       </div>
 
