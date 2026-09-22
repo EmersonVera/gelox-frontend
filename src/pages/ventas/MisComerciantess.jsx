@@ -28,7 +28,11 @@ export default function MisComerciantess() {
       const params = {};
       if (busqueda) params.q = busqueda;
       const { data } = await api.get('/api/comerciantes', { params });
-      const list = Array.isArray(data) ? data : (data.comerciantes ?? []);
+      const raw = Array.isArray(data) ? data : (data.comerciantes ?? []);
+      const list = [...raw].sort((a, b) => {
+        if (a.activo === b.activo) return 0;
+        return a.activo ? -1 : 1;
+      });
       setComerciantess(list);
       setTotal(Array.isArray(data) ? list.length : (data.total ?? list.length));
     } catch (e) {

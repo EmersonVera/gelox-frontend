@@ -190,11 +190,8 @@ export default function RegistroEntrada() {
   const totalCajas    = carrito.reduce((s, i) => s + i.cajas, 0);
   const totalUnidades = carrito.reduce((s, i) => s + i.unidades, 0);
 
-  const erroresCarrito = carrito.reduce((acc, it) => {
-    if (it.cajas === 0 && it.unidades === 0) acc[it.producto.id] = 'Agrega al menos 1 caja o 1 unidad.';
-    return acc;
-  }, {});
-  const hayErroresCarrito = Object.keys(erroresCarrito).length > 0;
+  const erroresCarrito = {};
+  const hayErroresCarrito = false;
 
   // ── Vista resumen post-confirmación ──
   if (resumen) {

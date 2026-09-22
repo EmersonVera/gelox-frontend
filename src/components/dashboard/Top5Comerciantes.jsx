@@ -43,12 +43,6 @@ export default function Top5Comerciantes() {
         <h3 className="font-display font-bold text-[18px] text-ink leading-[28px]">
           Top 5 Comerciantes
         </h3>
-        <a
-          href="#"
-          className="font-inter font-medium text-[13px] text-primary hover:underline transition duration-200"
-        >
-          Ver todos →
-        </a>
       </div>
 
       {/* Body */}

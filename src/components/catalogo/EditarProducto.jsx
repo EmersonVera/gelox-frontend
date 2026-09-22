@@ -56,8 +56,9 @@ export default function EditarProducto({ producto, onClose, onSuccess }) {
       descripcion:   producto.descripcion,
       stockMedio:    producto.stockMedio ?? 0,
       stockMinimo:   producto.stockMinimo ?? 0,
-      unidadMedida:  producto.unidadMedida ?? 'Unidades',
-      unidadesPorCaja: producto.unidadesPorCaja ?? '',
+      unidadMedida:     producto.unidadMedida ?? 'Unidades',
+      unidadesPorCaja:  producto.unidadesPorCaja ?? '',
+      precioComerciente: producto.precioComerciente ?? '',
     },
   });
 
@@ -82,7 +83,8 @@ export default function EditarProducto({ producto, onClose, onSuccess }) {
       if (data.descripcion)         fd.append('descripcion', data.descripcion);
       if (data.stockMinimo != null) fd.append('stockMinimo', data.stockMinimo);
       if (data.stockMedio  != null) fd.append('stockMedio',  data.stockMedio);
-      if (data.unidadesPorCaja != null) fd.append('unidadesPorCaja', data.unidadesPorCaja);
+      if (data.unidadesPorCaja    != null) fd.append('unidadesPorCaja', data.unidadesPorCaja);
+      if (data.precioComerciente  != null && data.precioComerciente !== '') fd.append('precioComerciente', data.precioComerciente);
       if (imagenNueva) fd.append('imagen', imagenNueva); // ← campo "imagen", no "foto"
 
       const res = await api.put(`/api/catalogo/productos/${producto.id}`, fd);
@@ -227,15 +229,25 @@ export default function EditarProducto({ producto, onClose, onSuccess }) {
               </div>
             </div>
 
-            {/* Precio Costo — ADMINISTRADOR y ENCARGADO_INVENTARIO */}
+            {/* Precio Costo + Precio Comerciante — ADMINISTRADOR y ENCARGADO_INVENTARIO */}
             {puedeVerCosto && (
-              <div>
-                <label className={labelClass}>Precio de Costo COP</label>
-                <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 font-['Inter'] text-[16px] text-[#a8a29e]">$</span>
-                  <input {...register('precioCosto')} type="number" step="0.01" className={`${inputClass} pl-8`} />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className={labelClass}>Precio de Costo COP</label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 font-['Inter'] text-[16px] text-[#a8a29e]">$</span>
+                    <input {...register('precioCosto')} type="number" step="0.01" className={`${inputClass} pl-8`} />
+                  </div>
+                  {errors.precioCosto && <p className={errorClass}>{errors.precioCosto.message}</p>}
                 </div>
-                {errors.precioCosto && <p className={errorClass}>{errors.precioCosto.message}</p>}
+                <div>
+                  <label className={labelClass}>Precio Comerciante COP</label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 font-['Inter'] text-[16px] text-[#a8a29e]">$</span>
+                    <input {...register('precioComerciente')} type="number" step="0.01" className={`${inputClass} pl-8`} />
+                  </div>
+                  {errors.precioComerciente && <p className={errorClass}>{errors.precioComerciente.message}</p>}
+                </div>
               </div>
             )}
 
