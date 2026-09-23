@@ -80,7 +80,10 @@ export default function VistaModificarPedido({
     setError('');
     try {
       const resp = await confirmarComando(comandoId, true);
-      setDatosActuales(resp?.datos ?? datosActuales);
+      // El backend real (T47) no reenvía accion/producto/cantidadAnterior/
+      // cantidadNueva al confirmar — solo {pedidoId, exportUrl} (ver
+      // INT4-PR1). Se fusiona en vez de reemplazar para no perderlos.
+      setDatosActuales((actuales) => ({ ...actuales, ...(resp?.datos ?? {}) }));
     } catch {
       setError('No se pudo confirmar. Intenta de nuevo.');
       setEstado('pendiente');
