@@ -3,6 +3,7 @@ import VistaCierreDia from './vistas/VistaCierreDia';
 import VistaPedido from './vistas/VistaPedido';
 import VistaModificarPedido from './vistas/VistaModificarPedido';
 import VistaVenta from './vistas/VistaVenta';
+import VistaInventario from './vistas/VistaInventario';
 
 /**
  * Renderiza la respuesta del asistente según respuesta.intencion.
@@ -11,9 +12,11 @@ import VistaVenta from './vistas/VistaVenta';
  * - CONSULTAR_FINANZAS (T46): VistaCierreDia o VistaFinanzas según datos.tipo.
  * - GENERAR_PEDIDO (T48-FE3, RF52): VistaPedido.
  * - MODIFICAR_PEDIDO (T48-FE6, RF53): VistaModificarPedido.
- * - REGISTRAR_VENTA (T42, RF41): VistaVenta. Es la única que recibe
+ * - REGISTRAR_VENTA (T42, RF41) y CONSULTAR_INVENTARIO (T44): reciben
  *   onConfirmar/onCancelar en vez de resolver confirmarComando por su cuenta
- *   (ver el comentario en VistaVenta.jsx sobre por qué).
+ *   (ver el comentario en VistaVenta.jsx sobre por qué) — en
+ *   CONSULTAR_INVENTARIO no confirma una acción, sino una interpretación de
+ *   baja confianza ("¿Quisiste decir...?").
  */
 export default function VistaRespuesta({ respuesta, onConfirmar, onCancelar }) {
   if (!respuesta) return null;
@@ -29,6 +32,8 @@ export default function VistaRespuesta({ respuesta, onConfirmar, onCancelar }) {
       );
     case 'REGISTRAR_VENTA':
       return <VistaVenta respuesta={respuesta} onConfirmar={onConfirmar} onCancelar={onCancelar} />;
+    case 'CONSULTAR_INVENTARIO':
+      return <VistaInventario respuesta={respuesta} onConfirmar={onConfirmar} onCancelar={onCancelar} />;
     case 'GENERAR_PEDIDO':
       return (
         <VistaPedido
