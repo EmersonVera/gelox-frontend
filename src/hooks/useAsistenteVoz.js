@@ -32,9 +32,7 @@ const MENSAJE_NO_TE_ESCUCHE = 'No te escuché, repite el comando';
 const MENSAJE_ERROR_GENERICO = 'No pude procesar el comando';
 const MENSAJE_CANCELADO_POR_TIEMPO = 'Operación cancelada por falta de respuesta';
 
-//confirmación por voz. Se evalúan sobre texto ya normalizado (sin
-// tildes/puntuación, ver normalizar()), por eso "sí" colapsa en "si" y no
-// hace falta repetir el acento en el patrón.
+
 const CONFIRMAR_REGEX = /^(confirmar|confirmo|si|dale)$/;
 const CANCELAR_REGEX = /^(cancelar|cancela|no)$/;
 const AGREGAR_REGEX = /agrega/;
@@ -54,33 +52,78 @@ function contienePalabraClave(texto) {
   return VARIANTES_PALABRA_CLAVE.some((variante) => normalizado.includes(variante));
 }
 
-const MONTO_COP_REGEX = /\$\s?(\d{1,3}(?:\.\d{3})*)/g;
+const MONTO_COP_REGEX = /\$\s?(\d+(?:\.\d{3})*)|\b(\d{1,3}(?:\.\d{3})+)\b/g;
+
+
+const UNIDADES = ['', 'un', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve'];
+const ESPECIALES_10_19 = ['diez', 'once', 'doce', 'trece', 'catorce', 'quince', 'dieciséis', 'diecisiete', 'dieciocho', 'diecinueve'];
+const ESPECIALES_VEINTE = ['veinte', 'veintiún', 'veintidós', 'veintitrés', 'veinticuatro', 'veinticinco', 'veintiséis', 'veintisiete', 'veintiocho', 'veintinueve'];
+const DECENAS = ['', '', 'veinte', 'treinta', 'cuarenta', 'cincuenta', 'sesenta', 'setenta', 'ochenta', 'noventa'];
+const CENTENAS = ['', 'ciento', 'doscientos', 'trescientos', 'cuatrocientos', 'quinientos', 'seiscientos', 'setecientos', 'ochocientos', 'novecientos'];
+
+function centenaATexto(n) {
+  if (n === 0) return '';
+  if (n === 100) return 'cien';
+  const centenas = Math.floor(n / 100);
+  const resto = n % 100;
+  const partes = [];
+  if (centenas > 0) partes.push(CENTENAS[centenas]);
+  if (resto > 0) {
+    if (resto < 10) partes.push(UNIDADES[resto]);
+    else if (resto < 20) partes.push(ESPECIALES_10_19[resto - 10]);
+    else {
+      const decena = Math.floor(resto / 10);
+      const unidad = resto % 10;
+      if (decena === 2) partes.push(ESPECIALES_VEINTE[unidad]);
+      else partes.push(unidad > 0 ? `${DECENAS[decena]} y ${UNIDADES[unidad]}` : DECENAS[decena]);
+    }
+  }
+  return partes.join(' ');
+}
+
+function numeroATextoEsp(n) {
+  if (n === 0) return 'cero';
+  const millones = Math.floor(n / 1000000);
+  const miles = Math.floor((n % 1000000) / 1000);
+  const resto = n % 1000;
+  const partes = [];
+  if (millones > 0) partes.push(millones === 1 ? 'un millón' : `${numeroATextoEsp(millones)} millones`);
+  if (miles > 0) partes.push(miles === 1 ? 'mil' : `${centenaATexto(miles)} mil`);
+  if (resto > 0) partes.push(centenaATexto(resto));
+  return partes.join(' ');
+}
+
+function montoEnPalabras(digitos) {
+  const monto = Math.round(Math.abs(Number(digitos)));
+  if (!Number.isFinite(monto)) return `${digitos} pesos`;
+  if (monto === 1) return 'un peso';
+  const millones = Math.floor(monto / 1000000);
+  const resto = monto % 1000000;
+  const necesitaDe = millones > 0 && resto === 0; // "un millón DE pesos", pero "un millón quinientos mil pesos"
+  return `${numeroATextoEsp(monto)}${necesitaDe ? ' de pesos' : ' pesos'}`;
+}
+
+const NUMERO_SUELTO_REGEX = /\b\d{4,}\b/g;
 
 function paraNarrar(texto) {
-  return texto.replace(MONTO_COP_REGEX, (_, digitos) => `${digitos.replace(/\./g, '')} pesos`);
+  const conMontos = texto.replace(MONTO_COP_REGEX, (_, conSigno, sinSigno) => {
+    const digitos = (conSigno ?? sinSigno).replace(/\./g, '');
+    return montoEnPalabras(digitos);
+  });
+  return conMontos.replace(NUMERO_SUELTO_REGEX, (numero) => numeroATextoEsp(Number(numero)));
 }
 
 function mensajeDeError(err) {
   const status = err?.response?.status;
-  if (status === 403) return 'No tienes permiso para esa consulta';
-  if (status === 410) return 'La confirmación expiró';
-  if (status === 422) {
-    return err.response?.data?.mensaje ?? err.response?.data?.message ?? MENSAJE_ERROR_GENERICO;
-  }
-  // 5xx o sin red (status undefined porque la request nunca llegó a completarse)
-  return MENSAJE_ERROR_GENERICO;
+  const mensajeBackend = err?.response?.data?.error;
+  if (status === 401) return 'Tu sesión expiró. Vuelve a iniciar sesión.';
+  if (status === 403) return mensajeBackend || 'No tienes permiso para esa consulta';
+  if (status === 410) return mensajeBackend || 'La confirmación expiró';
+  // 422, 5xx o sin red (status undefined porque la request nunca llegó a completarse)
+  return mensajeBackend || MENSAJE_ERROR_GENERICO;
 }
 
-/**
- * Maneja el micrófono (SpeechRecognition) y la voz del asistente
- * (SpeechSynthesis). Devuelve {soportado, permisoDenegado, estado,
- * transcripcionParcial, textoFinal, respuesta, iniciar, cancelar, hablar,
- * confirmar}.
- * confirmar(si) resuelve una confirmación pendiente (ESPERANDO_CONFIRMACION):
- * la usan tanto la escucha corta de voz como los botones
- * Confirmar/Cancelar de vistas como VistaVenta (onConfirmar={() =>
- * confirmar(true)}, onCancelar={() => confirmar(false)}).
- */
+
 export function useAsistenteVoz() {
   const soportado = !!SpeechRecognitionCtor;
 
@@ -94,9 +137,6 @@ export function useAsistenteVoz() {
   const reintentoNoSpeechRef = useRef(false);
   const confirmarEnCursoRef = useRef(false);
 
-  // Registrados por el efecto de la palabra clave para poder
-  // silenciar el micrófono en segundo plano mientras el asistente principal
-  // está escuchando, y reanudarlo cuando este vuelve a estar inactivo.
   const pausarPalabraClaveRef = useRef(null);
   const reanudarPalabraClaveRef = useRef(null);
 
@@ -108,10 +148,6 @@ export function useAsistenteVoz() {
       utterance.lang = 'es-CO';
       window.speechSynthesis.speak(utterance);
     } catch {
-      // La narración es un complemento: si el navegador la rechaza (sin voces
-      // cargadas, pestaña sin foco, etc.) no debe interrumpir el flujo — por
-      // ejemplo, el reintento automático de "no-speech" que sigue a esta
-      // llamada en crearReconocedor().
     }
   }, []);
 
@@ -146,22 +182,31 @@ export function useAsistenteVoz() {
   const confirmar = useCallback(
     async (si) => {
       const comandoId = respuesta?.comandoId;
+      const intencionPrevia = respuesta?.intencion;
+      const datosPrevios = respuesta?.datos;
       if (!comandoId || confirmarEnCursoRef.current) return;
       confirmarEnCursoRef.current = true;
       setEstado(ESTADOS_VOZ.EJECUTANDO);
       try {
         const data = await confirmarComando(comandoId, si);
-        setRespuesta(data ?? null);
+        const huboDatosNuevos = si && data?.datos && Object.keys(data.datos).length > 0;
+        setRespuesta({
+          comandoId,
+          intencion: intencionPrevia,
+          requiereConfirmacion: false,
+          expiraEnSegundos: null,
+          textoRespuesta: data?.textoRespuesta,
+          datos: huboDatosNuevos ? { ...datosPrevios, ...data.datos } : (data?.datos ?? null),
+        });
         if (data?.textoRespuesta) hablar(data.textoRespuesta);
         terminar(si ? ESTADOS_VOZ.COMPLETADO : ESTADOS_VOZ.CANCELADO);
       } catch (err) {
         const status = err?.response?.status;
         if (status === 410) {
-
-          hablar(MENSAJE_CANCELADO_POR_TIEMPO);
+          const mensaje = err.response?.data?.error || MENSAJE_CANCELADO_POR_TIEMPO;
+          hablar(mensaje);
           terminar(ESTADOS_VOZ.CANCELADO);
         } else if (status === 422) {
-
           const mensaje = err.response?.data?.error || MENSAJE_ERROR_GENERICO;
           setRespuesta({ textoRespuesta: mensaje });
           hablar(mensaje);
@@ -284,6 +329,7 @@ export function useAsistenteVoz() {
         if (!resultado.isFinal) continue;
         const alternativa = resultado[0];
         const normalizado = normalizar(alternativa.transcript);
+        console.debug('[voz-confirmar] escuchado:', JSON.stringify(alternativa.transcript), '→ normalizado:', JSON.stringify(normalizado));
         if (CONFIRMAR_REGEX.test(normalizado)) {
           confirmar(true);
           return;
@@ -296,11 +342,14 @@ export function useAsistenteVoz() {
           procesarTextoFinal(alternativa.transcript, alternativa.confidence);
           return;
         }
-        // cualquier otra cosa se ignora: sigue escuchando sin límite de tiempo
+        // no matcheó ninguno de los patrones: se ignora, sigue escuchando
       }
     };
-    reconocimiento.onerror = () => { }; // no-speech, etc. — simplemente reintenta en onend
+    reconocimiento.onerror = (evento) => {
+      console.debug('[voz-confirmar] error del reconocedor:', evento.error);
+    };
     reconocimiento.onend = () => {
+      console.debug('[voz-confirmar] onend, sigueEscuchando =', debeSeguirEscuchando);
       if (debeSeguirEscuchando) {
         try {
           reconocimiento.start();
@@ -315,9 +364,13 @@ export function useAsistenteVoz() {
       if (!debeSeguirEscuchando) return;
       try {
         reconocimiento.start();
-      } catch {
+        console.debug('[voz-confirmar] reconocedor iniciado, intentos restantes eran', intentosRestantes);
+      } catch (err) {
+        console.debug('[voz-confirmar] start() falló:', err?.name, err?.message, '— reintentos restantes:', intentosRestantes);
         if (intentosRestantes > 0) {
           reintentoInicioId = setTimeout(() => intentarIniciar(intentosRestantes - 1), 250);
+        } else {
+          console.warn('[voz-confirmar] se agotaron los reintentos: el micrófono de confirmación NUNCA arrancó.');
         }
       }
     };

@@ -1,21 +1,6 @@
 import { useState } from 'react';
 import { formatoCOP } from '../formato';
 
-/**
- * Vista para REGISTRAR_VENTA (RF41, T42). A diferencia de VistaPedido /
- * VistaModificarPedido (que llaman confirmarComando directo), acá el
- * confirmar/cancelar se delega a {onConfirmar, onCancelar}: el hook
- * useAsistenteVoz (T42-FE2) también puede resolver la misma confirmación
- * por voz ("confirmar"/"cancelar" dichos mientras el panel está abierto),
- * así que la llamada a confirmarComando vive en un solo lugar (el hook) y
- * evita que un clic y una palabra hablada casi simultáneos disparen dos
- * confirmaciones para el mismo comandoId.
- *
- * Sin límite de tiempo: la venta queda pendiente hasta que la persona diga
- * "confirmar"/"cancelar" o toque un botón — no se cancela sola (decisión de
- * producto; el hook ya no tiene un timeout de confirmación).
- */
-
 const CANAL_LABEL = {
   VENTANILLA: 'Ventanilla',
   RURAL: 'Rural',
@@ -23,8 +8,8 @@ const CANAL_LABEL = {
 
 function resumenCantidad(item) {
   const partes = [];
-  if (item.cantidadCajas) partes.push(`${item.cantidadCajas} cj`);
-  if (item.cantidadUnidades) partes.push(`${item.cantidadUnidades} un`);
+  if (item.cajas) partes.push(`${item.cajas} cj`);
+  if (item.unidades) partes.push(`${item.unidades} un`);
   return partes.join(' · ') || '—';
 }
 

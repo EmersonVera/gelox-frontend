@@ -4,12 +4,6 @@ import VistaRespuesta from './VistaRespuesta';
 
 const MENSAJE_PERMISO_DENEGADO = 'No pudimos acceder al micrófono. Revisa los permisos del navegador.';
 
-/**
- * Ventana bajo el header con el estado del asistente de voz. Se posiciona
- * y anima igual que el dropdown de AlertasBell (Navbar.jsx); el cierre al
- * hacer clic afuera lo controla AsistenteVoz, que es quien monta/desmonta
- * este panel.
- */
 export default function PanelAsistenteVoz({
   estado,
   transcripcionParcial,
@@ -23,6 +17,7 @@ export default function PanelAsistenteVoz({
   const escuchando = estado === ESTADOS_VOZ.ESCUCHANDO || estado === ESTADOS_VOZ.TRANSCRIBIENDO;
   const interpretando = estado === ESTADOS_VOZ.INTERPRETANDO;
   const esError = estado === ESTADOS_VOZ.ERROR;
+  const esperandoConfirmacion = estado === ESTADOS_VOZ.ESPERANDO_CONFIRMACION;
 
   return (
     <div className="absolute right-0 top-[calc(100%+8px)] w-[320px] bg-white border border-border rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.12)] z-50 overflow-hidden animate-dropdown-in">
@@ -61,6 +56,13 @@ export default function PanelAsistenteVoz({
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
             </svg>
             Interpretando comando…
+          </div>
+        )}
+
+        {esperandoConfirmacion && (
+          <div className="flex items-center gap-2 text-[13px] text-primary font-medium">
+            <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+            Escuchando: decí "confirmar" o "cancelar"
           </div>
         )}
 

@@ -1,12 +1,4 @@
-// Mock de voz para RF41 (REGISTRAR_VENTA). Sigue el contrato real de
-// vozMock.js: cada mock exporta coincide(texto), interpretar(texto, confianza)
-// y confirmar(comandoId, confirmar) — no hay que tocar vozMock.js, se detecta
-// solo vía import.meta.glob.
-//
-// También reconoce "agrega…" para el agregado secuencial de un ítem al
-// pedido ya interpretado (T41-BE5 / T42-FE2): cada interpretar() sobre una
-// frase de "agrega" suma una caja más de Festival al pedido en curso, en
-// vez de reiniciarlo — así se puede probar ese reenvío desde el hook.
+
 
 const PRECIO_CAJA_FESTIVAL = 42000;
 const COSTO_ENVIO_RURAL = 8000;
@@ -27,19 +19,18 @@ export function coincide(texto) {
   return /registra|vende|agrega/.test(t);
 }
 
-// Pedido en curso: se guarda entre interpretar() y confirmar() (y entre
-// interpretar() sucesivos por "agrega…"), igual que lo haría el backend
-// real mientras la confirmación sigue pendiente.
+
 let pedidoActual = null;
 let contador = 0;
 
 function construirItems(cajasFestival) {
+
   return [
     {
       productoId: 'prod-festival',
       nombre: 'Festival',
-      cantidadCajas: cajasFestival,
-      cantidadUnidades: 0,
+      cajas: cajasFestival,
+      unidades: 0,
       subtotal: cajasFestival * PRECIO_CAJA_FESTIVAL,
     },
   ];
@@ -94,28 +85,23 @@ export function interpretar(texto) {
   };
 }
 
+// INT1-FE1 — VozConfirmarResponse real es {estado, textoRespuesta, datos},
+// sin comandoId/intencion/requiereConfirmacion, y en confirmación exitosa
+// `datos` viene parcial (ventaId + total, no items/canal/metodoPago: eso ya
+// se mostró en interpretar y el hook lo fusiona). El mock imita ese
+// contrato real, no el viejo (con comandoId/intencion) que asumía antes.
 export function confirmar(comandoId, confirmarValor) {
   if (!confirmarValor || !pedidoActual) {
     pedidoActual = null;
-    return {
-      comandoId,
-      intencion: 'REGISTRAR_VENTA',
-      requiereConfirmacion: false,
-      expiraEnSegundos: null,
-      textoRespuesta: 'Venta cancelada.',
-      datos: null,
-    };
+    return { estado: 'CANCELADO', textoRespuesta: 'Venta cancelada.', datos: {} };
   }
 
-  const datos = { ...datosDesdePedido(pedidoActual), ventaId: `V-${Date.now()}` };
+  const { total } = datosDesdePedido(pedidoActual);
   pedidoActual = null;
 
   return {
-    comandoId,
-    intencion: 'REGISTRAR_VENTA',
-    requiereConfirmacion: false,
-    expiraEnSegundos: null,
-    textoRespuesta: `Venta registrada por ${formatoCOPSimple(datos.total)}.`,
-    datos,
+    estado: 'PROCESADO',
+    textoRespuesta: `Venta registrada por ${formatoCOPSimple(total)}.`,
+    datos: { ventaId: `V-${Date.now()}`, total },
   };
 }
