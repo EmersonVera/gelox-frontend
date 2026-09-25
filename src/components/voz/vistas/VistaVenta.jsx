@@ -1,10 +1,29 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { formatoCOP } from '../formato';
 
 const CANAL_LABEL = {
   VENTANILLA: 'Ventanilla',
   RURAL: 'Rural',
 };
+
+function useCuentaRegresiva(expiraEnSegundos, activo) {
+  const [restantes, setRestantes] = useState(expiraEnSegundos ?? null);
+  const [expiraPrevio, setExpiraPrevio] = useState(expiraEnSegundos ?? null);
+
+
+  if ((expiraEnSegundos ?? null) !== expiraPrevio) {
+    setExpiraPrevio(expiraEnSegundos ?? null);
+    setRestantes(expiraEnSegundos ?? null);
+  }
+
+  useEffect(() => {
+    if (!activo || restantes === null || restantes <= 0) return;
+    const id = setTimeout(() => setRestantes((r) => Math.max(0, r - 1)), 1000);
+    return () => clearTimeout(id);
+  }, [activo, restantes]);
+
+  return restantes;
+}
 
 function resumenCantidad(item) {
   const partes = [];
@@ -15,9 +34,11 @@ function resumenCantidad(item) {
 
 export default function VistaVenta({ respuesta, onConfirmar, onCancelar }) {
   const [enCurso, setEnCurso] = useState(false);
-  const { datos, textoRespuesta, requiereConfirmacion } = respuesta ?? {};
+  const { datos, textoRespuesta, requiereConfirmacion, expiraEnSegundos } = respuesta ?? {};
 
   const pendiente = !!requiereConfirmacion;
+  const restantes = useCuentaRegresiva(expiraEnSegundos, pendiente);
+  const expirado = pendiente && restantes === 0;
 
   if (!datos) {
     return (
@@ -105,23 +126,30 @@ export default function VistaVenta({ respuesta, onConfirmar, onCancelar }) {
       ) : !pendiente ? (
         <p className="text-[13px] text-muted pt-1">{textoRespuesta || 'Venta cancelada.'}</p>
       ) : (
-        <div className="flex gap-2 pt-1">
-          <button
-            type="button"
-            onClick={handleConfirmar}
-            disabled={enCurso}
-            className="flex-1 bg-primary hover:bg-primary-dark disabled:opacity-60 text-white rounded-lg py-2 text-[13px] font-semibold transition-colors"
-          >
-            {enCurso ? 'Confirmando…' : 'Confirmar'}
-          </button>
-          <button
-            type="button"
-            onClick={handleCancelar}
-            disabled={enCurso}
-            className="bg-surface hover:bg-border disabled:opacity-60 text-ink rounded-lg px-3 py-2 text-[13px] font-semibold transition-colors"
-          >
-            Cancelar
-          </button>
+        <div className="flex flex-col gap-1.5 pt-1">
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={handleConfirmar}
+              disabled={enCurso || expirado}
+              className="flex-1 bg-primary hover:bg-primary-dark disabled:opacity-60 text-white rounded-lg py-2 text-[13px] font-semibold transition-colors"
+            >
+              {enCurso ? 'Confirmando…' : 'Confirmar'}
+            </button>
+            <button
+              type="button"
+              onClick={handleCancelar}
+              disabled={enCurso}
+              className="bg-surface hover:bg-border disabled:opacity-60 text-ink rounded-lg px-3 py-2 text-[13px] font-semibold transition-colors"
+            >
+              Cancelar
+            </button>
+          </div>
+          {restantes !== null && (
+            <p className="text-[11px] text-muted text-center">
+              {expirado ? 'El tiempo para confirmar expiró.' : `Expira en ${restantes}s`}
+            </p>
+          )}
         </div>
       )}
     </div>

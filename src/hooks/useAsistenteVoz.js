@@ -136,6 +136,7 @@ export function useAsistenteVoz() {
   const reconocedorRef = useRef(null);
   const reintentoNoSpeechRef = useRef(false);
   const confirmarEnCursoRef = useRef(false);
+  const respuestaLlegoEnRef = useRef(null);
 
   const pausarPalabraClaveRef = useRef(null);
   const reanudarPalabraClaveRef = useRef(null);
@@ -148,6 +149,7 @@ export function useAsistenteVoz() {
       utterance.lang = 'es-CO';
       window.speechSynthesis.speak(utterance);
     } catch {
+
     }
   }, []);
 
@@ -165,6 +167,8 @@ export function useAsistenteVoz() {
         setRespuesta(data);
         if (data?.textoRespuesta) hablar(data.textoRespuesta);
         if (data?.requiereConfirmacion) {
+          respuestaLlegoEnRef.current = Date.now();
+          console.info(`[voz-tiempos] respuesta con requiereConfirmacion recibida. expiraEnSegundos=${data.expiraEnSegundos}`);
           setEstado(ESTADOS_VOZ.ESPERANDO_CONFIRMACION);
         } else {
           terminar(ESTADOS_VOZ.COMPLETADO);
@@ -187,8 +191,13 @@ export function useAsistenteVoz() {
       if (!comandoId || confirmarEnCursoRef.current) return;
       confirmarEnCursoRef.current = true;
       setEstado(ESTADOS_VOZ.EJECUTANDO);
+      const tLlamada = Date.now();
+      const tDesdeRespuesta = respuestaLlegoEnRef.current ? tLlamada - respuestaLlegoEnRef.current : null;
+      console.info(`[voz-tiempos] confirmar(${si}) llamado — ${tDesdeRespuesta != null ? (tDesdeRespuesta / 1000).toFixed(1) + 's desde que llegó la respuesta' : 'sin referencia'}`);
       try {
         const data = await confirmarComando(comandoId, si);
+        const tRed = Date.now() - tLlamada;
+        console.info(`[voz-tiempos] confirmarComando resolvió OK en ${(tRed / 1000).toFixed(1)}s de red/servidor`);
         const huboDatosNuevos = si && data?.datos && Object.keys(data.datos).length > 0;
         setRespuesta({
           comandoId,
@@ -201,6 +210,8 @@ export function useAsistenteVoz() {
         if (data?.textoRespuesta) hablar(data.textoRespuesta);
         terminar(si ? ESTADOS_VOZ.COMPLETADO : ESTADOS_VOZ.CANCELADO);
       } catch (err) {
+        const tRed = Date.now() - tLlamada;
+        console.info(`[voz-tiempos] confirmarComando FALLÓ en ${(tRed / 1000).toFixed(1)}s de red/servidor — status ${err?.response?.status}`);
         const status = err?.response?.status;
         if (status === 410) {
           const mensaje = err.response?.data?.error || MENSAJE_CANCELADO_POR_TIEMPO;
@@ -320,7 +331,7 @@ export function useAsistenteVoz() {
 
     reconocimiento.lang = 'es-CO';
     reconocimiento.interimResults = false;
-    reconocimiento.continuous = true;
+    reconocimiento.continuous = false;
     reconocimiento.maxAlternatives = 1;
 
     reconocimiento.onresult = (evento) => {
@@ -329,12 +340,14 @@ export function useAsistenteVoz() {
         if (!resultado.isFinal) continue;
         const alternativa = resultado[0];
         const normalizado = normalizar(alternativa.transcript);
-        console.debug('[voz-confirmar] escuchado:', JSON.stringify(alternativa.transcript), '→ normalizado:', JSON.stringify(normalizado));
+        const tReconocido = respuestaLlegoEnRef.current ? Date.now() - respuestaLlegoEnRef.current : null;
         if (CONFIRMAR_REGEX.test(normalizado)) {
+          console.info(`[voz-tiempos] "confirmar" reconocido por el navegador — ${tReconocido != null ? (tReconocido / 1000).toFixed(1) + 's desde que llegó la respuesta' : 'sin referencia'}`);
           confirmar(true);
           return;
         }
         if (CANCELAR_REGEX.test(normalizado)) {
+          console.info(`[voz-tiempos] "cancelar" reconocido por el navegador — ${tReconocido != null ? (tReconocido / 1000).toFixed(1) + 's desde que llegó la respuesta' : 'sin referencia'}`);
           confirmar(false);
           return;
         }
@@ -345,11 +358,8 @@ export function useAsistenteVoz() {
         // no matcheó ninguno de los patrones: se ignora, sigue escuchando
       }
     };
-    reconocimiento.onerror = (evento) => {
-      console.debug('[voz-confirmar] error del reconocedor:', evento.error);
-    };
+    reconocimiento.onerror = () => { };
     reconocimiento.onend = () => {
-      console.debug('[voz-confirmar] onend, sigueEscuchando =', debeSeguirEscuchando);
       if (debeSeguirEscuchando) {
         try {
           reconocimiento.start();
@@ -364,13 +374,11 @@ export function useAsistenteVoz() {
       if (!debeSeguirEscuchando) return;
       try {
         reconocimiento.start();
-        console.debug('[voz-confirmar] reconocedor iniciado, intentos restantes eran', intentosRestantes);
-      } catch (err) {
-        console.debug('[voz-confirmar] start() falló:', err?.name, err?.message, '— reintentos restantes:', intentosRestantes);
+      } catch {
         if (intentosRestantes > 0) {
           reintentoInicioId = setTimeout(() => intentarIniciar(intentosRestantes - 1), 250);
         } else {
-          console.warn('[voz-confirmar] se agotaron los reintentos: el micrófono de confirmación NUNCA arrancó.');
+          console.warn('[voz] el micrófono de confirmación no pudo iniciar tras varios intentos.');
         }
       }
     };
