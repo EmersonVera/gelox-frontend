@@ -23,12 +23,12 @@ export function coincide(texto) {
 }
 
 const PRODUCTOS = [
-  { productoId: 'prod-festival', nombre: 'Festival', cajas: 15, unidadesSueltas: 4, estado: 'NORMAL' },
-  { productoId: 'prod-solo-lack', nombre: 'Solo Lack', cajas: 1, unidadesSueltas: 2, estado: 'BAJO_STOCK' },
+  { productoId: 'prod-aloha-mango-biche', nombre: 'Aloha Mango Biche', cajas: 15, unidadesSueltas: 4, estado: 'NORMAL' },
+  { productoId: 'prod-aloha-paleta-limon', nombre: 'Aloha Paleta Limon', cajas: 0, unidadesSueltas: 1, estado: 'BAJO_STOCK' },
 ];
 
 const ALERTAS = [
-  { productoId: 'prod-solo-lack', nombre: 'Solo Lack', stockActual: 12, stockMinimo: 30, estado: 'BAJO_STOCK' },
+  { productoId: 'prod-aloha-paleta-limon', nombre: 'Aloha Paleta Limon', stockActual: 1, stockMinimo: 5, estado: 'BAJO_STOCK' },
 ];
 
 let contador = 0;
@@ -39,7 +39,7 @@ function respuestaConsulta(comandoId) {
     intencion: 'CONSULTAR_INVENTARIO',
     requiereConfirmacion: false,
     expiraEnSegundos: null,
-    textoRespuesta: 'Festival tiene stock normal. Solo Lack está bajo el mínimo.',
+    textoRespuesta: 'Aloha Mango Biche tiene stock normal. Aloha Paleta Limon está bajo el mínimo.',
     datos: { productos: PRODUCTOS, alertas: ALERTAS },
   };
 }
@@ -54,8 +54,8 @@ export function interpretar(texto, confianza) {
       intencion: 'CONSULTAR_INVENTARIO',
       requiereConfirmacion: true,
       expiraEnSegundos: null,
-      textoRespuesta: '¿Quisiste decir "inventario de Festival"? Di confirmar o cancelar.',
-      datos: { sugerencia: 'Festival' },
+      textoRespuesta: '¿Quisiste decir "inventario de Aloha Mango Biche"? Di confirmar o cancelar.',
+      datos: { sugerencia: 'Aloha Mango Biche' },
     };
   }
 

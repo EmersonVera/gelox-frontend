@@ -1,6 +1,6 @@
 
 
-const PRECIO_CAJA_FESTIVAL = 42000;
+const PRECIO_CAJA_ALOHA = 84000; // 3.500 (precioVenta real) x 24 (unidadesPorCaja real)
 const COSTO_ENVIO_RURAL = 8000;
 
 function normalizar(texto) {
@@ -23,15 +23,15 @@ export function coincide(texto) {
 let pedidoActual = null;
 let contador = 0;
 
-function construirItems(cajasFestival) {
+function construirItems(cajasAloha) {
 
   return [
     {
-      productoId: 'prod-festival',
-      nombre: 'Festival',
-      cajas: cajasFestival,
+      productoId: 'prod-aloha-mango-biche',
+      nombre: 'Aloha Mango Biche',
+      cajas: cajasAloha,
       unidades: 0,
-      subtotal: cajasFestival * PRECIO_CAJA_FESTIVAL,
+      subtotal: cajasAloha * PRECIO_CAJA_ALOHA,
     },
   ];
 }
@@ -41,7 +41,7 @@ function calcularTotal(items, costoEnvio) {
 }
 
 function datosDesdePedido(pedido) {
-  const items = construirItems(pedido.cajasFestival);
+  const items = construirItems(pedido.cajasAloha);
   return {
     canal: pedido.canal,
     items,
@@ -58,12 +58,12 @@ export function interpretar(texto) {
   const esAgregar = t.includes('agrega') && !!pedidoActual;
 
   if (esAgregar) {
-    pedidoActual = { ...pedidoActual, cajasFestival: pedidoActual.cajasFestival + 1 };
+    pedidoActual = { ...pedidoActual, cajasAloha: pedidoActual.cajasAloha + 1 };
   } else {
     const esRural = t.includes('rural') || t.includes('a juan');
     pedidoActual = {
       canal: esRural ? 'RURAL' : 'VENTANILLA',
-      cajasFestival: 3,
+      cajasAloha: 3,
       destinatario: esRural ? 'Juan Pérez' : null,
       costoEnvio: esRural ? COSTO_ENVIO_RURAL : 0,
       metodoPago: 'EFECTIVO',
@@ -79,8 +79,8 @@ export function interpretar(texto) {
     requiereConfirmacion: true,
     expiraEnSegundos: null, // sin límite de tiempo: se confirma/cancela por voz o botón
     textoRespuesta: esAgregar
-      ? `Agregué una caja más de Festival. Ahora son ${pedidoActual.cajasFestival} cajas por un total de ${totalTexto}. ¿Confirmas?`
-      : `Vas a registrar ${pedidoActual.cajasFestival} cajas de Festival por un total de ${totalTexto}. ¿Confirmas?`,
+      ? `Agregué una caja más de Aloha Mango Biche. Ahora son ${pedidoActual.cajasAloha} cajas por un total de ${totalTexto}. ¿Confirmas?`
+      : `Vas a registrar ${pedidoActual.cajasAloha} cajas de Aloha Mango Biche por un total de ${totalTexto}. ¿Confirmas?`,
     datos,
   };
 }

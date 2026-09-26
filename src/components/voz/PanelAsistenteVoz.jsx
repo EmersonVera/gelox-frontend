@@ -18,6 +18,7 @@ export default function PanelAsistenteVoz({
   const interpretando = estado === ESTADOS_VOZ.INTERPRETANDO;
   const esError = estado === ESTADOS_VOZ.ERROR;
   const esperandoConfirmacion = estado === ESTADOS_VOZ.ESPERANDO_CONFIRMACION;
+  const esperandoAclaracion = !!(respuesta?.datos?.requiereAclaracion || respuesta?.datos?.requiereDestinatario);
 
   return (
     <div className="absolute right-0 top-[calc(100%+8px)] w-[320px] bg-white border border-border rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.12)] z-50 overflow-hidden animate-dropdown-in">
@@ -62,7 +63,7 @@ export default function PanelAsistenteVoz({
         {esperandoConfirmacion && (
           <div className="flex items-center gap-2 text-[13px] text-primary font-medium">
             <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-            Escuchando: decí "confirmar" o "cancelar"
+            {esperandoAclaracion ? 'Escuchando: decí tu respuesta o "cancelar"' : 'Escuchando: decí "confirmar" o "cancelar"'}
           </div>
         )}
 

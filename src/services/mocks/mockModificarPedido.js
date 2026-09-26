@@ -4,7 +4,7 @@
 // solo vía import.meta.glob.
 //
 // Flujo alterno de RF53 (ok:false, sin pedido pendiente): decir cualquier
-// frase de modificación que NO mencione "festival" (el único producto del
+// frase de modificación que NO mencione "aloha" (el único producto del
 // pedido pendiente simulado) — ej. "modifica el pedido pendiente y agrega
 // 5 de chococono" — porque no hay un backend real que sepa qué hay pendiente.
 
@@ -28,7 +28,7 @@ export function interpretar(texto) {
   contador += 1;
   const comandoId = `mock-modificar-pedido-${contador}`;
 
-  if (!normalizar(texto).includes('festival')) {
+  if (!normalizar(texto).includes('aloha')) {
     return {
       comandoId,
       intencion: 'MODIFICAR_PEDIDO',
@@ -46,11 +46,11 @@ export function interpretar(texto) {
     requiereConfirmacion: true,
     expiraEnSegundos: 15,
     textoRespuesta:
-      'Voy a agregar 10 unidades de Festival al pedido pendiente, quedando en 25. ¿Confirmas?',
+      'Voy a agregar 10 unidades de Aloha Mango Biche al pedido pendiente, quedando en 25. ¿Confirmas?',
     datos: {
       pedidoId: PEDIDO_ID,
       accion: 'AGREGAR',
-      producto: 'Festival',
+      producto: 'Aloha Mango Biche',
       cantidadAnterior: 15,
       cantidadNueva: 25,
     },
@@ -77,7 +77,7 @@ export function confirmar(comandoId, confirmarValor) {
     datos: {
       pedidoId: PEDIDO_ID,
       accion: 'AGREGAR',
-      producto: 'Festival',
+      producto: 'Aloha Mango Biche',
       cantidadAnterior: 15,
       cantidadNueva: 25,
       exportUrl: `/api/inventario/pedidos/${PEDIDO_ID}/exportar`,

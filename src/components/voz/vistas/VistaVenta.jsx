@@ -40,6 +40,45 @@ export default function VistaVenta({ respuesta, onConfirmar, onCancelar }) {
   const restantes = useCuentaRegresiva(expiraEnSegundos, pendiente);
   const expirado = pendiente && restantes === 0;
 
+  const esAclaracion = !!(datos?.requiereAclaracion || datos?.requiereDestinatario);
+  if (esAclaracion) {
+    const handleCancelarAclaracion = async () => {
+      setEnCurso(true);
+      try {
+        await onCancelar?.();
+      } finally {
+        setEnCurso(false);
+      }
+    };
+    return (
+      <div className="flex flex-col gap-2.5">
+        <p className="text-[13px] text-ink leading-snug">{textoRespuesta || '¿Puedes precisar tu pedido?'}</p>
+        {Array.isArray(datos.opciones) && datos.opciones.length > 0 && (
+          <ul className="text-[12px] text-muted list-disc pl-4">
+            {datos.opciones.map((opcion) => (
+              <li key={opcion}>{opcion}</li>
+            ))}
+          </ul>
+        )}
+        <div className="flex flex-col gap-1.5 pt-1">
+          <button
+            type="button"
+            onClick={handleCancelarAclaracion}
+            disabled={enCurso || expirado}
+            className="bg-surface hover:bg-border disabled:opacity-60 text-ink rounded-lg px-3 py-2 text-[13px] font-semibold transition-colors"
+          >
+            Cancelar
+          </button>
+          {restantes !== null && (
+            <p className="text-[11px] text-muted text-center">
+              {expirado ? 'El tiempo para responder expiró.' : `Expira en ${restantes}s`}
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   if (!datos) {
     return (
       <p className="text-[13px] text-ink leading-snug">

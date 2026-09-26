@@ -149,7 +149,7 @@ export function useAsistenteVoz() {
       utterance.lang = 'es-CO';
       window.speechSynthesis.speak(utterance);
     } catch {
-
+      // Narración best-effort: si speechSynthesis falla no debe romper el flujo de voz.
     }
   }, []);
 
@@ -325,6 +325,7 @@ export function useAsistenteVoz() {
     if (estado !== ESTADOS_VOZ.ESPERANDO_CONFIRMACION || !soportado) return;
 
     const intencionActual = respuesta?.intencion;
+    const esperandoAclaracion = !!(respuesta?.datos?.requiereAclaracion || respuesta?.datos?.requiereDestinatario);
     const reconocimiento = new SpeechRecognitionCtor();
     let debeSeguirEscuchando = false;
     let reintentoInicioId = null;
@@ -341,14 +342,20 @@ export function useAsistenteVoz() {
         const alternativa = resultado[0];
         const normalizado = normalizar(alternativa.transcript);
         const tReconocido = respuestaLlegoEnRef.current ? Date.now() - respuestaLlegoEnRef.current : null;
-        if (CONFIRMAR_REGEX.test(normalizado)) {
-          console.info(`[voz-tiempos] "confirmar" reconocido por el navegador — ${tReconocido != null ? (tReconocido / 1000).toFixed(1) + 's desde que llegó la respuesta' : 'sin referencia'}`);
-          confirmar(true);
-          return;
-        }
         if (CANCELAR_REGEX.test(normalizado)) {
           console.info(`[voz-tiempos] "cancelar" reconocido por el navegador — ${tReconocido != null ? (tReconocido / 1000).toFixed(1) + 's desde que llegó la respuesta' : 'sin referencia'}`);
           confirmar(false);
+          return;
+        }
+        if (esperandoAclaracion) {
+
+          console.info(`[voz-tiempos] respuesta a aclaración reconocida — ${tReconocido != null ? (tReconocido / 1000).toFixed(1) + 's desde que llegó la respuesta' : 'sin referencia'}`);
+          procesarTextoFinal(alternativa.transcript, alternativa.confidence);
+          return;
+        }
+        if (CONFIRMAR_REGEX.test(normalizado)) {
+          console.info(`[voz-tiempos] "confirmar" reconocido por el navegador — ${tReconocido != null ? (tReconocido / 1000).toFixed(1) + 's desde que llegó la respuesta' : 'sin referencia'}`);
+          confirmar(true);
           return;
         }
         if (AGREGAR_REGEX.test(normalizado) && intencionActual === 'REGISTRAR_VENTA') {

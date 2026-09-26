@@ -4,8 +4,8 @@
 // solo vía import.meta.glob.
 
 const ITEMS = [
-  { productoId: 'prod-solo-lack', nombre: 'Solo Lack', cantidadCajas: 20, cantidadUnidades: 0 },
-  { productoId: 'prod-festival', nombre: 'Festival', cantidadCajas: 15, cantidadUnidades: 0 },
+  { productoId: 'prod-aloha-paleta-limon', nombre: 'Aloha Paleta Limon', cantidadCajas: 20, cantidadUnidades: 0 },
+  { productoId: 'prod-aloha-mango-biche', nombre: 'Aloha Mango Biche', cantidadCajas: 15, cantidadUnidades: 0 },
 ];
 const PEDIDO_ID = '3f8a92b1-4c2d-4e1f-8a3b-1c2d3e4f5a6b';
 
@@ -18,7 +18,7 @@ function normalizar(texto) {
 
 export function coincide(texto) {
   const t = normalizar(texto);
-  // Exige el verbo de creación: si no, "festival" haría que esto le gane a
+  // Exige el verbo de creación: si no, "aloha" haría que esto le gane a
   // mockModificarPedido cuando la frase es de modificación, no de creación.
   const esCreacion = t.includes('genera') || t.includes('crea el pedido') || t.includes('crear pedido') || t.includes('hacer pedido');
   return esCreacion && t.includes('pedido');
@@ -34,7 +34,7 @@ export function interpretar() {
     requiereConfirmacion: true,
     expiraEnSegundos: 15,
     textoRespuesta:
-      'Armé un borrador con 20 cajas de Solo Lack y 15 cajas de Festival. ¿Confirmas el pedido?',
+      'Armé un borrador con 20 cajas de Aloha Paleta Limon y 15 cajas de Aloha Mango Biche. ¿Confirmas el pedido?',
     datos: { items: ITEMS },
   };
 }
