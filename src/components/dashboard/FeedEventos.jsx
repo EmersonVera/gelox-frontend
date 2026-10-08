@@ -1,13 +1,6 @@
 import { useEffect, useState } from 'react';
 import api from '../../api/axiosConfig';
 
-const MOCK = [
-  { tipo: 'DESPACHO',       descripcion: 'Juan Pérez registró despacho de 45 unidades.',          timestamp: new Date(Date.now() - 15 * 60 * 1000).toISOString() },
-  { tipo: 'CIERRE_CAJA',    descripcion: 'Cierre de caja ventanilla completado por Ayde.',         timestamp: new Date(Date.now() - 42 * 60 * 1000).toISOString() },
-  { tipo: 'ALERTA_STOCK',   descripcion: 'Alerta: Bajo stock en Corneto Vainilla (quedan 12u).',   timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString() },
-  { tipo: 'NUEVO_REGISTRO', descripcion: 'Nuevo comerciante registrado: Luis Carlos Sarmiento.',   timestamp: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString() },
-];
-
 function tiempoRelativo(isoString) {
   const diffMs = Date.now() - new Date(isoString).getTime();
   const mins  = Math.floor(diffMs / 60000);
@@ -85,6 +78,10 @@ const TIPO_CONFIG = {
   ALERTA_STOCK:   { Icono: IconoAlertaStock,    fondoIcono: 'bg-[#fef2f2]', colorIcono: 'text-[#9e2016]', textoRojo: true  },
   NUEVO_REGISTRO: { Icono: IconoNuevoRegistro,  fondoIcono: 'bg-[#f5f5f4]', colorIcono: 'text-[#57534e]', textoRojo: false },
   INICIO_SESION:  { Icono: IconoInicioSesion,   fondoIcono: 'bg-[#eff6ff]', colorIcono: 'text-[#1d4ed8]', textoRojo: false },
+  // RF11 — tipos reales que emite el backend
+  DESPACHO_PLANILLA: { Icono: IconoDespacho,    fondoIcono: 'bg-[#f5f5f4]', colorIcono: 'text-[#57534e]', textoRojo: false },
+  CONFIRMAR_VENTA:   { Icono: IconoCierreCaja,  fondoIcono: 'bg-[#f0fdf4]', colorIcono: 'text-[#16a34a]', textoRojo: false },
+  PERDIDA_PRODUCTO:  { Icono: IconoAlertaStock, fondoIcono: 'bg-[#fef2f2]', colorIcono: 'text-[#9e2016]', textoRojo: true  },
   CIERRE_SESION:  { Icono: IconoCierreSesion,   fondoIcono: 'bg-[#f5f5f4]', colorIcono: 'text-[#57534e]', textoRojo: false },
 };
 
@@ -107,8 +104,9 @@ export default function FeedEventos() {
         setEventos(ordenados.slice(0, 10));
       })
       .catch(() => {
-        setEventos(MOCK);
-        setError('No se pudo conectar al servidor. Mostrando datos de ejemplo.');
+        // No se muestran datos de ejemplo: podrían confundirse con actividad real
+        setEventos([]);
+        setError('No se pudo cargar la actividad reciente.');
       })
       .finally(() => setCargando(false));
   }, []);
@@ -127,6 +125,9 @@ export default function FeedEventos() {
             <p className="text-[11px] font-inter text-[#a8a29e]">{error}</p>
           )}
           <div className="flex flex-col gap-4">
+            {eventos.length === 0 && !error && (
+              <p className="font-inter text-[14px] text-[#a8a29e]">Sin actividad reciente.</p>
+            )}
             {eventos.map((ev, idx) => {
               const cfg = TIPO_CONFIG[ev.tipo] ?? TIPO_CONFIG.DESPACHO;
               const { Icono, fondoIcono, colorIcono, textoRojo } = cfg;

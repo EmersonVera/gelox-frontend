@@ -3,22 +3,13 @@ import { useState, useEffect, useMemo } from 'react';
 import AppLayout from '../../components/AppLayout';
 import CustomSelect from '../../components/ui/CustomSelect';
 import Pagination from '../../components/ui/Pagination';
+import InventarioMuerto from '../../components/inventarios/InventarioMuerto';
 import {
   getProductosInventario,
   getAlertasStock,
   buscarProductosInventario,
 } from '../../services/inventarioService';
 
-/* ─── Mock data (fallback si el backend no responde) ─── */
-const MOCK_PRODUCTOS = [
-  { codigoTecnico: 'NUT-00124', nombre: 'Corneto Vainilla',   stockActual: 420, precioVenta: 1240, estado: 'NORMAL',      cantidadPedida: 420, cantidadRecibida: 420 },
-  { codigoTecnico: 'NUT-00892', nombre: 'Paleta Drácula',     stockActual: 45,  precioVenta: 1240, estado: 'BAJO_STOCK',  cantidadPedida: 420, cantidadRecibida: 420 },
-  { codigoTecnico: 'NUT-00341', nombre: 'Chococono Especial', stockActual: 80,  precioVenta: 1240, estado: 'STOCK_MEDIO', cantidadPedida: 420, cantidadRecibida: 420 },
-  { codigoTecnico: 'NUT-00991', nombre: 'Crem Helado Litro',  stockActual: 88,  precioVenta: 1240, estado: 'NORMAL',      cantidadPedida: 420, cantidadRecibida: 420 },
-];
-const MOCK_ALERTAS = [
-  { codigoTecnico: 'NUT-00892', nombre: 'Paleta Drácula', stockActual: 45, stockMinimo: 100, estado: 'BAJO_STOCK' },
-];
 
 const PAGE_SIZE = 10;
 const CATEGORIAS = ['Todos', 'Paletas', 'Conos', 'Familiares', 'Vasos'];
@@ -140,17 +131,18 @@ export default function GestionInventarios() {
           getAlertasStock(),
         ]);
         if (!cancelled) {
-          const lista = Array.isArray(prods) ? prods : MOCK_PRODUCTOS;
+          const lista = Array.isArray(prods) ? prods : [];
           setProductosBase(lista);
           setProductos(lista);
-          setAlertas(Array.isArray(alts) ? alts : MOCK_ALERTAS);
+          setAlertas(Array.isArray(alts) ? alts : []);
         }
       } catch {
         if (!cancelled) {
-          setProductosBase(MOCK_PRODUCTOS);
-          setProductos(MOCK_PRODUCTOS);
-          setAlertas(MOCK_ALERTAS);
-          setError(false); // con mock no mostramos error en dev
+          // Sin datos de ejemplo: un inventario inventado se confundiría con el real
+          setProductosBase([]);
+          setProductos([]);
+          setAlertas([]);
+          setError(true);
         }
       } finally {
         if (!cancelled) setCargando(false);
@@ -445,6 +437,9 @@ export default function GestionInventarios() {
             </div>
           )}
         </div>
+
+        {/* Inventario muerto — productos con stock sin salidas en N días */}
+        <InventarioMuerto />
       </div>
     </AppLayout>
   );

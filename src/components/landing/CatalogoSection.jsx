@@ -21,10 +21,11 @@ function formatPrecio(n) {
   return '$' + n.toLocaleString('es-CO');
 }
 
-/** Convierte la respuesta agrupada de /productos (Map<categoria, items[]>) */
+/** Convierte la respuesta agrupada de /productos (Map<categoria, items[]>)
+ *  RF43 — nunca se muestran productos con precio ≤ 0. */
 function parseAgrupado(data) {
   return Object.entries(data).flatMap(([cat, items]) =>
-    items.map((p, i) => ({
+    items.filter((p) => Number(p.precioVenta) > 0).map((p, i) => ({
       id: `${cat}-${i}`,
       nombre: p.nombre,
       descripcion: p.descripcion || '',
@@ -38,7 +39,7 @@ function parseAgrupado(data) {
 
 /** Convierte la respuesta plana de /productos/paletas (items[]) */
 function parsePlano(items, categoria) {
-  return items.map((p, i) => ({
+  return items.filter((p) => Number(p.precioVenta) > 0).map((p, i) => ({
     id: `${categoria}-${i}`,
     nombre: p.nombre,
     descripcion: p.descripcion || '',

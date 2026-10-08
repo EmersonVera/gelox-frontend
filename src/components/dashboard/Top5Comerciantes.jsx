@@ -1,14 +1,6 @@
 import { useEffect, useState } from 'react';
 import api from '../../api/axiosConfig';
 
-const MOCK = [
-  { posicion: 1, nombre: 'Carlos Julio Ruiz',     ingreso: 320000 },
-  { posicion: 2, nombre: 'Martha Lucia Gomez',    ingreso: 285000 },
-  { posicion: 3, nombre: 'Humberto Suarez',       ingreso: 240000 },
-  { posicion: 4, nombre: 'Beatriz Pinzón',        ingreso: 190000 },
-  { posicion: 5, nombre: 'Jorge Eliécer',         ingreso: 145000 },
-];
-
 function formatCOP(n) {
   return '$' + n.toLocaleString('es-CO');
 }
@@ -28,13 +20,14 @@ export default function Top5Comerciantes() {
         }))
       ))
       .catch(() => {
-        setData(MOCK);
-        setError('No se pudo conectar al servidor. Mostrando datos de ejemplo.');
+        // No se muestran datos de ejemplo: podrían confundirse con comerciantes reales
+        setData([]);
+        setError('No se pudo cargar el ranking de comerciantes.');
       })
       .finally(() => setCargando(false));
   }, []);
 
-  const maxIngreso = data ? Math.max(...data.map((c) => c.ingreso)) : 1;
+  const maxIngreso = data?.length ? Math.max(...data.map((c) => c.ingreso)) : 1;
 
   return (
     <div className="bg-white border border-[rgba(245,245,244,0.5)] rounded-xl drop-shadow-[0px_1px_1px_rgba(0,0,0,0.05)] p-[33px] flex flex-col gap-6 animate-fade-in-up">
@@ -61,6 +54,11 @@ export default function Top5Comerciantes() {
             <p className="text-[11px] font-inter text-[#a8a29e]">{error}</p>
           )}
           <div className="flex flex-col gap-5">
+            {data.length === 0 && !error && (
+              <p className="font-inter text-[14px] text-[#a8a29e]">
+                Aún no hay planillas liquidadas este mes.
+              </p>
+            )}
             {data.map((c) => {
               const pct = Math.round((c.ingreso / maxIngreso) * 100);
               return (

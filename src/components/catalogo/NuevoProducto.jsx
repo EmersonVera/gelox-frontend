@@ -16,7 +16,7 @@ const schema = yup.object({
   codigoTecnico: yup.string().required('El código es requerido'),
   categoria:     yup.string().required('Selecciona una categoría'),
   precioVenta:   yup.number().typeError('Ingresa un número').positive('Debe ser mayor a 0').required('El precio es requerido'),
-  precioCosto:   yup.number().typeError('Ingresa un número').min(0, 'Debe ser >= 0').optional(),
+  precioCosto:   yup.number().typeError('Ingresa un número').positive('Debe ser mayor a 0').required('El costo es requerido'),
   descripcion:   yup.string().required('La descripción es requerida'),
   stockMedio:    yup.number().typeError('Ingresa un número').min(0).required('Requerido'),
   stockMinimo:   yup.number().typeError('Ingresa un número').min(0).required('Requerido'),
@@ -171,7 +171,7 @@ export default function NuevoProducto({ onClose, onSuccess }) {
             {puedeVerCosto && (
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className={labelClass}>Precio de Costo COP</label>
+                  <label className={labelClass}>Precio de Costo por caja COP</label>
                   <div className="relative">
                     <span className="absolute left-4 top-1/2 -translate-y-1/2 font-['Inter'] text-[16px] text-[#a8a29e]">$</span>
                     <input {...register('precioCosto')} type="number" step="0.01" placeholder="0.00" className={`${inputClass} pl-8`} />

@@ -469,20 +469,14 @@ export default function ReporteVentasDia() {
 
                 {/* ID Venta */}
                 <span className="font-['Manrope'] font-bold text-[14px] text-[#1b1b1c]">
-                  #{tx.id}
+                  #{String(tx.id ?? '').slice(0, 8).toUpperCase()}
                 </span>
 
                 {/* Cliente + badge de canal */}
                 <div>
-                  {tx.clienteOComerciante ? (
-                    <p className="font-['Manrope'] font-semibold text-[15px] text-[#1b1b1c] leading-[20px]">
-                      {tx.clienteOComerciante}
-                    </p>
-                  ) : tx.tipo !== 'VENTANILLA' && (
-                    <p className="font-['Manrope'] font-semibold text-[15px] text-[#1b1b1c] leading-[20px]">
-                      —
-                    </p>
-                  )}
+                  <p className="font-['Manrope'] font-semibold text-[15px] text-[#1b1b1c] leading-[20px]">
+                    {tx.clienteOComerciante || (tx.tipo === 'VENTANILLA' ? 'Venta de mostrador' : '—')}
+                  </p>
                   {tipoLabel && (
                     <span className={`font-['Inter'] font-bold text-[11px] uppercase ${
                       tx.tipo === 'VENTANILLA' ? 'text-[#9e2016]' : 'text-[#57534e]'

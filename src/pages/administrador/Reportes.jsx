@@ -155,18 +155,23 @@ export default function Reportes() {
             )}
 
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                <KpiCard label="Inversión Total"    value={loading ? '…' : fmt(reporte?.totalInversion)}  sub={reporte ? '+4.2% vs mes anterior' : undefined} />
-                <KpiCard label="Ingresos Totales"   value={loading ? '…' : fmt(reporte?.ingresosTotales)} sub={reporte ? '+12.8% vs mes anterior' : undefined} />
+                {/* Subtítulos descriptivos: antes había variaciones fijas ("+4.2%", "+12.8%") que no se calculaban */}
+                <KpiCard label="Inversión Total"    value={loading ? '…' : fmt(reporte?.totalInversion)}  sub={reporte ? 'Pedidos recibidos de Nutresa' : undefined} />
+                <KpiCard label="Ingresos Totales"   value={loading ? '…' : fmt(reporte?.ingresosTotales)} sub={reporte ? 'Ventanilla + rural + comerciantes' : undefined} />
                 <KpiCard
                     label="Utilidad Bruta"
                     value={loading ? '…' : fmt(reporte?.utilidadNeta)}
                     sub={reporte
-                        ? ((reporte.utilidadNeta ?? 0) < 0 ? 'Utilidad negativa' : 'Meta alcanzada')
+                        ? ((reporte.utilidadNeta ?? 0) < 0 ? 'Utilidad negativa' : 'Ingresos − inversión')
                         : undefined}
                     positive={!!reporte && (reporte.utilidadNeta ?? 0) >= 0}
                     negative={!!reporte && (reporte.utilidadNeta ?? 0) < 0}
                 />
-                <KpiCard label="Margen de Ganancia" value={loading ? '…' : reporte ? `${(reporte.margenGanancia ?? 0).toFixed(0)}%` : '—'} />
+                <KpiCard
+                    label="Margen de Ganancia"
+                    value={loading ? '…' : reporte?.margenGanancia != null ? `${Number(reporte.margenGanancia).toFixed(0)}%` : '—'}
+                    sub={reporte ? (reporte.margenGanancia != null ? 'Utilidad sobre inversión' : 'Sin inversión en el período') : undefined}
+                />
             </div>
 
             {(() => {

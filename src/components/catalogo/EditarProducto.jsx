@@ -17,8 +17,8 @@ const schema = yup.object({
   nombre:        yup.string().required('Requerido'),
   codigoTecnico: yup.string().required('Requerido'),
   categoria:     yup.string().required('Requerido'),
-  precioVenta:   yup.number().typeError('Número').positive().required('Requerido'),
-  precioCosto:   yup.number().typeError('Número').min(0).optional(),
+  precioVenta:   yup.number().typeError('Número').positive('Debe ser mayor a 0').required('Requerido'),
+  precioCosto:   yup.number().typeError('Número').positive('Debe ser mayor a 0').required('Requerido'),
   descripcion:   yup.string().required('Requerido'),
   stockMedio:    yup.number().typeError('Número').min(0).required(),
   stockMinimo:   yup.number().typeError('Número').min(0).required(),
@@ -233,7 +233,7 @@ export default function EditarProducto({ producto, onClose, onSuccess }) {
             {puedeVerCosto && (
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className={labelClass}>Precio de Costo COP</label>
+                  <label className={labelClass}>Precio de Costo por caja COP</label>
                   <div className="relative">
                     <span className="absolute left-4 top-1/2 -translate-y-1/2 font-['Inter'] text-[16px] text-[#a8a29e]">$</span>
                     <input {...register('precioCosto')} type="number" step="0.01" className={`${inputClass} pl-8`} />

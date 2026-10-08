@@ -95,6 +95,8 @@ export default function PedidoVentanilla() {
   const [metodoPago, setMetodoPago] = useState('EFECTIVO');
 
   const [pageProd, setPageProd] = useState(0);
+  // Se incrementa tras cada venta confirmada para recargar el stock real del backend
+  const [recargaCatalogo, setRecargaCatalogo] = useState(0);
 
   /* ── UI ── */
   const [enviando, setEnviando]             = useState(false);
@@ -123,7 +125,10 @@ export default function PedidoVentanilla() {
       .then((data) => {
         if (!vivo) return;
         // Mapeo exacto con los campos reales que devuelve el backend.
-        setProductos(data.map((p) => ({
+        // RF29 — solo productos disponibles para la venta: precio > 0 y stock > 0
+        setProductos(data
+          .filter((p) => Number(p.precioUnitario) > 0 && Number(p.stock) > 0)
+          .map((p) => ({
           id:            p.id,
           codigoTecnico: p.codigo,
           nombre:        p.nombre,
@@ -149,7 +154,7 @@ export default function PedidoVentanilla() {
       })
       .finally(() => { if (vivo) setCargandoProd(false); });
     return () => { vivo = false; };
-  }, []);
+  }, [recargaCatalogo]);
 
   /* ── Estimación local de subtotal (solo para UX inmediata antes de respuesta backend) ──
    * Usa UNIDADES_POR_CAJA = 24, constante fijada por el backend.
@@ -199,7 +204,7 @@ export default function PedidoVentanilla() {
 
   /* ── Acciones de carrito ── */
   const addToCart = useCallback((producto) => {
-    if (!producto.disponible || producto.stockActual === 0) return;
+    if (!producto.disponible || producto.stockActual === 0 || !(producto.precioVenta > 0)) return;
     setCartItems((prev) => {
       const existe = prev.find((i) => i.id === producto.id);
       if (existe) return prev.map((i) =>
@@ -257,15 +262,16 @@ export default function PedidoVentanilla() {
           })),
       });
       setVentaConfirmada(respuesta);
+      setRecargaCatalogo((n) => n + 1); // RF31 — refrescar stock tras descontar
       setShowConfirm(false);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err) {
       const status = err?.response?.status;
       const data   = err?.response?.data;
-      if (status === 409 || data?.tipo === 'STOCK_INSUFICIENTE') {
-        setToast({ show: true, msg: `Stock insuficiente: ${data?.detalle ?? data?.mensaje ?? 'uno o más productos no tienen suficiente stock.'}`, type: 'error' });
+      if (status === 409 || status === 422 || data?.tipo === 'STOCK_INSUFICIENTE') {
+        setToast({ show: true, msg: `Stock insuficiente: ${data?.detalle ?? data?.mensaje ?? data?.error ?? 'uno o más productos no tienen suficiente stock.'}`, type: 'error' });
       } else {
-        setToast({ show: true, msg: data?.mensaje ?? data?.message ?? 'Error al registrar la venta.', type: 'error' });
+        setToast({ show: true, msg: data?.mensaje ?? data?.message ?? data?.error ?? 'Error al registrar la venta.', type: 'error' });
       }
       setShowConfirm(false);
     } finally {
@@ -300,7 +306,9 @@ export default function PedidoVentanilla() {
     const errs = {};
     cartItems.forEach((it) => {
       const totalUnidades = it.cajas * (it.unidadesPorCaja ?? 0) + it.unidades;
-      if (it.cajas === 0 && it.unidades === 0) {
+      if (!(Number(it.precioVenta) > 0)) {
+        errs[it.id] = 'Producto sin precio de venta; no se puede vender.';
+      } else if (it.cajas === 0 && it.unidades === 0) {
         errs[it.id] = 'Agrega al menos 1 caja o 1 unidad.';
       } else if (totalUnidades > (it.stockActual ?? Infinity)) {
         errs[it.id] = `Supera el stock disponible (${it.stockActual} u. en total).`;

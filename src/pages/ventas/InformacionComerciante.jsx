@@ -33,18 +33,23 @@ function buildChartData(planillas) {
   return Array.from({ length: 7 }, (_, i) => {
     const d = new Date(today);
     d.setDate(today.getDate() - (6 - i));
-    const iso = d.toISOString().split('T')[0];
+    // Fecha local (no UTC) para que coincida con planilla.fecha en Colombia (UTC-5)
+    const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     const p = planillas.find(pl => pl.fecha === iso);
     return { dia: DIAS_CORTOS[d.getDay()], valor: p ? (p.ganancia ?? 0) : 0 };
   });
 }
 
+/**
+ * Variación % del promedio diario de ganancia (RF37: (despachadas − devueltas) × precio)
+ * de los últimos 3 días frente a los 4 días anteriores.
+ * Devuelve null si no hay base de comparación (antes se forzaba un 100 % ficticio).
+ */
 function calcRendimiento(data) {
-  const vals = data.map(d => d.valor);
+  const vals = data.map(d => Number(d.valor) || 0);
   const prev = vals.slice(0, 4).reduce((a, b) => a + b, 0) / 4;
   const rec  = vals.slice(4).reduce((a, b) => a + b, 0) / 3;
-  if (prev === 0 && rec === 0) return 0;
-  if (prev === 0) return 100;
+  if (prev === 0) return null;
   return ((rec - prev) / prev) * 100;
 }
 
@@ -110,7 +115,7 @@ export default function InformacionComerciante() {
 
   const chartData      = buildChartData(planillas);
   const rendimiento    = calcRendimiento(chartData);
-  const alAlza         = rendimiento >= 0;
+  const alAlza         = rendimiento == null || rendimiento >= 0;
   const planillasFiltradas = busquedaPlanilla.trim()
     ? planillas.filter(pl => pl.fecha?.includes(busquedaPlanilla.trim()))
     : planillas;
@@ -350,13 +355,21 @@ export default function InformacionComerciante() {
                   Rendimiento 7D
                 </span>
                 <span className={`font-['Inter'] font-bold text-[10px] uppercase tracking-[0.5px] px-2.5 py-1 rounded-full ${
-                  alAlza ? 'bg-[#dcfce7] text-[#16a34a]' : 'bg-[#fee2e2] text-[#dc2626]'
+                  rendimiento == null ? 'bg-[#f5f5f4] text-[#78716c]'
+                    : alAlza ? 'bg-[#dcfce7] text-[#16a34a]' : 'bg-[#fee2e2] text-[#dc2626]'
                 }`}>
-                  {alAlza ? 'AL ALZA' : 'A LA BAJA'}
+                  {rendimiento == null ? 'SIN HISTORIAL' : alAlza ? 'AL ALZA' : 'A LA BAJA'}
                 </span>
               </div>
               <p className="font-['Manrope'] font-extrabold text-[32px] leading-[40px] text-[#1b1b1c] mt-1">
-                {alAlza && rendimiento !== 0 ? '+' : ''}{rendimiento.toFixed(1)}%
+                {rendimiento == null
+                  ? '—'
+                  : `${alAlza && rendimiento !== 0 ? '+' : ''}${rendimiento.toFixed(1)}%`}
+              </p>
+              <p className="font-['Inter'] text-[11px] text-[#a8a29e]">
+                {rendimiento == null
+                  ? 'Sin ventas en los 4 días previos para comparar.'
+                  : 'Promedio de ganancia de los últimos 3 días vs. los 4 anteriores.'}
               </p>
               <div className="mt-2">
                 <ResponsiveContainer width="100%" height={80}>

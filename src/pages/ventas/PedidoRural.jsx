@@ -93,6 +93,8 @@ export default function PedidoRural() {
   const [isLeavingFields, setIsLeavingFields] = useState(false);
   const [errorCatalogo, setErrorCatalogo]     = useState('');
   const [errorClientes, setErrorClientes]     = useState('');
+  // Se incrementa tras cada pedido confirmado para recargar el stock real del backend
+  const [recargaCatalogo, setRecargaCatalogo] = useState(0);
 
   /* Cargar catálogo */
   useEffect(() => {
@@ -100,8 +102,11 @@ export default function PedidoRural() {
       setCargandoProd(true);
       setErrorCatalogo('');
       try {
-        const { data } = await api.get('/api/catalogo/productos', { params: { page: 0, size: 100 } });
-        setProductos(Array.isArray(data.content) ? data.content : []);
+        const { data } = await api.get('/api/catalogo/productos', { params: { page: 0, size: 300 } });
+        // RF32 — solo productos disponibles para la venta: precio > 0 y stock > 0
+        setProductos(Array.isArray(data.content)
+          ? data.content.filter((p) => Number(p.precioVenta) > 0 && Number(p.stockActual) > 0)
+          : []);
       } catch (err) {
         setProductos([]);
         const status = err?.response?.status;
@@ -112,7 +117,7 @@ export default function PedidoRural() {
         else setErrorCatalogo(err?.response?.data?.mensaje ?? 'No se pudo cargar el catálogo.');
       } finally { setCargandoProd(false); }
     })();
-  }, []);
+  }, [recargaCatalogo]);
 
   /* Cargar clientes rurales */
   useEffect(() => {
@@ -252,7 +257,7 @@ export default function PedidoRural() {
   };
 
   const addToCart = useCallback((producto) => {
-    if ((producto.stockActual ?? 0) === 0) return;
+    if ((producto.stockActual ?? 0) === 0 || !(Number(producto.precioVenta) > 0)) return;
     setCartItems((prev) => {
       const existe = prev.find((i) => i.productoId === producto.id);
       if (existe) return prev.map((i) => i.productoId === producto.id ? { ...i, cajas: i.cajas + 1 } : i);
@@ -262,6 +267,7 @@ export default function PedidoRural() {
         descripcion:     producto.descripcion ?? '',
         precioUnitario:  producto.precioVenta ?? 0,
         unidadesPorCaja: producto.unidadesPorCaja ?? null,
+        stockActual:     producto.stockActual ?? 0,
         imagen:          producto.imagenUrl ?? null,
         cajas:           producto.unidadesPorCaja != null ? 1 : 0,
         unidadesSueltas: producto.unidadesPorCaja != null ? 0 : 1,
@@ -300,8 +306,13 @@ export default function PedidoRural() {
   const erroresCarrito = useMemo(() => {
     const errs = {};
     cartItems.forEach((it) => {
-      if (it.cajas === 0 && it.unidadesSueltas === 0) {
+      const totalUnidades = it.cajas * (it.unidadesPorCaja ?? 0) + it.unidadesSueltas;
+      if (!(Number(it.precioUnitario) > 0)) {
+        errs[it.productoId] = 'Producto sin precio de venta; no se puede vender.';
+      } else if (it.cajas === 0 && it.unidadesSueltas === 0) {
         errs[it.productoId] = 'Agrega al menos 1 caja o 1 unidad.';
+      } else if (totalUnidades > (it.stockActual ?? Infinity)) {
+        errs[it.productoId] = `Supera el stock disponible (${it.stockActual} u. en total).`;
       }
     });
     return errs;
@@ -351,15 +362,16 @@ export default function PedidoRural() {
     try {
       const respuesta = await api.post('/api/ventas/rural', body);
       setVentaConfirmada(respuesta.data);
+      setRecargaCatalogo((n) => n + 1); // RF26 — refrescar stock tras descontar
       setShowConfirm(false);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err) {
       const status = err.response?.status;
       const data   = err.response?.data;
-      if (status === 409 || data?.tipo === 'STOCK_INSUFICIENTE') {
-        setToast({ show: true, msg: `Stock insuficiente: ${data?.detalle ?? data?.mensaje ?? 'uno o más productos no tienen suficiente stock.'}`, type: 'error' });
+      if (status === 409 || status === 422 || data?.tipo === 'STOCK_INSUFICIENTE') {
+        setToast({ show: true, msg: `Stock insuficiente: ${data?.detalle ?? data?.mensaje ?? data?.error ?? 'uno o más productos no tienen suficiente stock.'}`, type: 'error' });
       } else {
-        setToast({ show: true, msg: data?.mensaje ?? data?.message ?? 'Error al registrar el pedido.', type: 'error' });
+        setToast({ show: true, msg: data?.mensaje ?? data?.message ?? data?.error ?? 'Error al registrar el pedido.', type: 'error' });
       }
       setShowConfirm(false);
     } finally { setEnviando(false); }
@@ -463,15 +475,19 @@ export default function PedidoRural() {
                   <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 font-inter">
                     Productos ({ventaConfirmada.items.length})
                   </p>
-                  {ventaConfirmada.items.map((it) => (
+                  {ventaConfirmada.items.map((it) => {
+                    // El backend (PedidoRuralResponse) envía nombreProducto / cantidadCajas / cantidadUnidades
+                    const cajas    = it.cantidadCajas ?? it.cajas ?? 0;
+                    const unidades = it.cantidadUnidades ?? it.unidadesSueltas ?? it.unidades ?? 0;
+                    return (
                     <div key={it.productoId}
                       className="flex items-center justify-between bg-zinc-50 rounded-xl px-4 py-2.5">
                       <div>
-                        <p className="text-sm font-semibold text-zinc-800 font-display">{it.nombre}</p>
+                        <p className="text-sm font-semibold text-zinc-800 font-display">{it.nombreProducto ?? it.nombre}</p>
                         <p className="text-[11px] text-zinc-400 font-inter">
-                          {it.cajas > 0 && `${it.cajas} caja${it.cajas > 1 ? 's' : ''}`}
-                          {it.cajas > 0 && (it.unidadesSueltas ?? it.unidades ?? 0) > 0 && ' + '}
-                          {(it.unidadesSueltas ?? it.unidades ?? 0) > 0 && `${it.unidadesSueltas ?? it.unidades} uds sueltas`}
+                          {cajas > 0 && `${cajas} caja${cajas > 1 ? 's' : ''}`}
+                          {cajas > 0 && unidades > 0 && ' + '}
+                          {unidades > 0 && `${unidades} uds sueltas`}
                           {' · '}{formatCOP(it.precioUnitario)} c/u
                         </p>
                       </div>
@@ -479,7 +495,8 @@ export default function PedidoRural() {
                         {formatCOP(it.subtotal)}
                       </span>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>

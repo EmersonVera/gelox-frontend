@@ -99,7 +99,7 @@ export default function AppRouter() {
 
         {/* ══ Módulo Ventas (Administrador + Encargado de Ventas) ══ */}
         <Route element={<ProtectedRoute rolesPermitidos={['ADMINISTRADOR', 'ENCARGADO_VENTAS']} />}>
-          <Route path="/ventas"                  element={<Navigate to="/ventas/pedido-ventanilla" replace />} />
+          <Route path="/ventas"                  element={<Navigate to="/ventas/pedidos-ventanilla" replace />} />
           <Route path="/ventas/pedidos-rurales"  element={<PedidoRural />} />
           <Route path="/ventas/pedidos-ventanilla" element={<PedidoVentanilla />} />
           <Route path="/ventas/reportes"         element={<ReporteVentasDia />} />

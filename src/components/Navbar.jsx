@@ -195,7 +195,9 @@ function AlertasBell({ token }) {
               </div>
             ) : (
               alertas.map((a, i) => {
-                const esBajoStock = a.estado === 'BAJO_STOCK';
+                // RF24 — el backend envía las alertas ordenadas por severidad (nivel)
+                const nivel = a.nivel ?? ((a.stockActual ?? 0) <= 0 ? 'URGENTE' : 'MEDIA');
+                const esBajoStock = nivel !== 'MEDIA';
                 const isRead = readIds.has(String(a.id));
                 return (
                   <div
@@ -232,11 +234,13 @@ function AlertasBell({ token }) {
 
                     {/* Badge */}
                     <span className={`shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                      esBajoStock
-                        ? 'bg-red-100 text-red-700'
-                        : 'bg-amber-100 text-amber-700'
+                      nivel === 'URGENTE'
+                        ? 'bg-red-600 text-white'
+                        : nivel === 'ALTA'
+                          ? 'bg-red-100 text-red-700'
+                          : 'bg-amber-100 text-amber-700'
                     }`}>
-                      {esBajoStock ? 'CRÍTICO' : 'MEDIO'}
+                      {nivel}
                     </span>
                   </div>
                 );

@@ -105,14 +105,14 @@ export default function KpiCards() {
       label: 'Ingresos del día',
       valor: formatCOP(Number(data.ingresosDia)),
       sufijo: 'COP',
-      badge: <Badge valor={data.variacionIngresos != null ? Number(data.variacionIngresos) : 0} tipo="porcentaje" />,
+      badge: <Badge valor={data.variacionIngresos != null ? Number(data.variacionIngresos) : null} tipo="porcentaje" />,
       icono: <DollarIcon />,
     },
     {
       label: 'Ganancia neta Diaria',
       valor: formatCOP(Number(data.gananciaNeta)),
       sufijo: 'COP',
-      badge: <Badge valor={data.variacionGanancia != null ? Number(data.variacionGanancia) : 0} tipo="porcentaje" />,
+      badge: <Badge valor={data.variacionGanancia != null ? Number(data.variacionGanancia) : null} tipo="porcentaje" />,
       icono: <TrendingUpIcon />,
     },
     {

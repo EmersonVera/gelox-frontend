@@ -1,5 +1,5 @@
 // src/pages/inventarios/GenerarPedido.jsx — RF21: Generar Pedido a Proveedor
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import AppLayout from '../../components/AppLayout';
 import CantidadControl from '../../components/inventarios/CantidadControl';
@@ -8,6 +8,20 @@ import Pagination from '../../components/ui/Pagination';
 
 const CATEGORIAS = ['Todos', 'Paletas', 'Conos', 'Vasos', 'Familiares'];
 const base = import.meta.env.VITE_API_BASE_URL ?? '';
+
+/* RF21 — producto por debajo (o en) su stock mínimo configurado (sin mínimo configurado no aplica) */
+const estaBajoMinimo = (p) =>
+  p.stockActual != null && p.stockMinimo != null && p.stockMinimo > 0 && p.stockActual <= p.stockMinimo;
+
+/* RF21 — cantidad sugerida: reponer hasta el stock medio (o el mínimo si no hay medio) */
+const itemSugerido = (p) => {
+  const objetivo = Math.max(p.stockMedio ?? 0, p.stockMinimo ?? 0);
+  const faltante = Math.max(1, objetivo - (p.stockActual ?? 0));
+  if (p.unidadesPorCaja != null && p.unidadesPorCaja > 0) {
+    return { producto: p, cajas: Math.ceil(faltante / p.unidadesPorCaja), unidades: 0 };
+  }
+  return { producto: p, cajas: 0, unidades: faltante };
+};
 
 export default function GenerarPedido() {
   const { token } = useAuth();
@@ -20,6 +34,8 @@ export default function GenerarPedido() {
   const [generando, setGenerando] = useState(false);
   const [errorProductos, setErrorProductos] = useState('');
   const [toast, setToast] = useState({ show: false, msg: '', type: 'success' });
+  const [preseleccionados, setPreseleccionados] = useState(0);
+  const preseleccionHecha = useRef(false);
 
   const fetchProductos = useCallback(async () => {
     setCargando(true);
@@ -38,7 +54,17 @@ export default function GenerarPedido() {
       }
       const data = await res.json();
       const list = Array.isArray(data.content) ? data.content : (data.productos ?? data.content ?? data);
-      setProductos(Array.isArray(list) ? list : []);
+      const lista = Array.isArray(list) ? list : [];
+      setProductos(lista);
+      // RF21 — al abrir la vista se preseleccionan los productos bajo su stock mínimo
+      if (!preseleccionHecha.current && categoriaActiva === 'Todos') {
+        preseleccionHecha.current = true;
+        const sugeridos = lista.filter(estaBajoMinimo).map(itemSugerido);
+        if (sugeridos.length > 0) {
+          setCarrito((prev) => (prev.length === 0 ? sugeridos : prev));
+          setPreseleccionados(sugeridos.length);
+        }
+      }
     } catch (e) {
       setProductos([]);
       const status = e?.status;
@@ -163,6 +189,20 @@ export default function GenerarPedido() {
           </div>
         )}
 
+        {/* RF21 — aviso de preselección automática */}
+        {preseleccionados > 0 && (
+          <div className="bg-[#fffbeb] border border-[#fcd34d] rounded-[10px] px-4 py-3 flex items-start gap-2.5">
+            <svg width="15" height="15" className="shrink-0 mt-0.5 text-[#d97706]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            <span className="font-['Inter'] font-medium text-[14px] text-[#92400e] flex-1">
+              Se agregaron automáticamente {preseleccionados} producto(s) que están por debajo de su stock mínimo,
+              con una cantidad sugerida para reponer hasta el stock medio. Puedes ajustar las cantidades o quitarlos.
+            </span>
+            <button onClick={() => setPreseleccionados(0)} className="text-[#92400e] opacity-60 hover:opacity-100 transition-opacity">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+        )}
+
         <div className="flex gap-6 items-start">
           {/* ── Catálogo izquierda ── */}
           <div className="flex-1 flex flex-col gap-5">
@@ -231,7 +271,8 @@ export default function GenerarPedido() {
               <div className="grid grid-cols-3 gap-4">
                 {pagina.map(p => {
                   const enCarrito  = !!carrito.find(i => i.producto.id === p.id);
-                  const stockBajo  = p.stockActual != null && p.stockMinimo != null && p.stockActual <= p.stockMinimo;
+                  // Rojo si está bajo su mínimo o sin existencias (aunque no tenga mínimo configurado)
+                  const stockBajo  = estaBajoMinimo(p) || p.stockActual === 0;
                   return (
                     <div
                       key={p.id}
@@ -355,6 +396,11 @@ export default function GenerarPedido() {
                             <p className="font-['Inter'] font-normal text-[11px] text-[#a8a29e]">
                               {item.producto.unidadMedida ?? item.producto.unidad_medida}
                             </p>
+                            {estaBajoMinimo(item.producto) && (
+                              <p className="font-['Inter'] font-semibold text-[10px] text-[#b45309] mt-0.5">
+                                Bajo mínimo · stock {item.producto.stockActual}u / mín {item.producto.stockMinimo}u
+                              </p>
+                            )}
                             {errItem && (
                               <p className="font-['Inter'] font-semibold text-[10px] text-[#dc2626] mt-0.5">⚠ {errItem}</p>
                             )}

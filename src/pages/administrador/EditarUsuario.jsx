@@ -166,7 +166,11 @@ export default function EditarUsuario() {
       }
       setToast({ show: true, msg: 'Cambios guardados correctamente.', type: 'success' });
     } catch (err) {
-      const msg = err?.response?.data?.mensaje ?? err?.response?.data?.message ?? '';
+      // El backend responde el error como texto plano (UsuarioController) o como { error }
+      const data = err?.response?.data;
+      const msg =
+        (typeof data === 'string' ? data : undefined) ??
+        data?.mensaje ?? data?.message ?? data?.error ?? '';
       const lower = msg.toLowerCase();
       if (lower.includes('correo') || lower.includes('email') || lower.includes('duplicado')) {
         setError('correo', { message: msg || 'El correo ya está en uso.' });
@@ -194,7 +198,10 @@ export default function EditarUsuario() {
         type: 'success',
       });
     } catch (err) {
-      const msg = err?.response?.data?.mensaje ?? err?.response?.data?.message ?? '';
+      const data = err?.response?.data;
+      const msg =
+        (typeof data === 'string' ? data : undefined) ??
+        data?.mensaje ?? data?.message ?? data?.error ?? '';
       setToast({ show: true, msg: msg || 'Error al cambiar estado. Intenta de nuevo.', type: 'error' });
     } finally {
       setCambiandoEstado(false);
