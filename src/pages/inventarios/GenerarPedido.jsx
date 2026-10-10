@@ -1,5 +1,6 @@
 // src/pages/inventarios/GenerarPedido.jsx — RF21: Generar Pedido a Proveedor
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import AppLayout from '../../components/AppLayout';
 import CantidadControl from '../../components/inventarios/CantidadControl';
@@ -21,6 +22,11 @@ export default function GenerarPedido() {
   const [errorProductos, setErrorProductos] = useState('');
   const [toast, setToast] = useState({ show: false, msg: '', type: 'success' });
 
+  // Viene del asistente de voz ("Editar en Generar pedido"): el carrito arranca con lo dictado.
+  const location = useLocation();
+  const navigate = useNavigate();
+  const itemsVozRef = useRef(location.state?.itemsVoz ?? null);
+
   const fetchProductos = useCallback(async () => {
     setCargando(true);
     setErrorProductos('');
@@ -39,6 +45,14 @@ export default function GenerarPedido() {
       const data = await res.json();
       const list = Array.isArray(data.content) ? data.content : (data.productos ?? data.content ?? data);
       setProductos(Array.isArray(list) ? list : []);
+      if (itemsVozRef.current?.length && Array.isArray(list)) {
+        const porId = new Map(list.map((p) => [p.id, p]));
+        setCarrito(itemsVozRef.current
+          .filter((i) => porId.has(i.productoId))
+          .map((i) => ({ producto: porId.get(i.productoId), cajas: i.cajas, unidades: i.unidades })));
+        itemsVozRef.current = null;
+        navigate('.', { replace: true, state: null }); // que recargar la página no lo vuelva a cargar
+      }
     } catch (e) {
       setProductos([]);
       const status = e?.status;
@@ -55,7 +69,7 @@ export default function GenerarPedido() {
     } finally {
       setCargando(false);
     }
-  }, [token, categoriaActiva]);
+  }, [token, categoriaActiva, navigate]);
 
   useEffect(() => { fetchProductos(); }, [fetchProductos]);
   useEffect(() => setPageProd(0), [busqueda, categoriaActiva]);

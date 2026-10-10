@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import AppLayout from '../../components/AppLayout';
+import { descargarExportacionPedido } from '../../services/vozService';
 
 const base = import.meta.env.VITE_API_BASE_URL ?? '';
 
@@ -35,6 +36,21 @@ export default function DetallePedido() {
   const navigate    = useNavigate();
   const [pedido, setPedido]   = useState(null);
   const [cargando, setCargando] = useState(true);
+  const [descargando, setDescargando] = useState(false);
+  const [errorDescarga, setErrorDescarga] = useState('');
+
+  // El mismo Excel para el proveedor que se descarga al confirmar un pedido por voz.
+  const handleDescargar = async () => {
+    setDescargando(true);
+    setErrorDescarga('');
+    try {
+      await descargarExportacionPedido(`/api/inventario/pedidos/${id}/exportar`);
+    } catch {
+      setErrorDescarga('No se pudo descargar el Excel. Intenta de nuevo.');
+    } finally {
+      setDescargando(false);
+    }
+  };
 
   useEffect(() => {
     fetch(`${base}/api/inventario/pedidos/${id}`, {
@@ -110,7 +126,16 @@ export default function DetallePedido() {
               {pedido.notas}
             </span>
           )}
+          <button
+            type="button"
+            onClick={handleDescargar}
+            disabled={descargando}
+            className={`${pedido.notas ? '' : 'ml-auto'} bg-[#9e2016] hover:bg-[#7f1a12] disabled:opacity-60 text-white font-['Inter'] font-semibold text-[13px] px-4 py-2 rounded-[8px] transition-colors`}
+          >
+            {descargando ? 'Descargando…' : 'Descargar Excel'}
+          </button>
         </div>
+        {errorDescarga && <p className="font-['Inter'] text-[13px] text-[#dc2626] -mt-4">{errorDescarga}</p>}
 
         {/* Tabla comparación */}
         <div className="bg-white rounded-[12px] border border-[#f5f5f4] overflow-hidden">

@@ -92,7 +92,7 @@ export default function VistaFinanzas({ datos }) {
       </div>
 
       {/* Ingresos totales / Utilidad neta / Margen — mismo componente que Reportes.jsx */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 gap-3">
         <KpiCard label="Ingresos Totales" value={formatoCOP(ingresosTotales)} />
         <KpiCard label="Utilidad Neta" value={formatoCOP(utilidadNeta)} colorClass={utilidadColor} />
         <KpiCard label="Margen de Ganancia" value={formatoPct(margenGanancia)} />

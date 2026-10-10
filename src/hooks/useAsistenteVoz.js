@@ -52,7 +52,8 @@ function soltar(reconocimiento) {
   reconocimiento.abort();
 }
 
-const MONTO_COP_REGEX = /\$\s?(\d+(?:\.\d{3})*)|\b(\d{1,3}(?:\.\d{3})+)\b/g;
+// Los centavos (",00" que manda el backend) no se narran.
+const MONTO_COP_REGEX = /\$\s?(\d+(?:\.\d{3})*)(?:,\d{1,2})?|\b(\d{1,3}(?:\.\d{3})+)(?:,\d{1,2})?\b/g;
 
 
 const UNIDADES = ['', 'un', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve'];
@@ -166,10 +167,32 @@ export function useAsistenteVoz({ alActivarPorVoz } = {}) {
     }
   }, []);
 
+  // La confirmación se escucha solo cuando GELOX termina de leer el resumen: si
+  // no, el micrófono capta la narración y el "confirmar" queda pegado a ella.
+  const [escuchandoConfirmacion, setEscuchandoConfirmacion] = useState(false);
+  const esperaNarracionRef = useRef(null);
+
+  const dejarDeEsperarNarracion = useCallback(() => {
+    clearTimeout(esperaNarracionRef.current);
+    setEscuchandoConfirmacion(false);
+  }, []);
+
+  const hablarYLuegoEscuchar = useCallback((texto) => {
+    dejarDeEsperarNarracion();
+    const listo = () => {
+      clearTimeout(esperaNarracionRef.current);
+      setEscuchandoConfirmacion(true);
+    };
+    // ponytail: Chrome a veces no avisa el final de una narración larga; este tope lo cubre.
+    esperaNarracionRef.current = setTimeout(listo, Math.min(20000, 1500 + (texto?.length ?? 0) * 75));
+    hablar(texto ?? '', listo);
+  }, [hablar, dejarDeEsperarNarracion]);
+
   const terminar = useCallback((estadoFinal) => {
+    dejarDeEsperarNarracion();
     setEstado(estadoFinal);
     reanudarPalabraClaveRef.current?.();
-  }, []);
+  }, [dejarDeEsperarNarracion]);
 
   const procesarTextoFinal = useCallback(
     async (texto, confianza) => {
@@ -178,7 +201,8 @@ export function useAsistenteVoz({ alActivarPorVoz } = {}) {
       try {
         const data = await interpretarComando(texto, confianza);
         setRespuesta(data);
-        if (data?.textoRespuesta) hablar(data.textoRespuesta);
+        if (data?.requiereConfirmacion) hablarYLuegoEscuchar(data.textoRespuesta);
+        else if (data?.textoRespuesta) hablar(data.textoRespuesta);
         if (data?.requiereConfirmacion) {
           respuestaLlegoEnRef.current = Date.now();
           console.info(`[voz-tiempos] respuesta con requiereConfirmacion recibida. expiraEnSegundos=${data.expiraEnSegundos}`);
@@ -193,7 +217,7 @@ export function useAsistenteVoz({ alActivarPorVoz } = {}) {
         terminar(ESTADOS_VOZ.ERROR);
       }
     },
-    [hablar, terminar]
+    [hablar, hablarYLuegoEscuchar, terminar]
   );
 
   const confirmar = useCallback(
@@ -203,6 +227,7 @@ export function useAsistenteVoz({ alActivarPorVoz } = {}) {
       const datosPrevios = respuesta?.datos;
       if (!comandoId || confirmarEnCursoRef.current) return;
       confirmarEnCursoRef.current = true;
+      dejarDeEsperarNarracion();
       setEstado(ESTADOS_VOZ.EJECUTANDO);
       const tLlamada = Date.now();
       const tDesdeRespuesta = respuestaLlegoEnRef.current ? tLlamada - respuestaLlegoEnRef.current : null;
@@ -218,7 +243,10 @@ export function useAsistenteVoz({ alActivarPorVoz } = {}) {
           requiereConfirmacion: false,
           expiraEnSegundos: null,
           textoRespuesta: data?.textoRespuesta,
-          datos: huboDatosNuevos ? { ...datosPrevios, ...data.datos } : (data?.datos ?? null),
+          // Se conservan los ítems ya mostrados: al confirmar el backend solo manda lo nuevo
+          // (pedidoId, exportUrl) y al cancelar no manda nada.
+          datos: huboDatosNuevos ? { ...datosPrevios, ...data.datos } : datosPrevios,
+          cancelado: !si,
         });
         if (data?.textoRespuesta) hablar(data.textoRespuesta);
         terminar(si ? ESTADOS_VOZ.COMPLETADO : ESTADOS_VOZ.CANCELADO);
@@ -228,6 +256,7 @@ export function useAsistenteVoz({ alActivarPorVoz } = {}) {
         const status = err?.response?.status;
         if (status === 410) {
           const mensaje = err.response?.data?.error || MENSAJE_CANCELADO_POR_TIEMPO;
+          setRespuesta((r) => ({ ...r, requiereConfirmacion: false, cancelado: true, textoRespuesta: mensaje }));
           hablar(mensaje);
           terminar(ESTADOS_VOZ.CANCELADO);
         } else if (status === 422) {
@@ -245,7 +274,7 @@ export function useAsistenteVoz({ alActivarPorVoz } = {}) {
         confirmarEnCursoRef.current = false;
       }
     },
-    [respuesta, hablar, terminar]
+    [respuesta, hablar, terminar, dejarDeEsperarNarracion]
   );
 
   // Escucha continua: junta lo dicho entre pausas cortas y solo envía el
@@ -381,7 +410,7 @@ export function useAsistenteVoz({ alActivarPorVoz } = {}) {
 
 
   useEffect(() => {
-    if (estado !== ESTADOS_VOZ.ESPERANDO_CONFIRMACION || !soportado) return;
+    if (estado !== ESTADOS_VOZ.ESPERANDO_CONFIRMACION || !escuchandoConfirmacion || !soportado) return;
 
     const intencionActual = respuesta?.intencion;
     const esperandoAclaracion = !!(respuesta?.datos?.requiereAclaracion || respuesta?.datos?.requiereDestinatario);
@@ -391,7 +420,8 @@ export function useAsistenteVoz({ alActivarPorVoz } = {}) {
 
     reconocimiento.lang = 'es-CO';
     reconocimiento.interimResults = false;
-    reconocimiento.continuous = false;
+    // Continuo para no perder lo dicho en los reinicios; una aclaración ("doña Marta") va en una sola frase.
+    reconocimiento.continuous = !esperandoAclaracion;
     reconocimiento.maxAlternatives = 3;
 
     reconocimiento.onresult = (evento) => {
@@ -458,7 +488,7 @@ export function useAsistenteVoz({ alActivarPorVoz } = {}) {
       reconocimiento.onend = null;
       reconocimiento.abort();
     };
-  }, [estado, respuesta, soportado, confirmar, procesarTextoFinal]);
+  }, [estado, escuchandoConfirmacion, respuesta, soportado, confirmar, procesarTextoFinal]);
 
   // T40-FE4 — Palabra clave "Hola GELOX" (encendida por defecto, se apaga en el panel).
   // Solo arranca con el permiso del micrófono ya concedido, para no pedirlo al
@@ -557,6 +587,7 @@ export function useAsistenteVoz({ alActivarPorVoz } = {}) {
     transcripcionParcial,
     textoFinal,
     respuesta,
+    escuchandoConfirmacion,
     iniciar,
     cancelar,
     hablar,

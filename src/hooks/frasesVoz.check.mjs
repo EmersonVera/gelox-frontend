@@ -10,12 +10,16 @@ for (const t of ['hola', 'hola los productos', 'hola el pedido', 'cuántas cajas
   assert.ok(!contienePalabraClave(t), t);
 }
 
-for (const t of ['Confirmar', 'confirmar.', 'Sí', 'sí, confirmo', 'dale', 'Listo', 'confirmar por favor', 'ok']) {
+for (const t of ['Confirmar', 'confirmar.', 'Sí', 'sí, confirmo', 'dale', 'Listo', 'confirmar por favor', 'ok',
+  'Con firmar', 'bueno, sí confirmo', 'eh confirmar', 'acepto', 'perfecto', 'adelante', 'confirmar el pedido',
+  'sí señora', 'de acuerdo']) {
   assert.ok(esConfirmar(t), t);
 }
-for (const t of ['Total $5.000. ¿Confirmas?', 'no', 'confirmar no']) assert.ok(!esConfirmar(t), t);
+for (const t of ['Total $5.000. ¿Confirmas?', 'no', 'confirmar no', 'Venta ventanilla: 2 cajas de Festival',
+  'Cancelar']) assert.ok(!esConfirmar(t), t);
 
-for (const t of ['Cancelar', 'cancela', 'No', 'no, cancelar', 'olvídalo']) assert.ok(esCancelar(t), t);
-for (const t of ['confirmar', 'no sé qué decir']) assert.ok(!esCancelar(t), t);
+for (const t of ['Cancelar', 'cancela', 'No', 'no, cancelar', 'olvídalo', 'Rechazar', 'rechazo', 'recházalo',
+  'anular', 'mejor no', 'no gracias', 'bueno, cancela la venta']) assert.ok(esCancelar(t), t);
+for (const t of ['confirmar', 'no sé qué decir', '¿Confirmas?', 'sí']) assert.ok(!esCancelar(t), t);
 
 console.log('frasesVoz OK');
