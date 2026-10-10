@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useAsistenteVoz } from '../../hooks/useAsistenteVoz';
 import { useAuth } from '../../context/AuthContext';
 import { getAlertasStock } from '../../services/inventarioService';
@@ -25,12 +26,23 @@ export default function AsistenteVoz() {
     transcripcionParcial,
     textoFinal,
     respuesta,
+    escuchandoConfirmacion,
     iniciar,
     cancelar,
     confirmar,
     hablar,
   } = useAsistenteVoz({ alActivarPorVoz: abrirPanel });
   const { rol } = useAuth();
+  const { pathname } = useLocation();
+
+  // Al cambiar de página (p. ej. "Editar en Generar pedido") el panel se cierra.
+  const paginaAnterior = useRef(pathname);
+  useEffect(() => {
+    if (paginaAnterior.current === pathname) return;
+    paginaAnterior.current = pathname;
+    cancelar();
+    setOpen(false);
+  }, [pathname, cancelar]);
   const ref = useRef(null);
 
   // T44-FE2 — alerta proactiva de stock bajo mínimo, una sola vez por sesión
@@ -95,6 +107,7 @@ export default function AsistenteVoz() {
       {open && (
         <PanelAsistenteVoz
           estado={estado}
+          escuchandoConfirmacion={escuchandoConfirmacion}
           transcripcionParcial={transcripcionParcial}
           textoFinal={textoFinal}
           respuesta={respuesta}

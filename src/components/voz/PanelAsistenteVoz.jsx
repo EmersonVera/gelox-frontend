@@ -7,6 +7,7 @@ const MENSAJE_PERMISO_DENEGADO = 'No pudimos acceder al micrófono. Revisa los p
 
 export default function PanelAsistenteVoz({
   estado,
+  escuchandoConfirmacion,
   transcripcionParcial,
   textoFinal,
   respuesta,
@@ -67,10 +68,16 @@ export default function PanelAsistenteVoz({
           </div>
         )}
 
-        {esperandoConfirmacion && (
+        {esperandoConfirmacion && !escuchandoConfirmacion && (
+          <div className="flex items-center gap-2 text-[13px] text-muted font-medium">
+            <span className="w-2 h-2 rounded-full bg-muted animate-pulse" />
+            Leyendo el resumen… (o usa los botones)
+          </div>
+        )}
+        {esperandoConfirmacion && escuchandoConfirmacion && (
           <div className="flex items-center gap-2 text-[13px] text-primary font-medium">
             <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-            {esperandoAclaracion ? 'Escuchando: decí tu respuesta o "cancelar"' : 'Escuchando: decí "confirmar" o "cancelar"'}
+            {esperandoAclaracion ? 'Escuchando: decí tu respuesta o "cancelar"' : 'Escuchando: decí "confirmar" o "rechazar"'}
           </div>
         )}
 

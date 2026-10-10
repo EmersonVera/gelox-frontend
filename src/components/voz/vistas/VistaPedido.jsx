@@ -1,18 +1,16 @@
 import { useEffect, useState } from 'react';
-import { confirmarComando, descargarExportacionPedido } from '../../../services/vozService';
+import { useNavigate } from 'react-router-dom';
+import { descargarExportacionPedido } from '../../../services/vozService';
 
 /**
  * Vista para GENERAR_PEDIDO (RF52). Vive dentro de PanelAsistenteVoz.jsx, un
  * dropdown de 320px (ver Navbar.jsx) — por eso el layout es compacto de una
- * sola columna, no la vitrina de dos columnas de GenerarPedido.jsx. El panel
- * padre solo trae un botón "Cancelar" genérico (aborta la sesión de voz), así
- * que el confirmar/cancelar del pedido en sí se resuelve aquí, llamando
- * directo a confirmarComando (mock o real según VITE_USAR_MOCK_VOZ).
+ * sola columna, no la vitrina de dos columnas de GenerarPedido.jsx.
  *
- * Los ítems ya vienen resueltos por la voz: no hay búsqueda de catálogo ni
- * "agregar producto". Las cantidades son de solo lectura — el contrato de
- * confirmarComando no acepta cantidades editadas (ver aviso técnico en
- * docs/T48_Instrucciones_Emerson.md).
+ * Todo sale de `respuesta` (useAsistenteVoz): confirmar por voz o con el botón
+ * pasa por el mismo camino, así al confirmar aparece "Descargar Excel" de
+ * cualquiera de las dos formas. "Editar en Generar pedido" cancela el comando
+ * de voz y abre esa pantalla con los productos ya cargados para ajustarlos a mano.
  */
 
 function useCuentaRegresiva(expiraEnSegundos, activo) {
@@ -42,56 +40,60 @@ function resumenCantidad(item) {
   return partes.join(' · ') || '—';
 }
 
-export default function VistaPedido({ comandoId, datos, requiereConfirmacion, expiraEnSegundos }) {
-  const [datosActuales, setDatosActuales] = useState(datos);
-  const [estado, setEstado] = useState('pendiente'); // pendiente | confirmando | cancelado
+export default function VistaPedido({ respuesta, onConfirmar, onCancelar }) {
+  const navigate = useNavigate();
+  const [enCurso, setEnCurso] = useState(false);
   const [error, setError] = useState('');
   const [descargando, setDescargando] = useState(false);
 
-  const completado = !!(datosActuales?.pedidoId || datosActuales?.exportUrl);
-  const pendiente = requiereConfirmacion && !completado && estado === 'pendiente';
+  const { datos, textoRespuesta, requiereConfirmacion, expiraEnSegundos, cancelado } = respuesta ?? {};
+  const completado = !!(datos?.pedidoId || datos?.exportUrl);
+  const pendiente = !!requiereConfirmacion && !completado;
   const restantes = useCuentaRegresiva(expiraEnSegundos, pendiente);
   const expirado = pendiente && restantes === 0;
 
-  if (!datosActuales) {
-    return <p className="text-[13px] text-muted">No hay datos de pedido para mostrar.</p>;
+  const items = datos?.items ?? [];
+  if (items.length === 0) {
+    return <p className="text-[13px] text-ink leading-snug">{textoRespuesta || 'No hay datos de pedido para mostrar.'}</p>;
   }
 
-  const items = datosActuales.items ?? [];
   const totalCajas = items.reduce((s, i) => s + (Number(i.cantidadCajas) || 0), 0);
   const totalUnidades = items.reduce((s, i) => s + (Number(i.cantidadUnidades) || 0), 0);
 
-  const handleConfirmar = async () => {
-    setEstado('confirmando');
+  const accion = (fn) => async () => {
+    setEnCurso(true);
     setError('');
     try {
-      const resp = await confirmarComando(comandoId, true);
-      // El backend real (T47) no reenvía `items` al confirmar — solo
-      // {pedidoId, exportUrl} (ver INT4-PR1). Se fusiona en vez de
-      // reemplazar para no perder los ítems ya mostrados.
-      setDatosActuales((actuales) => ({ ...actuales, ...(resp?.datos ?? {}) }));
-    } catch {
-      setError('No se pudo confirmar. Intenta de nuevo.');
-      setEstado('pendiente');
+      await fn?.();
+    } finally {
+      setEnCurso(false);
     }
   };
 
-  const handleCancelar = async () => {
-    setEstado('confirmando');
+  const handleEditar = async () => {
+    setEnCurso(true);
     try {
-      await confirmarComando(comandoId, false);
-    } catch {
-      // Aunque falle la notificación al backend, igual reflejamos la cancelación local.
+      await onCancelar?.(); // el pedido se termina de armar a mano
+    } finally {
+      setEnCurso(false);
     }
-    setEstado('cancelado');
+    navigate('/inventarios/generar-pedido', {
+      state: {
+        itemsVoz: items.map((i) => ({
+          productoId: i.productoId,
+          cajas: Number(i.cantidadCajas) || 0,
+          unidades: Number(i.cantidadUnidades) || 0,
+        })),
+      },
+    });
   };
 
   const handleDescargar = async () => {
-    if (!datosActuales.exportUrl) return;
+    if (!datos.exportUrl) return;
     setError('');
     setDescargando(true);
     try {
-      await descargarExportacionPedido(datosActuales.exportUrl);
+      await descargarExportacionPedido(datos.exportUrl);
     } catch {
       setError('No se pudo descargar el archivo.');
     } finally {
@@ -126,7 +128,7 @@ export default function VistaPedido({ comandoId, datos, requiereConfirmacion, ex
 
       {completado ? (
         <div className="flex flex-col gap-2 pt-1">
-          <p className="text-[13px] font-semibold text-success-fg">✓ Pedido registrado</p>
+          <p className="text-[13px] font-semibold text-success-fg">✓ Pedido registrado (Pendiente)</p>
           <button
             type="button"
             onClick={handleDescargar}
@@ -135,34 +137,43 @@ export default function VistaPedido({ comandoId, datos, requiereConfirmacion, ex
           >
             {descargando ? 'Descargando…' : 'Descargar Excel'}
           </button>
+          <p className="text-[11px] text-muted text-center">
+            También queda en Inventario → Reporte Pedido, para descargarlo después.
+          </p>
         </div>
-      ) : estado === 'cancelado' ? (
-        <p className="text-[13px] text-muted pt-1">Pedido cancelado.</p>
+      ) : cancelado || !pendiente ? (
+        <p className="text-[13px] text-muted pt-1">{textoRespuesta || 'Pedido cancelado.'}</p>
       ) : (
         <div className="flex flex-col gap-1.5 pt-1">
           <div className="flex gap-2">
             <button
               type="button"
-              onClick={handleConfirmar}
-              disabled={estado === 'confirmando' || expirado}
+              onClick={accion(onConfirmar)}
+              disabled={enCurso || expirado}
               className="flex-1 bg-primary hover:bg-primary-dark disabled:opacity-60 text-white rounded-lg py-2 text-[13px] font-semibold transition-colors"
             >
-              {estado === 'confirmando' ? 'Confirmando…' : 'Confirmar'}
+              {enCurso ? 'Un momento…' : 'Confirmar'}
             </button>
             <button
               type="button"
-              onClick={handleCancelar}
-              disabled={estado === 'confirmando'}
+              onClick={accion(onCancelar)}
+              disabled={enCurso}
               className="bg-surface hover:bg-border disabled:opacity-60 text-ink rounded-lg px-3 py-2 text-[13px] font-semibold transition-colors"
             >
               Cancelar
             </button>
           </div>
-          {pendiente && (
-            <p className="text-[11px] text-muted text-center">
-              {expirado ? 'El tiempo para confirmar expiró.' : `Expira en ${restantes}s`}
-            </p>
-          )}
+          <button
+            type="button"
+            onClick={handleEditar}
+            disabled={enCurso}
+            className="w-full border border-primary text-primary hover:bg-primary-tint disabled:opacity-60 rounded-lg py-2 text-[13px] font-semibold transition-colors"
+          >
+            Editar en Generar pedido
+          </button>
+          <p className="text-[11px] text-muted text-center">
+            {expirado ? 'El tiempo para confirmar expiró.' : `Expira en ${restantes}s`}
+          </p>
         </div>
       )}
     </div>

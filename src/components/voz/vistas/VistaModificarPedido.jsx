@@ -1,13 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { confirmarComando, descargarExportacionPedido } from '../../../services/vozService';
+import { descargarExportacionPedido } from '../../../services/vozService';
 
 /**
  * Vista para MODIFICAR_PEDIDO (RF53). Vive dentro de PanelAsistenteVoz.jsx
  * (dropdown de 320px, ver Navbar.jsx), por eso es compacta de una sola
- * columna. No hay mockup en Figma para esta vista. El confirmar/cancelar se
- * resuelve aquí mismo con confirmarComando, ya que el panel padre solo trae
- * un "Cancelar" genérico que aborta toda la sesión de voz.
+ * columna. No hay mockup en Figma para esta vista. Todo sale de la respuesta
+ * de useAsistenteVoz, así el Excel aparece igual si se confirmó por voz.
  */
 
 const ACCION_INFO = {
@@ -38,28 +37,29 @@ function useCuentaRegresiva(expiraEnSegundos, activo) {
 
 export default function VistaModificarPedido({
   ok = true,
-  comandoId,
   datos,
   textoRespuesta,
   requiereConfirmacion,
   expiraEnSegundos,
+  cancelado,
+  onConfirmar,
+  onCancelar,
 }) {
   const navigate = useNavigate();
-  const [datosActuales, setDatosActuales] = useState(datos);
-  const [estado, setEstado] = useState('pendiente'); // pendiente | confirmando | cancelado
+  const [enCurso, setEnCurso] = useState(false);
   const [error, setError] = useState('');
   const [descargando, setDescargando] = useState(false);
 
   // useCuentaRegresiva debe llamarse siempre en el mismo orden (Rules of
   // Hooks), antes de los `return` tempranos de los flujos alterno/sin datos.
-  const completado = !!datosActuales?.exportUrl;
-  const pendiente = ok && requiereConfirmacion && !completado && estado === 'pendiente';
+  const completado = !!datos?.exportUrl;
+  const pendiente = ok && !!requiereConfirmacion && !completado;
   const restantes = useCuentaRegresiva(expiraEnSegundos, pendiente);
   const expirado = pendiente && restantes === 0;
 
-  // Flujo alterno de RF53: no hay pedido pendiente o el producto no está en
-  // el pedido. El backend solo trae textoRespuesta, sin botones que mostrar.
-  if (!ok) {
+  // Flujo alterno de RF53: no hay pedido pendiente, hay varios y no se dijo a
+  // cuál, o el producto no está en el pedido. Solo hay un mensaje que mostrar.
+  if (!ok || !datos?.accion) {
     return (
       <p className="text-[13px] text-ink leading-snug">
         {textoRespuesta || 'No se pudo modificar el pedido pendiente.'}
@@ -67,45 +67,27 @@ export default function VistaModificarPedido({
     );
   }
 
-  if (!datosActuales) {
-    return <p className="text-[13px] text-muted">No hay datos de modificación para mostrar.</p>;
-  }
-
-  const { pedidoId, accion, producto, cantidadAnterior, cantidadNueva } = datosActuales;
+  const { pedidoId, accion, producto, cantidadAnterior, cantidadNueva } = datos;
   const accionInfo = ACCION_INFO[accion] ?? { label: accion, pill: 'bg-surface text-muted' };
   const numeroPedido = pedidoId ? pedidoId.slice(0, 8).toUpperCase() : '—';
 
-  const handleConfirmar = async () => {
-    setEstado('confirmando');
+  // Confirmar por voz o con el botón va por el mismo camino (useAsistenteVoz).
+  const accionBoton = (fn) => async () => {
+    setEnCurso(true);
     setError('');
     try {
-      const resp = await confirmarComando(comandoId, true);
-      // El backend real (T47) no reenvía accion/producto/cantidadAnterior/
-      // cantidadNueva al confirmar — solo {pedidoId, exportUrl} (ver
-      // INT4-PR1). Se fusiona en vez de reemplazar para no perderlos.
-      setDatosActuales((actuales) => ({ ...actuales, ...(resp?.datos ?? {}) }));
-    } catch {
-      setError('No se pudo confirmar. Intenta de nuevo.');
-      setEstado('pendiente');
+      await fn?.();
+    } finally {
+      setEnCurso(false);
     }
-  };
-
-  const handleCancelar = async () => {
-    setEstado('confirmando');
-    try {
-      await confirmarComando(comandoId, false);
-    } catch {
-      // Aunque falle la notificación al backend, igual reflejamos la cancelación local.
-    }
-    setEstado('cancelado');
   };
 
   const handleDescargar = async () => {
-    if (!datosActuales.exportUrl) return;
+    if (!datos.exportUrl) return;
     setError('');
     setDescargando(true);
     try {
-      await descargarExportacionPedido(datosActuales.exportUrl);
+      await descargarExportacionPedido(datos.exportUrl);
     } catch {
       setError('No se pudo descargar el archivo.');
     } finally {
@@ -152,23 +134,23 @@ export default function VistaModificarPedido({
             </button>
           </div>
         </div>
-      ) : estado === 'cancelado' ? (
-        <p className="text-[13px] text-muted pt-1">Modificación cancelada.</p>
+      ) : cancelado || !pendiente ? (
+        <p className="text-[13px] text-muted pt-1">{textoRespuesta || 'Modificación cancelada.'}</p>
       ) : (
         <div className="flex flex-col gap-1.5 pt-1">
           <div className="flex gap-2">
             <button
               type="button"
-              onClick={handleConfirmar}
-              disabled={estado === 'confirmando' || expirado}
+              onClick={accionBoton(onConfirmar)}
+              disabled={enCurso || expirado}
               className="flex-1 bg-primary hover:bg-primary-dark disabled:opacity-60 text-white rounded-lg py-2 text-[13px] font-semibold transition-colors"
             >
-              {estado === 'confirmando' ? 'Confirmando…' : 'Confirmar'}
+              {enCurso ? 'Un momento…' : 'Confirmar'}
             </button>
             <button
               type="button"
-              onClick={handleCancelar}
-              disabled={estado === 'confirmando'}
+              onClick={accionBoton(onCancelar)}
+              disabled={enCurso}
               className="bg-surface hover:bg-border disabled:opacity-60 text-ink rounded-lg px-3 py-2 text-[13px] font-semibold transition-colors"
             >
               Cancelar

@@ -140,101 +140,86 @@ export default function VistaCierreDia({ datos }) {
       ? "diferencia"
       : "sin-diferencias";
 
+  // Pensada para el panel del asistente (320 px): filas en vez de tarjetas en
+  // columnas. Las clases sm: no sirven aquí porque miden la ventana, no el panel.
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       <div>
         <p className="text-[11px] font-bold uppercase tracking-wider text-primary mb-1">
           Asistente de Voz
         </p>
-        <h1 className="font-display font-bold text-3xl text-ink tracking-tight">
-          Resumen Ejecutivo del Cierre del Día
+        <h1 className="font-display font-bold text-lg leading-tight text-ink tracking-tight">
+          Resumen del Cierre del Día
         </h1>
-        {periodo && <p className="text-sm text-muted mt-1">{periodo}</p>}
+        {periodo && <p className="text-xs text-muted mt-0.5">{periodo}</p>}
       </div>
 
-      {/* Canales + total del día — mismo layout que ReporteVentasDia.jsx (RF40-42) */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        {CANALES.map(({ key, nombre, icono: Icono }) => (
-          <div
-            key={key}
-            className="bg-white rounded-xl border border-border shadow-sm p-6 flex flex-col"
-          >
-            <div className="flex items-start justify-between">
-              <div className="w-9 h-9 bg-surface rounded-lg flex items-center justify-center">
-                <Icono />
-              </div>
-              <VariacionBadge valor={variacionPorCanal[key]} />
-            </div>
-            <span className="text-[11px] font-bold uppercase tracking-wider text-muted mt-4">
-              {nombre}
-            </span>
-            <span className="font-display font-bold text-[22px] text-ink mt-1">
-              {formatoCOP(ingresosPorCanal[key])}
-            </span>
-          </div>
-        ))}
-
-        <div className="bg-primary rounded-xl p-6 flex flex-col">
-          <div className="w-9 h-9 bg-white/20 rounded-lg flex items-center justify-center">
-            <TotalIcon />
-          </div>
-          <span className="text-[11px] font-bold uppercase tracking-wider text-white/70 mt-4">
+      <div className="bg-primary rounded-xl px-4 py-3 flex items-center gap-3">
+        <div className="w-9 h-9 bg-white/20 rounded-lg flex items-center justify-center shrink-0">
+          <TotalIcon />
+        </div>
+        <div className="flex flex-col min-w-0">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-white/70">
             Total del Día
           </span>
-          <span className="font-display font-bold text-[28px] text-white mt-1 leading-[34px]">
+          <span className="font-display font-bold text-xl text-white leading-tight truncate">
             {formatoCOP(totalIngresos)}
           </span>
-          <span className="text-xs text-white/60 mt-1">
+          <span className="text-xs text-white/70">
             {totalTransacciones ?? "—"} transacciones
           </span>
         </div>
       </div>
 
-      {/* Conciliación y Cuadre de Efectivo — mismo bloque que DetalleCierre.jsx */}
-      <div className="bg-white rounded-xl border border-border p-6 flex flex-col gap-4">
-        <div className="flex items-center justify-between gap-3">
-          <h3 className="font-display font-bold text-sm text-ink">
-            Conciliación y Cuadre de Efectivo
-          </h3>
+      <div className="bg-white rounded-xl border border-border divide-y divide-border">
+        {CANALES.map(({ key, nombre, icono: Icono }) => (
+          <div key={key} className="flex items-center gap-3 px-3 py-2.5">
+            <div className="w-8 h-8 bg-surface rounded-lg flex items-center justify-center shrink-0">
+              <Icono />
+            </div>
+            <div className="flex flex-col min-w-0 flex-1">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-muted">
+                {nombre}
+              </span>
+              <span className="text-sm font-semibold text-ink truncate">
+                {formatoCOP(ingresosPorCanal[key])}
+              </span>
+            </div>
+            <VariacionBadge valor={variacionPorCanal[key]} />
+          </div>
+        ))}
+      </div>
+
+      <div className="bg-white rounded-xl border border-border p-3 flex flex-col gap-2.5">
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="font-display font-bold text-sm text-ink">Conciliación de Efectivo</h3>
           <BadgeConciliacion
             estado={estadoConciliacion}
             diferencia={conciliacion?.diferenciaTotal}
           />
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="flex flex-col gap-1">
-            <span className="text-[11px] uppercase tracking-wider font-bold text-muted">
-              Efectivo Esperado
-            </span>
-            <span className="text-sm font-semibold text-ink">
-              {conciliacion ? formatoCOP(conciliacion.montoCalculadoTotal) : "—"}
-            </span>
-          </div>
-          <div className="flex flex-col gap-1">
-            <span className="text-[11px] uppercase tracking-wider font-bold text-muted">
-              Efectivo Reportado
-            </span>
-            <span className="text-sm font-semibold text-ink">
-              {conciliacion ? formatoCOP(conciliacion.montoFisicoTotal) : "—"}
-            </span>
-          </div>
-          <div className="flex flex-col gap-1">
-            <span className="text-[11px] uppercase tracking-wider font-bold text-muted">
-              Diferencia Neta
-            </span>
-            <span
-              className={`text-sm font-semibold ${
-                !conciliacion
-                  ? "text-muted"
-                  : conciliacion.diferenciaTotal === 0
-                    ? "text-success-fg"
-                    : "text-danger"
-              }`}
-            >
-              {conciliacion ? formatoCOP(conciliacion.diferenciaTotal) : "—"}
-            </span>
-          </div>
-        </div>
+        {conciliacion ? (
+          <dl className="flex flex-col gap-1.5 text-sm">
+            <div className="flex justify-between gap-2">
+              <dt className="text-muted">Efectivo esperado</dt>
+              <dd className="font-semibold text-ink">{formatoCOP(conciliacion.montoCalculadoTotal)}</dd>
+            </div>
+            <div className="flex justify-between gap-2">
+              <dt className="text-muted">Efectivo reportado</dt>
+              <dd className="font-semibold text-ink">{formatoCOP(conciliacion.montoFisicoTotal)}</dd>
+            </div>
+            <div className="flex justify-between gap-2">
+              <dt className="text-muted">Diferencia neta</dt>
+              <dd className={`font-semibold ${conciliacion.diferenciaTotal === 0 ? "text-success-fg" : "text-danger"}`}>
+                {formatoCOP(conciliacion.diferenciaTotal)}
+              </dd>
+            </div>
+          </dl>
+        ) : (
+          <p className="text-xs text-muted">
+            Aún no se ha registrado el dinero físico del día.
+          </p>
+        )}
       </div>
     </div>
   );

@@ -79,7 +79,8 @@ export default function VistaVenta({ respuesta, onConfirmar, onCancelar }) {
     );
   }
 
-  if (!datos) {
+  // Sin ítems es un error ("No encontré el producto…"): basta con el mensaje.
+  if (!datos?.items?.length) {
     return (
       <p className="text-[13px] text-ink leading-snug">
         {textoRespuesta || 'No hay datos de venta para mostrar.'}

@@ -21,7 +21,7 @@ import VistaInventario from './vistas/VistaInventario';
 export default function VistaRespuesta({ respuesta, onConfirmar, onCancelar }) {
   if (!respuesta) return null;
 
-  const { intencion, datos, textoRespuesta, comandoId, requiereConfirmacion, expiraEnSegundos, ok } = respuesta;
+  const { intencion, datos, textoRespuesta, requiereConfirmacion, expiraEnSegundos, ok } = respuesta;
 
   switch (intencion) {
     case 'CONSULTAR_FINANZAS':
@@ -35,24 +35,18 @@ export default function VistaRespuesta({ respuesta, onConfirmar, onCancelar }) {
     case 'CONSULTAR_INVENTARIO':
       return <VistaInventario respuesta={respuesta} onConfirmar={onConfirmar} onCancelar={onCancelar} />;
     case 'GENERAR_PEDIDO':
-      return (
-        <VistaPedido
-          comandoId={comandoId}
-          datos={datos}
-          textoRespuesta={textoRespuesta}
-          requiereConfirmacion={requiereConfirmacion}
-          expiraEnSegundos={expiraEnSegundos}
-        />
-      );
+      return <VistaPedido respuesta={respuesta} onConfirmar={onConfirmar} onCancelar={onCancelar} />;
     case 'MODIFICAR_PEDIDO':
       return (
         <VistaModificarPedido
           ok={ok ?? true}
-          comandoId={comandoId}
           datos={datos}
           textoRespuesta={textoRespuesta}
           requiereConfirmacion={requiereConfirmacion}
           expiraEnSegundos={expiraEnSegundos}
+          cancelado={respuesta.cancelado}
+          onConfirmar={onConfirmar}
+          onCancelar={onCancelar}
         />
       );
     default:

@@ -1,5 +1,6 @@
 // src/pages/inventarios/GenerarPedido.jsx — RF21: Generar Pedido a Proveedor
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import AppLayout from '../../components/AppLayout';
 import CantidadControl from '../../components/inventarios/CantidadControl';
@@ -37,6 +38,11 @@ export default function GenerarPedido() {
   const [preseleccionados, setPreseleccionados] = useState(0);
   const preseleccionHecha = useRef(false);
 
+  // Viene del asistente de voz ("Editar en Generar pedido"): el carrito arranca con lo dictado.
+  const location = useLocation();
+  const navigate = useNavigate();
+  const itemsVozRef = useRef(location.state?.itemsVoz ?? null);
+
   const fetchProductos = useCallback(async () => {
     setCargando(true);
     setErrorProductos('');
@@ -56,8 +62,18 @@ export default function GenerarPedido() {
       const list = Array.isArray(data.content) ? data.content : (data.productos ?? data.content ?? data);
       const lista = Array.isArray(list) ? list : [];
       setProductos(lista);
-      // RF21 — al abrir la vista se preseleccionan los productos bajo su stock mínimo
-      if (!preseleccionHecha.current && categoriaActiva === 'Todos') {
+      if (itemsVozRef.current?.length) {
+        // Viene del asistente de voz ("Editar en Generar pedido"): el carrito es lo dictado,
+        // sin la preselección automática de productos bajo el mínimo.
+        const porId = new Map(lista.map((p) => [p.id, p]));
+        setCarrito(itemsVozRef.current
+          .filter((i) => porId.has(i.productoId))
+          .map((i) => ({ producto: porId.get(i.productoId), cajas: i.cajas, unidades: i.unidades })));
+        itemsVozRef.current = null;
+        preseleccionHecha.current = true;
+        navigate('.', { replace: true, state: null }); // que recargar la página no lo vuelva a cargar
+      } else if (!preseleccionHecha.current && categoriaActiva === 'Todos') {
+        // RF21 — al abrir la vista se preseleccionan los productos bajo su stock mínimo
         preseleccionHecha.current = true;
         const sugeridos = lista.filter(estaBajoMinimo).map(itemSugerido);
         if (sugeridos.length > 0) {
@@ -81,7 +97,7 @@ export default function GenerarPedido() {
     } finally {
       setCargando(false);
     }
-  }, [token, categoriaActiva]);
+  }, [token, categoriaActiva, navigate]);
 
   useEffect(() => { fetchProductos(); }, [fetchProductos]);
   useEffect(() => setPageProd(0), [busqueda, categoriaActiva]);

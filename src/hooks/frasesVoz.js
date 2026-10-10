@@ -24,10 +24,19 @@ export function contienePalabraClave(texto) {
   });
 }
 
-// Frase completa (anclada): así la narración del resumen ("…¿Confirmas?")
-// que capte el micrófono no se toma como confirmación.
-const CONFIRMAR_REGEX = /^(?:si )*(?:confirmar|confirmo|confirma|confirmado|si|dale|listo|correcto|ok|okey|okay|de acuerdo|claro|hagale|hazlo)(?: por favor)?$/;
-const CANCELAR_REGEX = /^(?:no )*(?:cancelar|cancela|cancelalo|cancelado|no|olvidalo|detente)(?: por favor)?$/;
+// Anclada a las últimas palabras de lo dicho ("bueno, sí confirmo"): la
+// narración del resumen ("…¿Confirmas?") no encaja porque "confirmas" no está.
+const CONFIRMAR_REGEX = /^(?:(?:si|bueno|ok|listo|claro|eh) )*(?:con ?firm(?:ar|o|a|ado|ada|amos)|si|dale|listo|correcto|ok|okey|okay|de acuerdo|claro|hagale|hazlo|acepto|aceptar|acepta|perfecto|vale|de una|eso es|si senor|si senora|adelante)(?: (?:por favor|la venta|el pedido|todo))?$/;
+const CANCELAR_REGEX = /^(?:(?:no|bueno|eh) )*(?:cancel(?:ar|a|alo|ado|o)|rechaz(?:ar|a|alo|o|ado)|anul(?:ar|a|alo)|no|olvidalo|olvida|detente|mejor no|no gracias)(?: (?:por favor|la venta|el pedido|todo|eso))?$/;
 
-export const esConfirmar = (texto) => CONFIRMAR_REGEX.test(normalizar(texto));
-export const esCancelar = (texto) => CANCELAR_REGEX.test(normalizar(texto));
+/** Prueba la frase entera y sus últimas 1–4 palabras. */
+function terminaCon(regex, texto) {
+  const palabras = normalizar(texto).split(' ').filter(Boolean);
+  for (let n = 1; n <= Math.min(4, palabras.length); n += 1) {
+    if (regex.test(palabras.slice(-n).join(' '))) return true;
+  }
+  return false;
+}
+
+export const esConfirmar = (texto) => terminaCon(CONFIRMAR_REGEX, texto);
+export const esCancelar = (texto) => terminaCon(CANCELAR_REGEX, texto);
