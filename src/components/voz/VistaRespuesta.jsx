@@ -25,6 +25,10 @@ export default function VistaRespuesta({ respuesta, onConfirmar, onCancelar }) {
 
   switch (intencion) {
     case 'CONSULTAR_FINANZAS':
+      // Baja confianza: mismo "Entendí… ¿Confirmas?" con botones que la consulta de inventario.
+      if (requiereConfirmacion) {
+        return <VistaInventario respuesta={respuesta} onConfirmar={onConfirmar} onCancelar={onCancelar} />;
+      }
       return datos?.tipo === 'cierre' ? (
         <VistaCierreDia datos={datos} />
       ) : (
