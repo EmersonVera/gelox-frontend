@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { interpretarComando, confirmarComando } from '../services/vozService';
+import { contienePalabraClave, esCancelar, esConfirmar, normalizar } from './frasesVoz';
 
 const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
 
@@ -16,40 +17,39 @@ export const ESTADOS_VOZ = Object.freeze({
   ERROR: 'ERROR',
 });
 
-// T40-FE4 — clave de localStorage y evento custom que debe disparar el
-// interruptor del panel (aún no existe) al cambiar la preferencia, para que
-// este hook reaccione sin necesidad de remontarse:
-//   localStorage.setItem(CLAVE_PALABRA_CLAVE, '1' | '0');
-//   window.dispatchEvent(new Event(EVENTO_PALABRA_CLAVE));
+// T40-FE4 — preferencia de la palabra clave "Hola GELOX" (encendida salvo
+// que el usuario la apague desde el panel).
 export const CLAVE_PALABRA_CLAVE = 'gelox_voz_palabra_clave';
 export const EVENTO_PALABRA_CLAVE = 'gelox:voz-palabra-clave-cambio';
 
-// Variantes (ya normalizadas: sin tildes, en minúsculas) que el reconocedor
-// suele transcribir para "Hola GELOX".
-const VARIANTES_PALABRA_CLAVE = ['hola gelox', 'hola jelox', 'hola helox'];
+export const palabraClaveHabilitada = () => localStorage.getItem(CLAVE_PALABRA_CLAVE) !== '0';
+
+export function setPalabraClaveHabilitada(habilitada) {
+  localStorage.setItem(CLAVE_PALABRA_CLAVE, habilitada ? '1' : '0');
+  window.dispatchEvent(new Event(EVENTO_PALABRA_CLAVE));
+}
+
+// Calibración de la escucha: el comando se da por terminado tras esta pausa
+// sin hablar (antes se cortaba en la primera pausa que detectaba el navegador).
+const SILENCIO_FIN_MS = 2500;
+const ESCUCHA_MAX_MS = 30000;
 
 const MENSAJE_NO_TE_ESCUCHE = 'No te escuché, repite el comando';
 const MENSAJE_ERROR_GENERICO = 'No pude procesar el comando';
 const MENSAJE_CANCELADO_POR_TIEMPO = 'Operación cancelada por falta de respuesta';
 
 
-const CONFIRMAR_REGEX = /^(confirmar|confirmo|si|dale)$/;
-const CANCELAR_REGEX = /^(cancelar|cancela|no)$/;
 const AGREGAR_REGEX = /agrega/;
 
-function normalizar(texto) {
-  return texto
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '') // quita tildes
-    .replace(/[^a-z\s]/g, ' ') // el reconocedor a veces agrega puntuación
-    .replace(/\s+/g, ' ')
-    .trim();
-}
+const ERRORES_PERMISO = ['not-allowed', 'service-not-allowed'];
 
-function contienePalabraClave(texto) {
-  const normalizado = normalizar(texto);
-  return VARIANTES_PALABRA_CLAVE.some((variante) => normalizado.includes(variante));
+/** Suelta un reconocedor sin que sus eventos sigan disparando el flujo. */
+function soltar(reconocimiento) {
+  if (!reconocimiento) return;
+  reconocimiento.onresult = null;
+  reconocimiento.onerror = null;
+  reconocimiento.onend = null;
+  reconocimiento.abort();
 }
 
 const MONTO_COP_REGEX = /\$\s?(\d+(?:\.\d{3})*)|\b(\d{1,3}(?:\.\d{3})+)\b/g;
@@ -124,7 +124,7 @@ function mensajeDeError(err) {
 }
 
 
-export function useAsistenteVoz() {
+export function useAsistenteVoz({ alActivarPorVoz } = {}) {
   const soportado = !!SpeechRecognitionCtor;
 
   const [permisoDenegado, setPermisoDenegado] = useState(false);
@@ -140,16 +140,29 @@ export function useAsistenteVoz() {
 
   const pausarPalabraClaveRef = useRef(null);
   const reanudarPalabraClaveRef = useRef(null);
+  const alActivarPorVozRef = useRef(alActivarPorVoz);
+  useEffect(() => {
+    alActivarPorVozRef.current = alActivarPorVoz;
+  }, [alActivarPorVoz]);
 
-  const hablar = useCallback((texto) => {
-    if (!window.speechSynthesis) return;
+  // alTerminar: para volver a escuchar sin que el micrófono capte la propia narración.
+  const hablar = useCallback((texto, alTerminar) => {
+    if (!window.speechSynthesis) {
+      alTerminar?.();
+      return;
+    }
     try {
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(paraNarrar(texto));
       utterance.lang = 'es-CO';
+      if (alTerminar) {
+        utterance.onend = alTerminar;
+        utterance.onerror = alTerminar;
+      }
       window.speechSynthesis.speak(utterance);
     } catch {
       // Narración best-effort: si speechSynthesis falla no debe romper el flujo de voz.
+      alTerminar?.();
     }
   }, []);
 
@@ -235,12 +248,21 @@ export function useAsistenteVoz() {
     [respuesta, hablar, terminar]
   );
 
+  // Escucha continua: junta lo dicho entre pausas cortas y solo envía el
+  // comando cuando el usuario lleva SILENCIO_FIN_MS callado.
   const crearReconocedor = useCallback(() => {
     const reconocimiento = new SpeechRecognitionCtor();
     reconocimiento.lang = 'es-CO';
     reconocimiento.interimResults = true;
-    reconocimiento.continuous = false;
+    reconocimiento.continuous = true;
     reconocimiento.maxAlternatives = 1;
+
+    let finales = '';
+    let parcialActual = '';
+    const confianzas = [];
+    let ultimoError = null;
+    let silencioId = null;
+    let maximoId = setTimeout(() => reconocimiento.stop(), ESCUCHA_MAX_MS);
 
     reconocimiento.onresult = (evento) => {
       let parcial = '';
@@ -248,45 +270,68 @@ export function useAsistenteVoz() {
         const resultado = evento.results[i];
         const alternativa = resultado[0];
         if (resultado.isFinal) {
-          reintentoNoSpeechRef.current = false;
-
-          reconocimiento.onresult = null;
-          reconocimiento.onerror = null;
-          reconocimiento.abort();
-          procesarTextoFinal(alternativa.transcript, alternativa.confidence);
-          return;
+          finales = `${finales} ${alternativa.transcript}`.trim();
+          confianzas.push(alternativa.confidence);
+        } else {
+          parcial += alternativa.transcript;
         }
-        parcial += alternativa.transcript;
       }
-      if (parcial) {
-        setTranscripcionParcial(parcial);
+      parcialActual = parcial;
+      const visible = `${finales} ${parcial}`.trim();
+      if (visible) {
+        setTranscripcionParcial(visible);
         setEstado(ESTADOS_VOZ.TRANSCRIBIENDO);
       }
+      clearTimeout(silencioId);
+      // stop() y no abort(): el navegador entrega como final lo que aún tenía en parcial.
+      silencioId = setTimeout(() => reconocimiento.stop(), SILENCIO_FIN_MS);
     };
 
     reconocimiento.onerror = (evento) => {
-      if (evento.error === 'no-speech') {
-        if (!reintentoNoSpeechRef.current) {
-          reintentoNoSpeechRef.current = true;
-          setRespuesta({ textoRespuesta: MENSAJE_NO_TE_ESCUCHE });
-          hablar(MENSAJE_NO_TE_ESCUCHE);
-          try {
-            reconocimiento.start(); // reintento automático, único
-          } catch {
-            terminar(ESTADOS_VOZ.CANCELADO);
-          }
-          return;
-        }
+      ultimoError = evento.error;
+    };
+
+    reconocimiento.onend = () => {
+      clearTimeout(silencioId);
+      clearTimeout(maximoId);
+      const texto = (finales || parcialActual).trim();
+      if (texto) {
         reintentoNoSpeechRef.current = false;
-        terminar(ESTADOS_VOZ.CANCELADO);
+        const confianza = confianzas.length
+          ? confianzas.reduce((a, b) => a + b, 0) / confianzas.length
+          : 0; // solo hubo parcial: que el backend pida confirmación
+        procesarTextoFinal(texto, confianza);
         return;
       }
-      if (evento.error === 'not-allowed' || evento.error === 'service-not-allowed') {
+      if (ERRORES_PERMISO.includes(ultimoError)) {
         setPermisoDenegado(true);
         terminar(ESTADOS_VOZ.ERROR);
         return;
       }
-      terminar(ESTADOS_VOZ.ERROR);
+      if (reintentoNoSpeechRef.current) {
+        reintentoNoSpeechRef.current = false;
+        terminar(ESTADOS_VOZ.CANCELADO);
+        return;
+      }
+      // Un solo reintento: sin voz, o el micrófono aún ocupado por la escucha de "Hola GELOX".
+      reintentoNoSpeechRef.current = true;
+      const reintentar = () => {
+        if (reconocedorRef.current !== reconocimiento) return; // cancelado mientras tanto
+        ultimoError = null;
+        maximoId = setTimeout(() => reconocimiento.stop(), ESCUCHA_MAX_MS);
+        setEstado(ESTADOS_VOZ.ESCUCHANDO);
+        try {
+          reconocimiento.start();
+        } catch {
+          terminar(ESTADOS_VOZ.CANCELADO);
+        }
+      };
+      if (ultimoError === 'no-speech') {
+        setRespuesta({ textoRespuesta: MENSAJE_NO_TE_ESCUCHE });
+        hablar(MENSAJE_NO_TE_ESCUCHE, reintentar);
+      } else {
+        setTimeout(reintentar, 300);
+      }
     };
 
     return reconocimiento;
@@ -296,6 +341,7 @@ export function useAsistenteVoz() {
     if (!soportado) return;
     pausarPalabraClaveRef.current?.();
     window.speechSynthesis?.cancel();
+    soltar(reconocedorRef.current);
     setTranscripcionParcial('');
     setTextoFinal('');
     setRespuesta(null);
@@ -304,18 +350,31 @@ export function useAsistenteVoz() {
     setEstado(ESTADOS_VOZ.ESCUCHANDO);
     const reconocimiento = crearReconocedor();
     reconocedorRef.current = reconocimiento;
-    reconocimiento.start();
-  }, [soportado, crearReconocedor]);
+    try {
+      reconocimiento.start();
+    } catch {
+      // El navegador puede tardar un instante en soltar el micrófono de la palabra clave.
+      setTimeout(() => {
+        if (reconocedorRef.current !== reconocimiento) return;
+        try {
+          reconocimiento.start();
+        } catch {
+          terminar(ESTADOS_VOZ.ERROR);
+        }
+      }, 300);
+    }
+  }, [soportado, crearReconocedor, terminar]);
 
   const cancelar = useCallback(() => {
-    reconocedorRef.current?.abort();
+    soltar(reconocedorRef.current);
+    reconocedorRef.current = null;
     window.speechSynthesis?.cancel();
     terminar(ESTADOS_VOZ.CANCELADO);
   }, [terminar]);
 
   useEffect(() => {
     return () => {
-      reconocedorRef.current?.abort();
+      soltar(reconocedorRef.current);
       window.speechSynthesis?.cancel();
     };
   }, []);
@@ -333,7 +392,7 @@ export function useAsistenteVoz() {
     reconocimiento.lang = 'es-CO';
     reconocimiento.interimResults = false;
     reconocimiento.continuous = false;
-    reconocimiento.maxAlternatives = 1;
+    reconocimiento.maxAlternatives = 3;
 
     reconocimiento.onresult = (evento) => {
       for (let i = evento.resultIndex; i < evento.results.length; i += 1) {
@@ -341,8 +400,10 @@ export function useAsistenteVoz() {
         if (!resultado.isFinal) continue;
         const alternativa = resultado[0];
         const normalizado = normalizar(alternativa.transcript);
+        // A veces "confirmar" solo aparece en la 2.ª o 3.ª alternativa del reconocedor.
+        const alternativas = Array.from(resultado, (alt) => alt.transcript);
         const tReconocido = respuestaLlegoEnRef.current ? Date.now() - respuestaLlegoEnRef.current : null;
-        if (CANCELAR_REGEX.test(normalizado)) {
+        if (alternativas.some(esCancelar)) {
           console.info(`[voz-tiempos] "cancelar" reconocido por el navegador — ${tReconocido != null ? (tReconocido / 1000).toFixed(1) + 's desde que llegó la respuesta' : 'sin referencia'}`);
           confirmar(false);
           return;
@@ -353,7 +414,7 @@ export function useAsistenteVoz() {
           procesarTextoFinal(alternativa.transcript, alternativa.confidence);
           return;
         }
-        if (CONFIRMAR_REGEX.test(normalizado)) {
+        if (alternativas.some(esConfirmar)) {
           console.info(`[voz-tiempos] "confirmar" reconocido por el navegador — ${tReconocido != null ? (tReconocido / 1000).toFixed(1) + 's desde que llegó la respuesta' : 'sin referencia'}`);
           confirmar(true);
           return;
@@ -399,11 +460,9 @@ export function useAsistenteVoz() {
     };
   }, [estado, respuesta, soportado, confirmar, procesarTextoFinal]);
 
-  // T40-FE4 — Palabra clave "Hola GELOX" (opcional, apagada por defecto).
-  // LIMITACIÓN: solo detecta la palabra clave mientras esta pestaña siga
-  // abierta y el permiso del micrófono ya haya sido concedido antes; este
-  // reconocedor en segundo plano no puede disparar el prompt de permiso por
-  // sí mismo, así que si el usuario nunca aceptó el micrófono no pasa nada.
+  // T40-FE4 — Palabra clave "Hola GELOX" (encendida por defecto, se apaga en el panel).
+  // Solo arranca con el permiso del micrófono ya concedido, para no pedirlo al
+  // cargar la página: la primera vez hay que usar el botón.
   useEffect(() => {
     if (!soportado) return;
 
@@ -425,18 +484,22 @@ export function useAsistenteVoz() {
       reconocimiento.lang = 'es-CO';
       reconocimiento.interimResults = true;
       reconocimiento.continuous = true;
-      reconocimiento.maxAlternatives = 1;
+      reconocimiento.maxAlternatives = 3;
 
       reconocimiento.onresult = (evento) => {
         for (let i = evento.resultIndex; i < evento.results.length; i += 1) {
-          if (contienePalabraClave(evento.results[i][0].transcript)) {
+          if (Array.from(evento.results[i], (alt) => alt.transcript).some(contienePalabraClave)) {
+            detener();
+            alActivarPorVozRef.current?.();
             iniciar();
             return;
           }
         }
       };
-      // Errores silenciosos: el propio onend decide si reintenta.
-      reconocimiento.onerror = () => { };
+      // El propio onend reintenta; sin permiso no tiene sentido seguir.
+      reconocimiento.onerror = (evento) => {
+        if (ERRORES_PERMISO.includes(evento.error)) debeSeguirEscuchando = false;
+      };
       reconocimiento.onend = () => {
         if (debeSeguirEscuchando) {
           try {
@@ -455,10 +518,19 @@ export function useAsistenteVoz() {
       }
     };
 
-    const sincronizarConPreferencia = () => {
-      const habilitado = localStorage.getItem(CLAVE_PALABRA_CLAVE) === '1';
-      if (habilitado) escuchar();
-      else detener();
+    let vigente = true;
+    const sincronizarConPreferencia = async () => {
+      if (!palabraClaveHabilitada()) {
+        detener();
+        return;
+      }
+      try {
+        const permiso = await navigator.permissions?.query({ name: 'microphone' });
+        if (permiso && permiso.state !== 'granted') return;
+      } catch {
+        // Navegador sin Permissions API para el micrófono: se intenta igual.
+      }
+      if (vigente) escuchar();
     };
 
     sincronizarConPreferencia();
@@ -469,6 +541,7 @@ export function useAsistenteVoz() {
     window.addEventListener(EVENTO_PALABRA_CLAVE, sincronizarConPreferencia);
 
     return () => {
+      vigente = false;
       detener();
       pausarPalabraClaveRef.current = null;
       reanudarPalabraClaveRef.current = null;

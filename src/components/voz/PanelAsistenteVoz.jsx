@@ -1,4 +1,5 @@
-import { ESTADOS_VOZ } from '../../hooks/useAsistenteVoz';
+import { useState } from 'react';
+import { ESTADOS_VOZ, palabraClaveHabilitada, setPalabraClaveHabilitada } from '../../hooks/useAsistenteVoz';
 import { MicrofonoIcon } from './BotonMicrofono';
 import VistaRespuesta from './VistaRespuesta';
 
@@ -19,6 +20,12 @@ export default function PanelAsistenteVoz({
   const esError = estado === ESTADOS_VOZ.ERROR;
   const esperandoConfirmacion = estado === ESTADOS_VOZ.ESPERANDO_CONFIRMACION;
   const esperandoAclaracion = !!(respuesta?.datos?.requiereAclaracion || respuesta?.datos?.requiereDestinatario);
+  const [palabraClave, setPalabraClave] = useState(palabraClaveHabilitada);
+
+  const cambiarPalabraClave = (e) => {
+    setPalabraClave(e.target.checked);
+    setPalabraClaveHabilitada(e.target.checked);
+  };
 
   return (
     <div className="absolute right-0 top-[calc(100%+8px)] w-[320px] bg-white border border-border rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.12)] z-50 overflow-hidden animate-dropdown-in">
@@ -87,7 +94,11 @@ export default function PanelAsistenteVoz({
       </div>
 
       {/* Footer */}
-      <div className="px-4 py-3 border-t border-border">
+      <div className="px-4 py-3 border-t border-border space-y-2">
+        <label className="flex items-center gap-2 text-[12px] text-muted cursor-pointer select-none">
+          <input type="checkbox" checked={palabraClave} onChange={cambiarPalabraClave} className="accent-primary" />
+          Activar diciendo "Hola GELOX"
+        </label>
         <button
           type="button"
           onClick={onCancelar}
