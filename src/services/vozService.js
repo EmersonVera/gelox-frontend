@@ -1,10 +1,9 @@
 import api from '../api/axiosConfig';
 import { interpretar as interpretarVozMock, confirmar as confirmarVozMock } from './vozMock';
 
-// Mientras el backend de voz no esté listo, las funciones responden con datos
-// simulados (ver vozMock.js). Pasar al backend real es poner
-// VITE_USAR_MOCK_VOZ=false en el .env, sin tocar código.
-const USAR_MOCK_VOZ = import.meta.env.VITE_USAR_MOCK_VOZ !== 'false';
+// Por defecto se usa el backend real. Los datos simulados (ver vozMock.js),
+// que solo entienden frases fijas, se activan con VITE_USAR_MOCK_VOZ=true en el .env.
+const USAR_MOCK_VOZ = import.meta.env.VITE_USAR_MOCK_VOZ === 'true';
 
 export async function interpretarComando(texto, confianza) {
   if (USAR_MOCK_VOZ) {

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAsistenteVoz } from '../../hooks/useAsistenteVoz';
 import { useAuth } from '../../context/AuthContext';
 import { getAlertasStock } from '../../services/inventarioService';
@@ -15,6 +15,9 @@ const ALERTAS_SESSION_KEY = 'gelox_voz_alertas';
  * Se muestra en el Navbar para todos los roles (RF46).
  */
 export default function AsistenteVoz() {
+  const [open, setOpen] = useState(false);
+  // "Hola GELOX" arranca la escucha sin clic: el panel se abre para ver el indicador.
+  const abrirPanel = useCallback(() => setOpen(true), []);
   const {
     soportado,
     permisoDenegado,
@@ -26,10 +29,8 @@ export default function AsistenteVoz() {
     cancelar,
     confirmar,
     hablar,
-  } = useAsistenteVoz();
+  } = useAsistenteVoz({ alActivarPorVoz: abrirPanel });
   const { rol } = useAuth();
-
-  const [open, setOpen] = useState(false);
   const ref = useRef(null);
 
   // T44-FE2 — alerta proactiva de stock bajo mínimo, una sola vez por sesión
