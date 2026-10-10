@@ -33,16 +33,17 @@ export default function AsistenteVoz() {
     hablar,
   } = useAsistenteVoz({ alActivarPorVoz: abrirPanel });
   const { rol } = useAuth();
-  const { pathname } = useLocation();
+  // key cambia en cada navegación, también al volver a la misma página con datos.
+  const { key: navegacion } = useLocation();
 
-  // Al cambiar de página (p. ej. "Editar en Generar pedido") el panel se cierra.
-  const paginaAnterior = useRef(pathname);
+  // Al navegar (p. ej. "Editar en Generar pedido") el panel se cierra.
+  const navegacionAnterior = useRef(navegacion);
   useEffect(() => {
-    if (paginaAnterior.current === pathname) return;
-    paginaAnterior.current = pathname;
+    if (navegacionAnterior.current === navegacion) return;
+    navegacionAnterior.current = navegacion;
     cancelar();
     setOpen(false);
-  }, [pathname, cancelar]);
+  }, [navegacion, cancelar]);
   const ref = useRef(null);
 
   // T44-FE2 — alerta proactiva de stock bajo mínimo, una sola vez por sesión

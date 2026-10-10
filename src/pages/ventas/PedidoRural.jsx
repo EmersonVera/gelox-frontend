@@ -11,6 +11,7 @@ import api from '../../api/axiosConfig';
 import CustomSelect from '../../components/ui/CustomSelect';
 import SuccessToast from '../../components/SuccessToast';
 import Pagination from '../../components/ui/Pagination';
+import useDatosVoz from '../../hooks/useDatosVoz';
 
 const formatCOP = (n) => '$' + Number(n || 0).toLocaleString('es-CO', { minimumFractionDigits: 0 });
 const fechaHoy  = () => new Date().toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -100,7 +101,7 @@ export default function PedidoRural() {
       setCargandoProd(true);
       setErrorCatalogo('');
       try {
-        const { data } = await api.get('/api/catalogo/productos', { params: { page: 0, size: 100 } });
+        const { data } = await api.get('/api/catalogo/productos', { params: { page: 0, size: 300 } });
         setProductos(Array.isArray(data.content) ? data.content : []);
       } catch (err) {
         setProductos([]);
@@ -138,6 +139,44 @@ export default function PedidoRural() {
       } finally { setLoadingClientes(false); }
     })();
   }, []);
+
+  /* Venta dictada por voz que se termina de armar aquí ("Editar en Pedido rural") */
+  const ventaVoz = useDatosVoz('ventaVoz', !cargandoProd && !loadingClientes);
+  if (ventaVoz) {
+    const porId = new Map(productos.map((p) => [p.id, p]));
+    setCartItems(ventaVoz.items
+      .filter((i) => porId.has(i.productoId))
+      .map((i) => {
+        const p = porId.get(i.productoId);
+        return {
+          productoId:      p.id,
+          nombre:          p.nombre,
+          descripcion:     p.descripcion ?? '',
+          precioUnitario:  p.precioVenta ?? 0,
+          unidadesPorCaja: p.unidadesPorCaja ?? null,
+          imagen:          p.imagenUrl ?? null,
+          cajas:           i.cajas,
+          unidadesSueltas: i.unidades,
+        };
+      }));
+    setCostoEnvio(Number(ventaVoz.costoEnvio) > 0 ? String(Number(ventaVoz.costoEnvio)) : '');
+    setVentaConfirmada(null);
+    const cli = clientes.find((c) => String(c.id) === String(ventaVoz.clienteRuralId));
+    if (cli) {
+      setClienteIdSel(String(cli.id));
+      setDestinatario({
+        nombre:        cli.nombre        ?? '',
+        telefono:      cli.telefono      ?? '',
+        direccion:     cli.direccion     ?? '',
+        correo:        cli.correo        ?? cli.email ?? '',
+        corregimiento: cli.corregimiento ?? '',
+      });
+    } else if (ventaVoz.destinatario) {
+      // Aquí el destinatario sale de un cliente guardado: se deja listo para registrarlo.
+      setNuevoCliente({ ...EMPTY_FORM, nombre: ventaVoz.destinatario });
+      setToast({ show: true, msg: `Selecciona a "${ventaVoz.destinatario}" o regístralo con "Nuevo cliente".`, type: 'error' });
+    }
+  }
 
   const handleDeselectCliente = () => {
     setIsLeavingFields(true);

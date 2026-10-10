@@ -1,11 +1,11 @@
 // src/pages/inventarios/GenerarPedido.jsx — RF21: Generar Pedido a Proveedor
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import AppLayout from '../../components/AppLayout';
 import CantidadControl from '../../components/inventarios/CantidadControl';
 import SuccessToast from '../../components/SuccessToast';
 import Pagination from '../../components/ui/Pagination';
+import useDatosVoz from '../../hooks/useDatosVoz';
 
 const CATEGORIAS = ['Todos', 'Paletas', 'Conos', 'Vasos', 'Familiares'];
 const base = import.meta.env.VITE_API_BASE_URL ?? '';
@@ -21,11 +21,6 @@ export default function GenerarPedido() {
   const [generando, setGenerando] = useState(false);
   const [errorProductos, setErrorProductos] = useState('');
   const [toast, setToast] = useState({ show: false, msg: '', type: 'success' });
-
-  // Viene del asistente de voz ("Editar en Generar pedido"): el carrito arranca con lo dictado.
-  const location = useLocation();
-  const navigate = useNavigate();
-  const itemsVozRef = useRef(location.state?.itemsVoz ?? null);
 
   const fetchProductos = useCallback(async () => {
     setCargando(true);
@@ -45,14 +40,6 @@ export default function GenerarPedido() {
       const data = await res.json();
       const list = Array.isArray(data.content) ? data.content : (data.productos ?? data.content ?? data);
       setProductos(Array.isArray(list) ? list : []);
-      if (itemsVozRef.current?.length && Array.isArray(list)) {
-        const porId = new Map(list.map((p) => [p.id, p]));
-        setCarrito(itemsVozRef.current
-          .filter((i) => porId.has(i.productoId))
-          .map((i) => ({ producto: porId.get(i.productoId), cajas: i.cajas, unidades: i.unidades })));
-        itemsVozRef.current = null;
-        navigate('.', { replace: true, state: null }); // que recargar la página no lo vuelva a cargar
-      }
     } catch (e) {
       setProductos([]);
       const status = e?.status;
@@ -69,9 +56,19 @@ export default function GenerarPedido() {
     } finally {
       setCargando(false);
     }
-  }, [token, categoriaActiva, navigate]);
+  }, [token, categoriaActiva]);
 
   useEffect(() => { fetchProductos(); }, [fetchProductos]);
+
+  // Viene del asistente de voz ("Editar en Generar pedido"): el carrito arranca con lo dictado.
+  // ponytail: con una categoría filtrada, lo dictado de otras categorías no se carga.
+  const itemsVoz = useDatosVoz('itemsVoz', !cargando);
+  if (itemsVoz) {
+    const porId = new Map(productos.map((p) => [p.id, p]));
+    setCarrito(itemsVoz
+      .filter((i) => porId.has(i.productoId))
+      .map((i) => ({ producto: porId.get(i.productoId), cajas: i.cajas, unidades: i.unidades })));
+  }
   useEffect(() => setPageProd(0), [busqueda, categoriaActiva]);
 
   const toggleSeleccionar = (p) => {

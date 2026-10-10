@@ -10,6 +10,7 @@ import AppLayout from '../../components/AppLayout';
 import { getCatalogoVenta, calcularVenta, confirmarVenta } from '../../services/ventasService';
 import SuccessToast from '../../components/SuccessToast';
 import Pagination from '../../components/ui/Pagination';
+import useDatosVoz from '../../hooks/useDatosVoz';
 
 /* ──────────────────────────── UTILIDADES ──────────────────────────────── */
 const formatCOP = (n) =>
@@ -123,7 +124,7 @@ export default function PedidoVentanilla() {
       .then((data) => {
         if (!vivo) return;
         // Mapeo exacto con los campos reales que devuelve el backend.
-        setProductos(data.map((p) => ({
+        const lista = data.map((p) => ({
           id:            p.id,
           codigoTecnico: p.codigo,
           nombre:        p.nombre,
@@ -132,7 +133,8 @@ export default function PedidoVentanilla() {
           stockActual:   Number(p.stock),
           disponible:    p.disponible,
           unidadesPorCaja: p.unidadesPorCaja ?? null,
-        })));
+        }));
+        setProductos(lista);
       })
       .catch((err) => {
         if (!vivo) return;
@@ -150,6 +152,24 @@ export default function PedidoVentanilla() {
       .finally(() => { if (vivo) setCargandoProd(false); });
     return () => { vivo = false; };
   }, []);
+
+  /* ── Venta dictada por voz que se termina de armar aquí ("Editar en Pedido ventanilla") ── */
+  const ventaVoz = useDatosVoz('ventaVoz', !cargandoProd);
+  if (ventaVoz) {
+    const porId = new Map(productos.map((p) => [p.id, p]));
+    setCartItems(ventaVoz.items
+      .filter((i) => porId.has(i.productoId))
+      .map((i) => {
+        const p = porId.get(i.productoId);
+        return {
+          id: p.id, nombre: p.nombre, precioVenta: p.precioVenta, imagenUrl: p.imagenUrl,
+          stockActual: p.stockActual, unidadesPorCaja: p.unidadesPorCaja,
+          cajas: i.cajas, unidades: i.unidades,
+        };
+      }));
+    if (ventaVoz.metodoPago) setMetodoPago(ventaVoz.metodoPago);
+    setVentaConfirmada(null);
+  }
 
   /* ── Estimación local de subtotal (solo para UX inmediata antes de respuesta backend) ──
    * Usa UNIDADES_POR_CAJA = 24, constante fijada por el backend.

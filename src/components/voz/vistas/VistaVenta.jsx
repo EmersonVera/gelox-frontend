@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { formatoCOP } from '../formato';
 
 const CANAL_LABEL = {
@@ -33,6 +34,7 @@ function resumenCantidad(item) {
 }
 
 export default function VistaVenta({ respuesta, onConfirmar, onCancelar }) {
+  const navigate = useNavigate();
   const [enCurso, setEnCurso] = useState(false);
   const { datos, textoRespuesta, requiereConfirmacion, expiraEnSegundos } = respuesta ?? {};
 
@@ -88,7 +90,7 @@ export default function VistaVenta({ respuesta, onConfirmar, onCancelar }) {
     );
   }
 
-  const { canal, items = [], destinatario, costoEnvio, total, metodoPago, ventaId } = datos;
+  const { canal, items = [], destinatario, clienteRuralId, costoEnvio, total, metodoPago, ventaId } = datos;
   const esRural = canal === 'RURAL';
   const completado = !pendiente && !!ventaId;
 
@@ -108,6 +110,31 @@ export default function VistaVenta({ respuesta, onConfirmar, onCancelar }) {
     } finally {
       setEnCurso(false);
     }
+  };
+
+  // La venta se termina de armar a mano en la pestaña de su canal.
+  const handleEditar = async () => {
+    setEnCurso(true);
+    try {
+      await onCancelar?.();
+    } finally {
+      setEnCurso(false);
+    }
+    navigate(esRural ? '/ventas/pedidos-rurales' : '/ventas/pedidos-ventanilla', {
+      state: {
+        ventaVoz: {
+          items: items.map((i) => ({
+            productoId: i.productoId,
+            cajas: Number(i.cajas) || 0,
+            unidades: Number(i.unidades) || 0,
+          })),
+          metodoPago,
+          destinatario,
+          clienteRuralId,
+          costoEnvio,
+        },
+      },
+    });
   };
 
   return (
@@ -185,6 +212,14 @@ export default function VistaVenta({ respuesta, onConfirmar, onCancelar }) {
               Cancelar
             </button>
           </div>
+          <button
+            type="button"
+            onClick={handleEditar}
+            disabled={enCurso}
+            className="w-full border border-primary text-primary hover:bg-primary-tint disabled:opacity-60 rounded-lg py-2 text-[13px] font-semibold transition-colors"
+          >
+            Editar en Pedido {esRural ? 'rural' : 'ventanilla'}
+          </button>
           {restantes !== null && (
             <p className="text-[11px] text-muted text-center">
               {expirado ? 'El tiempo para confirmar expiró.' : `Expira en ${restantes}s`}
