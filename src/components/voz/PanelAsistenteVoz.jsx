@@ -29,9 +29,9 @@ export default function PanelAsistenteVoz({
   };
 
   return (
-    <div className="absolute right-0 top-[calc(100%+8px)] w-[320px] bg-white border border-border rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.12)] z-50 overflow-hidden animate-dropdown-in">
+    <div className="absolute right-0 top-[calc(100%+8px)] w-[380px] max-w-[94vw] max-h-[min(84vh,680px)] bg-white border border-border rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.12)] z-50 flex flex-col overflow-hidden animate-dropdown-in">
       {/* Header */}
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-border shrink-0">
         <span className="text-primary">
           <MicrofonoIcon />
         </span>
@@ -39,7 +39,7 @@ export default function PanelAsistenteVoz({
       </div>
 
       {/* Cuerpo */}
-      <div className="px-4 py-3 space-y-3 min-h-[64px]" aria-live="polite">
+      <div className="px-4 py-3 space-y-3 min-h-[64px] flex-1 overflow-y-auto overscroll-contain" aria-live="polite">
         {escuchando && (
           <div className="flex items-center gap-2 text-[13px] text-primary font-medium">
             <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
@@ -101,7 +101,7 @@ export default function PanelAsistenteVoz({
       </div>
 
       {/* Footer */}
-      <div className="px-4 py-3 border-t border-border space-y-2">
+      <div className="px-4 py-3 border-t border-border space-y-2 shrink-0 bg-white">
         <label className="flex items-center gap-2 text-[12px] text-muted cursor-pointer select-none">
           <input type="checkbox" checked={palabraClave} onChange={cambiarPalabraClave} className="accent-primary" />
           Activar diciendo "Hola GELOX"

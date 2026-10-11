@@ -1,3 +1,6 @@
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import api from "../../../api/axiosConfig";
 import { formatoCOP, formatoPct } from "../formato";
 
 // Vista de solo lectura para CONSULTAR_FINANZAS (tipo "cierre"). RF51 es
@@ -134,14 +137,53 @@ export default function VistaCierreDia({ datos }) {
     comerciantes: variacionComerciantes,
   };
 
-  const estadoConciliacion = !conciliacion
+  const navigate = useNavigate();
+  const [conciliacionLocal, setConciliacionLocal] = useState(conciliacion || null);
+  const [mostrandoFormulario, setMostrandoFormulario] = useState(false);
+  const [montos, setMontos] = useState({ ventanilla: "", rural: "", comerciantes: "" });
+  const [enviando, setEnviando] = useState(false);
+  const [errorCierre, setErrorCierre] = useState(null);
+
+  const totalFisico = (Number(montos.ventanilla) || 0) + (Number(montos.rural) || 0) + (Number(montos.comerciantes) || 0);
+
+  const handleSubmitFisico = async (e) => {
+    e?.preventDefault();
+    if (montos.ventanilla === "" || montos.rural === "" || montos.comerciantes === "") {
+      setErrorCierre("Debes ingresar los montos de los tres canales.");
+      return;
+    }
+    setEnviando(true);
+    setErrorCierre(null);
+    try {
+      const v = Number(montos.ventanilla) || 0;
+      const r = Number(montos.rural) || 0;
+      const c = Number(montos.comerciantes) || 0;
+      const res = await api.post("/api/cierre-caja", {
+        montoFisicoVentanilla: v,
+        montoFisicoRural: r,
+        montoFisicoComerciantes: c,
+      });
+      setConciliacionLocal(res.data);
+      setMostrandoFormulario(false);
+    } catch (err) {
+      if (err.response?.status === 409) {
+        setErrorCierre("El cierre para hoy ya había sido registrado.");
+      } else {
+        const msg = err.response?.data?.error || err.response?.data?.message || err.message || "Error al registrar.";
+        setErrorCierre(msg);
+      }
+    } finally {
+      setEnviando(false);
+    }
+  };
+
+  const conciliacionActiva = conciliacionLocal || conciliacion;
+  const estadoConciliacion = !conciliacionActiva
     ? "pendiente"
-    : conciliacion.tieneDiferencias
+    : conciliacionActiva.tieneDiferencias
       ? "diferencia"
       : "sin-diferencias";
 
-  // Pensada para el panel del asistente (320 px): filas en vez de tarjetas en
-  // columnas. Las clases sm: no sirven aquí porque miden la ventana, no el panel.
   return (
     <div className="flex flex-col gap-4">
       <div>
@@ -195,30 +237,118 @@ export default function VistaCierreDia({ datos }) {
           <h3 className="font-display font-bold text-sm text-ink">Conciliación de Efectivo</h3>
           <BadgeConciliacion
             estado={estadoConciliacion}
-            diferencia={conciliacion?.diferenciaTotal}
+            diferencia={conciliacionActiva?.diferenciaTotal}
           />
         </div>
-        {conciliacion ? (
+
+        {conciliacionActiva ? (
           <dl className="flex flex-col gap-1.5 text-sm">
             <div className="flex justify-between gap-2">
               <dt className="text-muted">Efectivo esperado</dt>
-              <dd className="font-semibold text-ink">{formatoCOP(conciliacion.montoCalculadoTotal)}</dd>
+              <dd className="font-semibold text-ink">{formatoCOP(conciliacionActiva.montoCalculadoTotal)}</dd>
             </div>
             <div className="flex justify-between gap-2">
               <dt className="text-muted">Efectivo reportado</dt>
-              <dd className="font-semibold text-ink">{formatoCOP(conciliacion.montoFisicoTotal)}</dd>
+              <dd className="font-semibold text-ink">{formatoCOP(conciliacionActiva.montoFisicoTotal)}</dd>
             </div>
             <div className="flex justify-between gap-2">
               <dt className="text-muted">Diferencia neta</dt>
-              <dd className={`font-semibold ${conciliacion.diferenciaTotal === 0 ? "text-success-fg" : "text-danger"}`}>
-                {formatoCOP(conciliacion.diferenciaTotal)}
+              <dd className={`font-semibold ${conciliacionActiva.diferenciaTotal === 0 ? "text-success-fg" : "text-danger"}`}>
+                {formatoCOP(conciliacionActiva.diferenciaTotal)}
               </dd>
             </div>
           </dl>
         ) : (
-          <p className="text-xs text-muted">
-            Aún no se ha registrado el dinero físico del día.
-          </p>
+          <div className="flex flex-col gap-2 pt-1">
+            <p className="text-xs text-muted">
+              Aún no se ha registrado el dinero físico del día.
+            </p>
+
+            {!mostrandoFormulario ? (
+              <div className="flex flex-col gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setMostrandoFormulario(true)}
+                  className="w-full bg-primary hover:bg-primary-dark text-white rounded-lg py-2 text-xs font-semibold transition-colors"
+                >
+                  + Ingresar dinero físico contado
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigate("/cierre-caja")}
+                  className="w-full bg-surface hover:bg-border text-ink rounded-lg py-1.5 text-xs font-medium transition-colors"
+                >
+                  Ir a pantalla de Cierre de Caja
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleSubmitFisico} className="flex flex-col gap-2 bg-surface/50 p-2.5 rounded-xl border border-border">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-ink">
+                  Dinero físico por canal
+                </p>
+
+                <div className="flex flex-col gap-1.5">
+                  <div>
+                    <label className="text-[11px] text-muted block mb-0.5">Ventanilla ($)</label>
+                    <input
+                      type="number"
+                      placeholder="0"
+                      value={montos.ventanilla}
+                      onChange={(e) => setMontos({ ...montos, ventanilla: e.target.value })}
+                      className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-border bg-white text-ink focus:outline-none focus:border-primary"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] text-muted block mb-0.5">Rural ($)</label>
+                    <input
+                      type="number"
+                      placeholder="0"
+                      value={montos.rural}
+                      onChange={(e) => setMontos({ ...montos, rural: e.target.value })}
+                      className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-border bg-white text-ink focus:outline-none focus:border-primary"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] text-muted block mb-0.5">Comerciantes ($)</label>
+                    <input
+                      type="number"
+                      placeholder="0"
+                      value={montos.comerciantes}
+                      onChange={(e) => setMontos({ ...montos, comerciantes: e.target.value })}
+                      className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-border bg-white text-ink focus:outline-none focus:border-primary"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between text-xs font-semibold pt-1 border-t border-border">
+                  <span className="text-muted">Total contado:</span>
+                  <span className="text-ink">{formatoCOP(totalFisico)}</span>
+                </div>
+
+                {errorCierre && (
+                  <p className="text-[11px] text-danger">{errorCierre}</p>
+                )}
+
+                <div className="flex gap-2 pt-1">
+                  <button
+                    type="submit"
+                    disabled={enviando}
+                    className="flex-1 bg-primary hover:bg-primary-dark disabled:opacity-60 text-white rounded-lg py-1.5 text-xs font-semibold transition-colors"
+                  >
+                    {enviando ? "Guardando…" : "Registrar Cierre"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMostrandoFormulario(false)}
+                    disabled={enviando}
+                    className="bg-surface hover:bg-border text-ink rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
         )}
       </div>
     </div>

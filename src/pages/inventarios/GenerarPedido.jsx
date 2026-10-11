@@ -102,6 +102,63 @@ export default function GenerarPedido() {
   const totalCajas    = carrito.reduce((s, i) => s + i.cajas, 0);
   const totalUnidades = carrito.reduce((s, i) => s + i.unidades, 0);
 
+  const [tieneModeloGuardado, setTieneModeloGuardado] = useState(() => !!localStorage.getItem('gelox_pedido_modelo'));
+
+  const guardarPedidoModelo = () => {
+    if (carrito.length === 0) return;
+    const modelo = carrito.map(i => ({
+      productoId: i.producto.id,
+      nombre: i.producto.nombre,
+      cajas: i.cajas,
+      unidades: i.unidades,
+    }));
+    localStorage.setItem('gelox_pedido_modelo', JSON.stringify(modelo));
+    setTieneModeloGuardado(true);
+    setToast({ show: true, msg: '¡Pedido modelo guardado exitosamente!', type: 'success' });
+  };
+
+  const cargarPedidoModelo = () => {
+    const str = localStorage.getItem('gelox_pedido_modelo');
+    let cargados = [];
+    if (str) {
+      try {
+        const modelo = JSON.parse(str);
+        const porId = new Map(productos.map(p => [p.id, p]));
+        cargados = modelo
+          .filter(m => porId.has(m.productoId))
+          .map(m => ({
+            producto: porId.get(m.productoId),
+            cajas: m.cajas,
+            unidades: m.unidades,
+          }));
+      } catch {
+        cargados = [];
+      }
+    }
+
+    if (cargados.length === 0 && productos.length > 0) {
+      const palabrasClave = ['festival', 'choco cono', 'polet', 'bocatto', 'aloha', 'lack'];
+      const seleccionados = productos.filter(p => {
+        const nom = (p.nombre || '').toLowerCase();
+        return palabrasClave.some(k => nom.includes(k));
+      }).slice(0, 6);
+
+      const baseList = seleccionados.length > 0 ? seleccionados : productos.slice(0, 5);
+      cargados = baseList.map(p => ({
+        producto: p,
+        cajas: p.unidadesPorCaja != null ? 3 : 0,
+        unidades: p.unidadesPorCaja != null ? 0 : 20,
+      }));
+    }
+
+    if (cargados.length > 0) {
+      setCarrito(cargados);
+      setToast({ show: true, msg: '¡Pedido modelo cargado! Puedes ajustar cantidades o agregar más productos.', type: 'success' });
+    } else {
+      setToast({ show: true, msg: 'Cargando catálogo para armar el pedido modelo...', type: 'info' });
+    }
+  };
+
   const erroresCarrito = carrito.reduce((acc, it) => {
     if (it.cajas === 0 && it.unidades === 0) acc[it.producto.id] = 'Agrega al menos 1 caja o 1 unidad.';
     return acc;
@@ -327,17 +384,36 @@ export default function GenerarPedido() {
                     Carrito de Pedido
                   </span>
                 </div>
-                {carrito.length > 0 && (
-                  <span className="bg-[#9e2016] text-white font-['Inter'] font-bold text-[11px] px-2 py-0.5 rounded-full">
-                    {carrito.length} ÍTEMS
-                  </span>
-                )}
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={cargarPedidoModelo}
+                    title="Cargar pedido modelo básico o guardado"
+                    className="text-[11px] font-['Inter'] font-semibold text-[#9e2016] bg-[#fdf2f2] hover:bg-[#fde8e8] px-2 py-1 rounded-md border border-[#fca5a5] transition-colors cursor-pointer"
+                  >
+                    ★ Pedido Modelo
+                  </button>
+                  {carrito.length > 0 && (
+                    <span className="bg-[#9e2016] text-white font-['Inter'] font-bold text-[11px] px-2 py-0.5 rounded-full">
+                      {carrito.length}
+                    </span>
+                  )}
+                </div>
               </div>
 
               {carrito.length === 0 ? (
-                <p className="font-['Inter'] font-normal text-[13px] text-[#a8a29e] text-center py-6">
-                  Selecciona productos del catálogo
-                </p>
+                <div className="flex flex-col items-center gap-3 py-6">
+                  <p className="font-['Inter'] font-normal text-[13px] text-[#a8a29e] text-center">
+                    Selecciona productos del catálogo o carga un pedido base:
+                  </p>
+                  <button
+                    type="button"
+                    onClick={cargarPedidoModelo}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 bg-[#fdf2f2] text-[#9e2016] hover:bg-[#fde8e8] border border-[#fca5a5] rounded-lg text-xs font-semibold font-['Manrope'] transition-colors cursor-pointer shadow-sm"
+                  >
+                    ★ Cargar Pedido Modelo
+                  </button>
+                </div>
               ) : (
                 <>
                   {/* Ítems */}
@@ -428,6 +504,26 @@ export default function GenerarPedido() {
                       Corrige los errores en el carrito antes de continuar.
                     </p>
                   )}
+
+                  {/* Acciones de Pedido Modelo */}
+                  <div className="flex items-center gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={guardarPedidoModelo}
+                      className="flex-1 text-center font-['Inter'] font-semibold text-[11px] text-[#9e2016] hover:text-[#7f1d1d] hover:bg-[#fef2f2] border border-[#fecaca] rounded-[8px] py-2 transition-colors cursor-pointer"
+                    >
+                      ★ Guardar como Modelo
+                    </button>
+                    {tieneModeloGuardado && (
+                      <button
+                        type="button"
+                        onClick={cargarPedidoModelo}
+                        className="flex-1 text-center font-['Inter'] font-medium text-[11px] text-[#78716c] hover:text-[#1b1b1c] hover:bg-[#fafaf9] border border-[#e7e5e4] rounded-[8px] py-2 transition-colors cursor-pointer"
+                      >
+                        Recargar Modelo
+                      </button>
+                    )}
+                  </div>
 
                   {/* Botón Excel */}
                   <button

@@ -15,11 +15,11 @@ const CANALES = [
 
 function KpiCard({ label, value, colorClass = "text-ink" }) {
   return (
-    <div className="bg-white rounded-2xl border border-border shadow-sm p-6 flex flex-col gap-1 min-w-0">
-      <span className="text-[11px] font-bold uppercase tracking-wider text-muted">
+    <div className="bg-white rounded-xl border border-border shadow-sm p-3.5 flex flex-col gap-0.5 min-w-0">
+      <span className="text-[10px] font-bold uppercase tracking-wider text-muted">
         {label}
       </span>
-      <span className={`font-display text-2xl font-bold truncate ${colorClass}`}>
+      <span className={`font-display text-xl font-bold truncate ${colorClass}`}>
         {value}
       </span>
     </div>
@@ -32,12 +32,12 @@ function BarraCanal({ label, valor, total }) {
   const pct = totalNum > 0 ? Math.min(100, Math.round((valorNum / totalNum) * 100)) : 0;
 
   return (
-    <div className="flex flex-col gap-1.5">
-      <div className="flex items-center justify-between text-sm">
+    <div className="flex flex-col gap-1">
+      <div className="flex items-center justify-between text-xs">
         <span className="text-muted font-medium">{label}</span>
         <span className="text-ink font-semibold">{formatoCOP(valor)}</span>
       </div>
-      <div className="w-full h-2 rounded-full bg-surface overflow-hidden">
+      <div className="w-full h-1.5 rounded-full bg-surface overflow-hidden">
         <div
           className="h-full rounded-full bg-primary transition-all duration-300"
           style={{ width: `${pct}%` }}
@@ -80,27 +80,27 @@ export default function VistaFinanzas({ datos }) {
     utilidadNeta == null ? "text-ink" : utilidadNeta < 0 ? "text-danger" : "text-success-fg";
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       <div>
-        <p className="text-[11px] font-bold uppercase tracking-wider text-primary mb-1">
+        <p className="text-[10px] font-bold uppercase tracking-wider text-primary mb-0.5">
           Asistente de Voz
         </p>
-        <h1 className="font-display font-bold text-3xl text-ink tracking-tight">
+        <h1 className="font-display font-bold text-lg text-ink tracking-tight">
           Indicadores de Ventas y Finanzas
         </h1>
-        {periodo && <p className="text-sm text-muted mt-1">{periodo}</p>}
+        {periodo && <p className="text-xs text-muted mt-0.5">{periodo}</p>}
       </div>
 
-      {/* Ingresos totales / Utilidad neta / Margen — mismo componente que Reportes.jsx */}
-      <div className="grid grid-cols-1 gap-3">
+      {/* Ingresos totales / Utilidad neta / Margen */}
+      <div className="grid grid-cols-1 gap-2.5">
         <KpiCard label="Ingresos Totales" value={formatoCOP(ingresosTotales)} />
         <KpiCard label="Utilidad Neta" value={formatoCOP(utilidadNeta)} colorClass={utilidadColor} />
         <KpiCard label="Margen de Ganancia" value={formatoPct(margenGanancia)} />
       </div>
 
       {/* Desglose por canal */}
-      <div className="bg-white border border-border rounded-2xl shadow-sm p-6 flex flex-col gap-4">
-        <h3 className="font-display font-bold text-sm text-ink">
+      <div className="bg-white border border-border rounded-xl shadow-sm p-4 flex flex-col gap-3">
+        <h3 className="font-display font-bold text-xs uppercase tracking-wider text-ink">
           Desglose por Canal
         </h3>
         {CANALES.map(({ key, label }) => (
@@ -122,20 +122,20 @@ export default function VistaFinanzas({ datos }) {
       {/* Ingresos, costos y ganancia por canal — solo tipo "ganancia".
           Misma tabla que TablaRentabilidadCanal.jsx, con una columna de Ganancia. */}
       {tipo === "ganancia" && canales.length > 0 && (
-        <div className="rounded-2xl border border-border bg-white overflow-hidden">
-          <div className="px-6 pt-5 pb-4 border-b border-border">
-            <h2 className="font-display font-semibold text-ink text-base">
+        <div className="rounded-xl border border-border bg-white overflow-hidden">
+          <div className="px-3.5 pt-3 pb-2.5 border-b border-border">
+            <h2 className="font-display font-semibold text-ink text-sm">
               Rentabilidad por Canal
             </h2>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-xs">
               <thead>
                 <tr className="border-b border-border">
                   {["Canal", "Ingresos", "Costos", "Ganancia", "Margen"].map((h) => (
                     <th
                       key={h}
-                      className="px-6 py-3 text-xs font-semibold uppercase tracking-wide text-muted text-left"
+                      className="px-2.5 py-2 text-[10px] font-semibold uppercase tracking-wide text-muted text-left whitespace-nowrap"
                     >
                       {h}
                     </th>
@@ -156,13 +156,13 @@ export default function VistaFinanzas({ datos }) {
                         i === canales.length - 1 ? "border-none" : ""
                       }`}
                     >
-                      <td className="px-6 py-5 font-semibold text-ink">{c.canal}</td>
-                      <td className="px-6 py-5 text-ink">{formatoCOP(c.totalIngresos)}</td>
-                      <td className="px-6 py-5 text-ink">{formatoCOP(c.totalCostos)}</td>
-                      <td className="px-6 py-5 text-ink">{formatoCOP(ganancia)}</td>
-                      <td className="px-6 py-5">
+                      <td className="px-2.5 py-2 font-semibold text-ink whitespace-nowrap">{c.canal}</td>
+                      <td className="px-2.5 py-2 text-ink whitespace-nowrap">{formatoCOP(c.totalIngresos)}</td>
+                      <td className="px-2.5 py-2 text-ink whitespace-nowrap">{formatoCOP(c.totalCostos)}</td>
+                      <td className="px-2.5 py-2 text-ink whitespace-nowrap">{formatoCOP(ganancia)}</td>
+                      <td className="px-2.5 py-2 whitespace-nowrap">
                         <span
-                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${pill}`}
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${pill}`}
                         >
                           {formatoPct(c.margen)} {arrow}
                         </span>
