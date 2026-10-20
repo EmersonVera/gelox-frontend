@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { descargarExportacionPedido } from '../../../services/vozService';
+import useCuentaRegresiva from './useCuentaRegresiva';
 
 /**
  * Vista para MODIFICAR_PEDIDO (RF53). Vive dentro de PanelAsistenteVoz.jsx
@@ -14,26 +15,6 @@ const ACCION_INFO = {
   ELIMINAR: { label: 'Eliminar', pill: 'bg-error-bg text-error-fg' },
   ACTUALIZAR: { label: 'Actualizar', pill: 'bg-amber-50 text-amber-700' },
 };
-
-function useCuentaRegresiva(expiraEnSegundos, activo) {
-  const [restantes, setRestantes] = useState(expiraEnSegundos ?? null);
-  const [expiraPrevio, setExpiraPrevio] = useState(expiraEnSegundos ?? null);
-
-  // Reinicia el contador cuando llega una nueva expiración (nuevo comando de
-  // voz), ajustando el estado durante el render en vez de en un efecto.
-  if ((expiraEnSegundos ?? null) !== expiraPrevio) {
-    setExpiraPrevio(expiraEnSegundos ?? null);
-    setRestantes(expiraEnSegundos ?? null);
-  }
-
-  useEffect(() => {
-    if (!activo || restantes === null || restantes <= 0) return;
-    const id = setTimeout(() => setRestantes((r) => Math.max(0, r - 1)), 1000);
-    return () => clearTimeout(id);
-  }, [activo, restantes]);
-
-  return restantes;
-}
 
 export default function VistaModificarPedido({
   ok = true,

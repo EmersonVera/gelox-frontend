@@ -40,3 +40,101 @@ function terminaCon(regex, texto) {
 
 export const esConfirmar = (texto) => terminaCon(CONFIRMAR_REGEX, texto);
 export const esCancelar = (texto) => terminaCon(CANCELAR_REGEX, texto);
+
+/** Frases de ejemplo que el panel muestra como ayuda mientras no hay respuesta. */
+export const FRASES_AYUDA = [
+  '¿Cuántas cajas de Festival quedan?',
+  'Registra dos cajas de Festival',
+  '¿Qué me recomiendas pedir con dos millones?',
+  'Aprueba el Festival',
+  'Genera el pedido',
+];
+
+// ── RF55 por voz: recomendación de compra ─────────────────────────────────
+
+const NUMEROS = {
+  cero: 0, un: 1, uno: 1, una: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8,
+  nueve: 9, diez: 10, once: 11, doce: 12, trece: 13, catorce: 14, quince: 15, dieciseis: 16,
+  diecisiete: 17, dieciocho: 18, diecinueve: 19, veinte: 20, veinticinco: 25, treinta: 30,
+  cuarenta: 40, cincuenta: 50, sesenta: 60, setenta: 70, ochenta: 80, noventa: 90, cien: 100,
+  ciento: 100, doscientos: 200, trescientos: 300, cuatrocientos: 400, quinientos: 500,
+  seiscientos: 600, setecientos: 700, ochocientos: 800, novecientos: 900,
+};
+
+/** Como normalizar(), pero conserva los dígitos ("8.500.000" → "8500000"). */
+function normalizarConNumeros(texto) {
+  return texto
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/(\d)[.,](?=\d{3}\b)/g, '$1')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/** "veinte" → 20, "treinta y cinco" → 35, "12" → 12. Sin número → null. */
+export function numeroDicho(texto) {
+  const palabras = normalizarConNumeros(texto).split(' ');
+  let total = null;
+  for (const p of palabras) {
+    if (/^\d+$/.test(p)) return Number(p);
+    if (p in NUMEROS) total = (total ?? 0) + NUMEROS[p];
+    else if (p !== 'y' && total !== null) break;
+  }
+  return total;
+}
+
+/**
+ * Monto en pesos dicho de viva voz: "dos millones" → 2000000,
+ * "dos millones quinientos mil" → 2500000, "ocho millones y medio" → 8500000,
+ * "$8.500.000" → 8500000. Sin monto → null.
+ */
+export function montoDicho(texto) {
+  const palabras = normalizarConNumeros(texto).split(' ');
+  let total = 0;
+  let actual = 0;
+  let hayMonto = false;
+  for (const p of palabras) {
+    if (/^\d+$/.test(p)) { actual += Number(p); hayMonto = true; }
+    else if (p in NUMEROS) { actual += NUMEROS[p]; hayMonto = true; }
+    else if (p === 'millon' || p === 'millones') { total += (actual || 1) * 1_000_000; actual = 0; hayMonto = true; }
+    else if (p === 'mil') { total += (actual || 1) * 1_000; actual = 0; hayMonto = true; }
+    else if (p === 'medio' && total > 0) total += total >= 1_000_000 ? 500_000 : 500;
+  }
+  const monto = total + actual;
+  return hayMonto && monto > 0 ? monto : null;
+}
+
+const CONSULTA_RECOMENDACION_REGEX = /\brecomi?end|\brecomendacion\b|\bque (?:me )?(?:conviene|toca|debo) pedir\b|\bque pido\b/;
+const GENERAR_PEDIDO_RECOMENDACION_REGEX =
+  /^(?:\w+ )?(?:genera|generar|haz|hacer|crea|crear|arma|armar|manda|mandar) (?:el|ese|este) pedido(?: (?:de|con) (?:la|esa|esta) recomendacion)?$/;
+const APROBAR_REGEX = /^(?:aprueba|aprobar|apruebo|aprueba me) (?:el |la |los |las )?(.+)$/;
+const RECHAZAR_REGEX = /^(?:rechaza|rechazar|descarta|descartar|saca|sacar) (?:el |la |los |las )?(.+?)(?: de la recomendacion)?$/;
+const MODIFICAR_REGEX = /^(?:cambia|cambiar|deja|dejar|pon|poner|modifica|modificar) (?:el |la |los |las )?(.+?) (?:a|en) (.+?) cajas?$/;
+
+/**
+ * Reconoce las frases del módulo de recomendación. Devuelve
+ * { intencion: 'CONSULTAR_RECOMENDACION', presupuesto } o
+ * { intencion: 'DECIDIR_RECOMENDACION', accion, producto?, cajas? } o null.
+ * accion: APROBAR | MODIFICAR | RECHAZAR | GENERAR_PEDIDO.
+ */
+export function fraseRecomendacion(texto) {
+  const t = normalizarConNumeros(texto);
+  if (GENERAR_PEDIDO_RECOMENDACION_REGEX.test(t)) {
+    return { intencion: 'DECIDIR_RECOMENDACION', accion: 'GENERAR_PEDIDO' };
+  }
+  if (CONSULTA_RECOMENDACION_REGEX.test(t)) {
+    return { intencion: 'CONSULTAR_RECOMENDACION', presupuesto: montoDicho(t) };
+  }
+  const modificar = MODIFICAR_REGEX.exec(t);
+  if (modificar) {
+    const cajas = numeroDicho(modificar[2]);
+    if (cajas !== null) return { intencion: 'DECIDIR_RECOMENDACION', accion: 'MODIFICAR', producto: modificar[1], cajas };
+  }
+  const aprobar = APROBAR_REGEX.exec(t);
+  if (aprobar) return { intencion: 'DECIDIR_RECOMENDACION', accion: 'APROBAR', producto: aprobar[1] };
+  const rechazar = RECHAZAR_REGEX.exec(t);
+  if (rechazar) return { intencion: 'DECIDIR_RECOMENDACION', accion: 'RECHAZAR', producto: rechazar[1] };
+  return null;
+}

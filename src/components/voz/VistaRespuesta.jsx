@@ -6,6 +6,7 @@ import VistaPedido from './vistas/VistaPedido';
 import VistaModificarPedido from './vistas/VistaModificarPedido';
 import VistaVenta from './vistas/VistaVenta';
 import VistaInventario from './vistas/VistaInventario';
+import VistaRecomendacion from './vistas/VistaRecomendacion';
 
 function VistaNavegacion({ datos, textoRespuesta }) {
   const navigate = useNavigate();
@@ -47,6 +48,7 @@ function VistaNavegacion({ datos, textoRespuesta }) {
  * - CONSULTAR_FINANZAS (T46): VistaCierreDia o VistaFinanzas según datos.tipo.
  * - GENERAR_PEDIDO (T48-FE3, RF52): VistaPedido.
  * - MODIFICAR_PEDIDO (T48-FE6, RF53): VistaModificarPedido.
+ * - CONSULTAR_RECOMENDACION / DECIDIR_RECOMENDACION (RF55): VistaRecomendacion.
  * - NAVEGACION: redirige dinámicamente a la pestaña solicitada por voz.
  */
 export default function VistaRespuesta({ respuesta, onConfirmar, onCancelar }) {
@@ -86,6 +88,14 @@ export default function VistaRespuesta({ respuesta, onConfirmar, onCancelar }) {
           onCancelar={onCancelar}
         />
       );
+    case 'CONSULTAR_RECOMENDACION':
+      // Baja confianza: la consulta pide confirmación igual que inventario y finanzas.
+      if (requiereConfirmacion) {
+        return <VistaInventario respuesta={respuesta} onConfirmar={onConfirmar} onCancelar={onCancelar} />;
+      }
+      return <VistaRecomendacion respuesta={respuesta} onConfirmar={onConfirmar} onCancelar={onCancelar} />;
+    case 'DECIDIR_RECOMENDACION':
+      return <VistaRecomendacion respuesta={respuesta} onConfirmar={onConfirmar} onCancelar={onCancelar} />;
     default:
       return (
         <p className="text-[13px] text-ink leading-snug">

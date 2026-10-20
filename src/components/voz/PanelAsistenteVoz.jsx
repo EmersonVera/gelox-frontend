@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ESTADOS_VOZ, palabraClaveHabilitada, setPalabraClaveHabilitada } from '../../hooks/useAsistenteVoz';
+import { FRASES_AYUDA } from '../../hooks/frasesVoz';
 import { MicrofonoIcon } from './BotonMicrofono';
 import VistaRespuesta from './VistaRespuesta';
 
@@ -78,6 +79,17 @@ export default function PanelAsistenteVoz({
           <div className="flex items-center gap-2 text-[13px] text-primary font-medium">
             <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
             {esperandoAclaracion ? 'Escuchando: decí tu respuesta o "cancelar"' : 'Escuchando: decí "confirmar" o "rechazar"'}
+          </div>
+        )}
+
+        {!escuchando && !interpretando && !textoFinal && !respuesta && !permisoDenegado && (
+          <div>
+            <p className="text-[10px] font-semibold text-muted uppercase tracking-wide mb-1.5">Prueba decir</p>
+            <ul className="flex flex-col gap-1">
+              {FRASES_AYUDA.map((frase) => (
+                <li key={frase} className="text-[13px] text-ink italic">“{frase}”</li>
+              ))}
+            </ul>
           </div>
         )}
 

@@ -37,10 +37,10 @@ const BASE = [
       'El stock (8 cajas) está por debajo del punto de reorden (25 cajas). Con la venta promedio de los últimos 4 meses y el alza de temporada de octubre, se agotaría en menos de 2 días. Las 40 cajas cubren una semana de venta más el stock de seguridad.',
   },
   {
-    producto: { id: 'prod-cv-004', codigo: 'CV-004', nombre: 'Casero Vainilla 1L', unidadesPorCaja: 6 },
-    urgencia: 'CRITICO', score: 88.1, demandaDiaria: 22.4, factorEstacionalidad: 1.12,
-    stockSeguridad: 36, puntoReorden: 132, stockActual: 30, coberturaDias: 1.3,
-    cajasSugeridas: 30, costoCaja: 45000, margenCaja: 11700, mesesHistorial: 4,
+    producto: { id: 'prod-fe-004', codigo: 'FE-004', nombre: 'Festival', unidadesPorCaja: 12 },
+    urgencia: 'CRITICO', score: 88.1, demandaDiaria: 45.0, factorEstacionalidad: 1.12,
+    stockSeguridad: 72, puntoReorden: 264, stockActual: 60, coberturaDias: 1.3,
+    cajasSugeridas: 30, costoCaja: 22000, margenCaja: 6600, mesesHistorial: 4,
     justificacion:
       'Quedan 5 cajas, menos de la mitad del punto de reorden (22 cajas). La demanda subió 12 % frente al mes anterior. Las 30 cajas reponen hasta el stock objetivo de 7 días.',
   },
