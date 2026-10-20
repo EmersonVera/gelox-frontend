@@ -34,6 +34,16 @@ function UsersIcon() {
   );
 }
 
+function HistoryIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
+      <polyline points="3 3 3 8 8 8" />
+      <polyline points="12 7 12 12 15 15" />
+    </svg>
+  );
+}
+
 function BoxIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -109,6 +119,7 @@ const LINKS = [
   { icon: <UsersIcon />,   label: 'Usuarios',        to: '/usuarios' },
   { icon: <BoxIcon />,     label: 'Inventarios',     to: '/inventarios/gestion' },
   { icon: <CartIcon />,    label: 'Ventas',          to: '/ventas/pedidos-ventanilla' },
+  { icon: <HistoryIcon />, label: 'Historial de Recomendaciones', to: '/inventarios/recomendaciones/historial' },
 ];
 
 const navItemBase =

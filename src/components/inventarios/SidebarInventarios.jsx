@@ -63,6 +63,23 @@ function FileTextIcon() {
     </svg>
   );
 }
+function SparkleIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z" />
+      <path d="M19 15l.9 2.1L22 18l-2.1.9L19 21l-.9-2.1L16 18l2.1-.9z" />
+    </svg>
+  );
+}
+function HistoryIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
+      <polyline points="3 3 3 8 8 8" />
+      <polyline points="12 7 12 12 15 15" />
+    </svg>
+  );
+}
 function SettingsIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -100,6 +117,8 @@ const LINKS = [
   { icon: <GridIcon />,         label: 'Catálogo',               to: '/inventarios/catalogo',       pronto: false },
   { icon: <ClipboardIcon />,    label: 'Generar Pedido',         to: '/inventarios/generar-pedido', pronto: false },
   { icon: <FileTextIcon />,     label: 'Reporte Pedido',         to: '/inventarios/reporte-pedido', pronto: false },
+  { icon: <SparkleIcon />,      label: 'Recomendación de Compra', to: '/inventarios/recomendaciones', pronto: false, end: true },
+  { icon: <HistoryIcon />,      label: 'Historial de Recomendaciones', to: '/inventarios/recomendaciones/historial', pronto: false },
 ];
 
 const navItemBase =
@@ -186,7 +205,7 @@ export default function SidebarInventarios({ open, onClose }) {
 
       {/* ── Navigation ── */}
       <nav className="flex-1 px-4 py-3 flex flex-col gap-1 overflow-y-auto">
-        {LINKS.map(({ icon, label, to, pronto }) =>
+        {LINKS.map(({ icon, label, to, pronto, end }) =>
           pronto ? (
             /* Ítem no disponible: no navega, muestra badge "Pronto" */
             <div
@@ -206,6 +225,7 @@ export default function SidebarInventarios({ open, onClose }) {
             <NavLink
               key={to}
               to={to}
+              end={end}
               className={activeLinkClass}
               onClick={handleNavClick}
             >

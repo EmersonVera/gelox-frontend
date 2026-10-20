@@ -37,6 +37,8 @@ import GenerarPedido      from '../pages/inventarios/GenerarPedido';
 import ReportePedido      from '../pages/inventarios/ReportePedido';
 import DetallePedido      from '../pages/inventarios/DetallePedido';
 import CatalogoProductos  from '../pages/inventarios/CatalogoProductos';
+import RecomendacionCompras     from '../pages/inventarios/RecomendacionCompras';
+import HistorialRecomendaciones from '../pages/inventarios/HistorialRecomendaciones';
 
 /* ── Protección de rutas ── */
 import ProtectedRoute from './ProtectedRoute';
@@ -93,6 +95,8 @@ export default function AppRouter() {
           <Route path="/inventarios/generar-pedido"  element={<GenerarPedido />} />
           <Route path="/inventarios/reporte-pedido"  element={<ReportePedido />} />
           <Route path="/inventarios/pedidos/:id"     element={<DetallePedido />} />
+          <Route path="/inventarios/recomendaciones"           element={<RecomendacionCompras />} />
+          <Route path="/inventarios/recomendaciones/historial" element={<HistorialRecomendaciones />} />
           {/* Ajustes del módulo inventarios — mantiene SidebarInventarios */}
           <Route path="/inventarios/ajustes"         element={<Ajustes />} />
         </Route>
