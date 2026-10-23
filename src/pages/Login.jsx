@@ -17,6 +17,7 @@ const ROLE_REDIRECT = {
   ADMINISTRADOR:        '/dashboard/gerente',
   ENCARGADO_INVENTARIO: '/inventarios/gestion',
   ENCARGADO_VENTAS:     '/ventas/pedidos-ventanilla',
+  SUPERADMINISTRADOR:   '/plataforma/distribuidoras',
 };
 
 function EnvelopeIcon() {

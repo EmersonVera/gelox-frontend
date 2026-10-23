@@ -37,6 +37,7 @@ const CARGO_LABEL = {
   ADMINISTRADOR:        'Gerente General',
   ENCARGADO_INVENTARIO: 'Encargado de Inventario',
   ENCARGADO_VENTAS:     'Encargado de Ventas',
+  SUPERADMINISTRADOR:   'Superadministrador',
 };
 
 function getInitials(nombre) {
@@ -258,6 +259,8 @@ export default function Navbar({ onToggle, sidebarOpen }) {
   const { perfil, token } = useAuth();
   const cargo = CARGO_LABEL[perfil?.rol] ?? '';
   const puedeVerAlertas = ['ADMINISTRADOR', 'ENCARGADO_INVENTARIO'].includes(perfil?.rol);
+  // El Superadministrador no pertenece a ninguna distribuidora: no opera ventas ni inventario.
+  const esPlataforma = perfil?.rol === 'SUPERADMINISTRADOR';
 
   return (
     <header className="sticky top-0 z-10 flex items-center gap-3 px-4 h-[60px] bg-white/85 backdrop-blur-md border-b border-border">
@@ -275,8 +278,8 @@ export default function Navbar({ onToggle, sidebarOpen }) {
       {/* Spacer */}
       <div className="flex-1" />
 
-      {/* Asistente de voz — visible para todos los roles (RF46) */}
-      <AsistenteVoz />
+      {/* Asistente de voz — visible para todos los roles de una distribuidora (RF46) */}
+      {!esPlataforma && <AsistenteVoz />}
 
       {/* Campana de alertas — solo ADMINISTRADOR y ENCARGADO_INVENTARIO */}
       {puedeVerAlertas && <AlertasBell token={token} />}
