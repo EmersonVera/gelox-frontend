@@ -1,5 +1,6 @@
 import { createPortal } from 'react-dom';
 import { formatoCOP } from '../../voz/formato';
+import ContenidoCarga from '../../ui/ContenidoCarga';
 
 /**
  * Confirmación antes de convertir la recomendación en pedido a proveedor (RF56).
@@ -46,7 +47,7 @@ export default function ModalConfirmarPedido({ abierto, aprobados, cajas, costo,
           </button>
           <button type="button" onClick={onConfirmar} disabled={enviando}
             className="px-4 py-2.5 rounded-[10px] font-['Inter'] font-semibold text-[14px] text-white bg-[#9e2016] hover:bg-[#7f1a12] transition-colors disabled:opacity-60">
-            {enviando ? 'Generando…' : 'Generar pedido'}
+            <ContenidoCarga cargando={enviando} textoCargando="Generando…" spinner={null}>Generar pedido</ContenidoCarga>
           </button>
         </div>
       </div>

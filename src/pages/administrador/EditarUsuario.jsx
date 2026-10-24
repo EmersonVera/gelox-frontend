@@ -6,6 +6,7 @@ import AppLayout from '../../components/AppLayout';
 import SuccessToast from '../../components/SuccessToast';
 import ModalEstadoUsuario from '../../components/administrador/ModalEstadoUsuario';
 import RolIcono from '../../components/administrador/RolIcono';
+import ContenidoCarga from '../../components/ui/ContenidoCarga';
 import {
   ROLES_INTERNOS, ROLES_PERMITIDOS, ROL_LABEL, esActivo, esErrorDeCorreo, esErrorDeRol,
   esGerenteTitular, iniciales, mensajeError, sinAcciones,
@@ -412,11 +413,9 @@ export default function EditarUsuario() {
           {!bloqueado && (
             <button type="submit" disabled={isSubmitting || estaDeshabilitado}
               className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-white text-sm font-semibold rounded-xl hover:bg-primary-dark transition duration-300 active:scale-[0.97] shadow-[0_2px_8px_rgba(158,32,22,0.25)] disabled:opacity-60">
-              {isSubmitting ? (
-                <><span className="w-4 h-4 rounded-full border-2 border-white/40 border-t-white animate-spin" />Guardando...</>
-              ) : (
-                <><SaveIcon />Guardar Cambios</>
-              )}
+              <ContenidoCarga cargando={isSubmitting} textoCargando="Guardando...">
+                <SaveIcon />Guardar Cambios
+              </ContenidoCarga>
             </button>
           )}
         </div>

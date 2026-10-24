@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
+import ContenidoCarga from '../ui/ContenidoCarga';
 import { ROL_LABEL, esActivo, iniciales, mensajeError } from './usuariosUtils';
 
 function BanIcon() {
@@ -125,10 +126,9 @@ export default function ModalEstadoUsuario({ usuario, onConfirmar, onCerrar }) {
                 : 'bg-green-500 hover:bg-green-600 shadow-[0_2px_8px_rgba(22,163,74,0.25)]'
             }`}
           >
-            {enviando && <span className="w-4 h-4 rounded-full border-2 border-white/40 border-t-white animate-spin shrink-0" />}
-            {enviando
-              ? (deshabilitar ? 'Deshabilitando...' : 'Habilitando...')
-              : (deshabilitar ? 'Deshabilitar' : 'Habilitar')}
+            <ContenidoCarga cargando={enviando} textoCargando={deshabilitar ? 'Deshabilitando...' : 'Habilitando...'}>
+              {deshabilitar ? 'Deshabilitar' : 'Habilitar'}
+            </ContenidoCarga>
           </button>
         </div>
       </div>

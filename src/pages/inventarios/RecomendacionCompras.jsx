@@ -17,6 +17,7 @@ import {
   USAR_MOCK, decidirItem, generarPedido, generarRecomendacion, obtenerRecomendacion,
 } from '../../services/recomendacionService';
 import { descargarExportacionPedido } from '../../services/vozService';
+import ContenidoCarga from '../../components/ui/ContenidoCarga';
 
 const schema = yup.object({
   presupuesto: yup
@@ -247,7 +248,7 @@ export default function RecomendacionCompras() {
             <button type="submit" disabled={isSubmitting}
               className="sm:mt-[22px] flex items-center justify-center gap-2 px-5 py-3 rounded-[10px] bg-[#9e2016] text-white font-['Inter'] font-semibold text-[14px] shadow-sm hover:bg-[#7f1a12] transition-colors active:scale-[0.98] disabled:opacity-60">
               <SparkleIcon />
-              {isSubmitting ? 'Generando…' : 'Generar recomendación'}
+              <ContenidoCarga cargando={isSubmitting} textoCargando="Generando…" spinner={null}>Generar recomendación</ContenidoCarga>
             </button>
           </div>
           {rec && (

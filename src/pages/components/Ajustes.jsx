@@ -10,6 +10,7 @@ import {
   updatePerfil as updatePerfilAPI,
   updateFotoPerfil,
 } from '../../services/perfilService';
+import ContenidoCarga from '../../components/ui/ContenidoCarga';
 
 /* ── Icons ── */
 function CameraIcon() {
@@ -296,8 +297,7 @@ export default function Ajustes() {
                 disabled={saving}
                 className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-white text-sm font-semibold rounded-xl hover:bg-primary-dark transition duration-300 active:scale-[0.97] shadow-[0_2px_8px_rgba(158,32,22,0.25)] disabled:opacity-60"
               >
-                {saving && <span className="w-4 h-4 rounded-full border-2 border-white/40 border-t-white animate-spin" />}
-                {saving ? 'Guardando...' : 'Guardar Cambios'}
+                <ContenidoCarga cargando={saving} textoCargando="Guardando...">Guardar Cambios</ContenidoCarga>
               </button>
             </div>
           </form>

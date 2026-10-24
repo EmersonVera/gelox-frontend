@@ -4,6 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import AppLayout from '../../components/AppLayout';
 import { descargarExportacionPedido } from '../../services/vozService';
+import ContenidoCarga from '../../components/ui/ContenidoCarga';
 
 const base = import.meta.env.VITE_API_BASE_URL ?? '';
 
@@ -132,7 +133,7 @@ export default function DetallePedido() {
             disabled={descargando}
             className={`${pedido.notas ? '' : 'ml-auto'} bg-[#9e2016] hover:bg-[#7f1a12] disabled:opacity-60 text-white font-['Inter'] font-semibold text-[13px] px-4 py-2 rounded-[8px] transition-colors`}
           >
-            {descargando ? 'Descargando…' : 'Descargar Excel'}
+            <ContenidoCarga cargando={descargando} textoCargando="Descargando…" spinner={null}>Descargar Excel</ContenidoCarga>
           </button>
         </div>
         {errorDescarga && <p className="font-['Inter'] text-[13px] text-[#dc2626] -mt-4">{errorDescarga}</p>}

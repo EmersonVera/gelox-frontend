@@ -784,11 +784,14 @@ export default function PlanillaDiaria() {
                   }
                   className="flex items-center gap-2 bg-[#1b2d4f] hover:bg-[#152240] text-white font-['Manrope'] font-bold text-[13px] sm:text-[14px] rounded-[10px] px-4 sm:px-5 py-2.5 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {enviando ? <SpinIcon /> : editandoMatutino ? (
-                    <CheckIcon />
-                  ) : estadoPlanilla === 'DESPACHADO' ? (
-                    <svg width="13" height="13" fill="none" viewBox="0 0 14 14"><path d="M9.5 2l2.5 2.5-7 7H2.5V9L9.5 2z" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/><path d="M8 3.5l2.5 2.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
-                  ) : <CheckIcon />}
+                  {/* Caja fija de 16 px: el spinner (16 px) y los íconos (13–14 px) no cambian el ancho del botón */}
+                  <span className="w-4 h-4 flex items-center justify-center shrink-0">
+                    {enviando ? <SpinIcon /> : editandoMatutino ? (
+                      <CheckIcon />
+                    ) : estadoPlanilla === 'DESPACHADO' ? (
+                      <svg width="13" height="13" fill="none" viewBox="0 0 14 14"><path d="M9.5 2l2.5 2.5-7 7H2.5V9L9.5 2z" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/><path d="M8 3.5l2.5 2.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
+                    ) : <CheckIcon />}
+                  </span>
                   {estadoPlanilla === 'DESPACHADO' && !editandoMatutino
                     ? 'Editar Cierre'
                     : editandoMatutino

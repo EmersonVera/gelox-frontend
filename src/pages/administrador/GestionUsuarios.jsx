@@ -406,27 +406,27 @@ export default function GestionUsuarios() {
                                 <PencilIcon />
                                 Editar
                               </button>
-                              {activo ? (
-                                <button
-                                  type="button"
-                                  className={`${btnFila} text-error-fg bg-error-bg hover:bg-[#ffc8c2]`}
-                                  onClick={() => setUsuarioEstado(u)}
-                                  title={`Deshabilitar a ${u.nombre}`}
-                                >
-                                  <BanIcon />
-                                  Deshabilitar
-                                </button>
-                              ) : (
-                                <button
-                                  type="button"
-                                  className={`${btnFila} text-green-700 bg-green-50 hover:bg-green-100`}
-                                  onClick={() => setUsuarioEstado(u)}
-                                  title={`Habilitar a ${u.nombre}`}
-                                >
-                                  <CheckIcon />
-                                  Habilitar
-                                </button>
-                              )}
+                              {/* Ambas etiquetas comparten la celda del grid: el botón mide lo mismo
+                                  en todas las filas y no cambia de ancho al habilitar o deshabilitar. */}
+                              <button
+                                type="button"
+                                className={`${btnFila} ${activo
+                                  ? "text-error-fg bg-error-bg hover:bg-[#ffc8c2]"
+                                  : "text-green-700 bg-green-50 hover:bg-green-100"}`}
+                                onClick={() => setUsuarioEstado(u)}
+                                title={`${activo ? "Deshabilitar" : "Habilitar"} a ${u.nombre}`}
+                              >
+                                <span className="grid">
+                                  <span className={`col-start-1 row-start-1 flex items-center justify-center gap-1.5 ${activo ? "" : "invisible"}`}>
+                                    <BanIcon />
+                                    Deshabilitar
+                                  </span>
+                                  <span className={`col-start-1 row-start-1 flex items-center justify-center gap-1.5 ${activo ? "invisible" : ""}`}>
+                                    <CheckIcon />
+                                    Habilitar
+                                  </span>
+                                </span>
+                              </button>
                             </div>
                           )}
                         </td>

@@ -10,6 +10,7 @@ import EncabezadoDocumento from '../../components/EncabezadoDocumento';
 import { useIdentidad } from '../../context/IdentidadContext';
 import { USAR_MOCK, usarIdentidadDePrueba } from '../../services/distribuidoraService';
 import { HEX_REGEX, contrasteConBlanco, esHexValido, iniciales } from '../../context/identidadUtils';
+import ContenidoCarga from '../../components/ui/ContenidoCarga';
 
 /* ── Icons ── */
 function UploadIcon() {
@@ -409,8 +410,7 @@ export default function IdentidadVisual() {
                 disabled={isSubmitting || cargando}
                 className="inline-flex items-center gap-2 h-[41px] px-5 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-primary-dark transition duration-300 active:scale-[0.97] shadow-[0_2px_4px_rgba(0,0,0,0.15)] disabled:opacity-60"
               >
-                {isSubmitting && <span className="w-4 h-4 rounded-full border-2 border-white/40 border-t-white animate-spin" />}
-                {isSubmitting ? 'Guardando...' : 'Guardar cambios'}
+                <ContenidoCarga cargando={isSubmitting} textoCargando="Guardando...">Guardar cambios</ContenidoCarga>
               </button>
             </div>
           </form>

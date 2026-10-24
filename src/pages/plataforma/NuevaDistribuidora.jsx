@@ -7,6 +7,7 @@ import * as yup from 'yup';
 import AppLayout from '../../components/AppLayout';
 import SuccessToast from '../../components/SuccessToast';
 import ModalConfirmacion from '../../components/plataforma/ModalConfirmacion';
+import ContenidoCarga from '../../components/ui/ContenidoCarga';
 import {
   PLANES, SUBDOMINIO_REGEX, mensajeError, sugerirSubdominio, urlTienda,
 } from '../../components/plataforma/plataformaUtils';
@@ -406,8 +407,9 @@ export default function NuevaDistribuidora() {
               disabled={isSubmitting}
               className="flex items-center justify-center gap-2 px-5 py-3 bg-primary text-white text-sm font-semibold rounded-xl hover:bg-primary-dark transition duration-300 active:scale-[0.97] shadow-[0_2px_8px_rgba(158,32,22,0.25)] disabled:opacity-60"
             >
-              {isSubmitting && <span className="w-4 h-4 rounded-full border-2 border-white/40 border-t-white animate-spin" />}
-              {isSubmitting ? 'Registrando...' : 'Registrar distribuidora'}
+              <ContenidoCarga cargando={isSubmitting} textoCargando="Registrando...">
+                Registrar distribuidora
+              </ContenidoCarga>
             </button>
           </div>
         </form>
