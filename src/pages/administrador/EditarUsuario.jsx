@@ -126,9 +126,18 @@ const valoresFormulario = (u) => ({
   rol: ROLES_PERMITIDOS.includes(u?.rol) ? u.rol : '',
 });
 
+/**
+ * Cada id monta un formulario nuevo: al pasar de /usuarios/A/editar a /usuarios/B/editar
+ * (atrás / adelante del navegador) React Router reutiliza el componente, y sin la key
+ * se arrastrarían el usuario, el 404 y los valores del formulario de A.
+ */
 export default function EditarUsuario() {
+  const { id } = useParams();
+  return <FormularioEditarUsuario key={id} id={id} />;
+}
+
+function FormularioEditarUsuario({ id }) {
   const navigate  = useNavigate();
-  const { id }    = useParams();
   const location  = useLocation();
   const { identidad } = useIdentidad();
   const nombreDistribuidora = identidad?.nombreComercial ?? 'tu distribuidora';

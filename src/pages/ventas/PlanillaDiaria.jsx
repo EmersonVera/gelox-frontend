@@ -805,7 +805,9 @@ export default function PlanillaDiaria() {
                   disabled={!cierreDiarioHabilitado || enviando || editandoMatutino}
                   className="flex items-center gap-2 bg-[#9e2016] hover:bg-[#7c0202] text-white font-['Manrope'] font-bold text-[13px] sm:text-[14px] rounded-[10px] px-4 sm:px-5 py-2.5 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {enviando && estadoPlanilla === 'DESPACHADO' ? <SpinIcon /> : <CheckIcon />}
+                  <span className="w-4 h-4 flex items-center justify-center shrink-0">
+                    {enviando && estadoPlanilla === 'DESPACHADO' ? <SpinIcon /> : <CheckIcon />}
+                  </span>
                   Cierre Diario
                 </button>
               </div>

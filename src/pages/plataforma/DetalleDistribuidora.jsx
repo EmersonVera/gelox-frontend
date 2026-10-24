@@ -131,8 +131,17 @@ function Historial({ historial }) {
   );
 }
 
+/**
+ * Cada id monta un detalle nuevo: al pasar de una distribuidora a otra (atrás / adelante del
+ * navegador) React Router reutiliza el componente, y sin la key se mostraría la distribuidora
+ * anterior si la nueva no carga, junto con su formulario de cambio de estado.
+ */
 export default function DetalleDistribuidora() {
   const { id } = useParams();
+  return <ContenidoDetalle key={id} id={id} />;
+}
+
+function ContenidoDetalle({ id }) {
   const location = useLocation();
 
   const [dist, setDist] = useState(null);
