@@ -2,6 +2,7 @@
  * Sidebar.jsx — dispatcher por rol y ruta activa
  *
  * Lógica:
+ *   SUPERADMINISTRADOR                → SidebarPlataforma
  *   ENCARGADO_INVENTARIO              → SidebarInventarios
  *   ENCARGADO_VENTAS                  → SidebarVentas
  *   ADMINISTRADOR en /inventarios/*   → SidebarInventarios (con botón "Volver a Admin")
@@ -14,10 +15,15 @@ import { useAuth } from '../context/AuthContext';
 import SidebarAdministrador from './administrador/SidebarAdministrador';
 import SidebarVentas        from './ventas/SidebarVentas';
 import SidebarInventarios   from './inventarios/SidebarInventarios';
+import SidebarPlataforma    from './plataforma/SidebarPlataforma';
 
 export default function Sidebar({ open, onClose }) {
   const { rol } = useAuth();
   const { pathname } = useLocation();
+
+  if (rol === 'SUPERADMINISTRADOR') {
+    return <SidebarPlataforma open={open} onClose={onClose} />;
+  }
 
   if (rol === 'ENCARGADO_INVENTARIO') {
     return <SidebarInventarios open={open} onClose={onClose} />;

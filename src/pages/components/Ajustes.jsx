@@ -43,6 +43,7 @@ const CARGO_LABEL = {
   ADMINISTRADOR:        'Gerente General',
   ENCARGADO_INVENTARIO: 'Encargado de Inventario',
   ENCARGADO_VENTAS:     'Encargado de Ventas',
+  SUPERADMINISTRADOR:   'Superadministrador',
 };
 
 function getInitials(nombre) {

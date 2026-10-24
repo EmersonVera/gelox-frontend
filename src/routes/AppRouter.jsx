@@ -5,6 +5,7 @@ import Login                 from '../pages/Login';
 import RecuperarContrasena   from '../pages/RecuperarContrasena';
 import RestablecerContrasena from '../pages/RestablecerContrasena';
 import LandingPage           from '../pages/LandingPage';
+import DistribuidoraBloqueada from '../pages/DistribuidoraBloqueada';
 
 /* ── Compartidas ── */
 import Ajustes           from '../pages/components/Ajustes';
@@ -41,6 +42,11 @@ import CatalogoProductos  from '../pages/inventarios/CatalogoProductos';
 import RecomendacionCompras     from '../pages/inventarios/RecomendacionCompras';
 import HistorialRecomendaciones from '../pages/inventarios/HistorialRecomendaciones';
 
+/* ── Plataforma (Superadministrador) ── */
+import Distribuidoras       from '../pages/plataforma/Distribuidoras';
+import NuevaDistribuidora   from '../pages/plataforma/NuevaDistribuidora';
+import DetalleDistribuidora from '../pages/plataforma/DetalleDistribuidora';
+
 /* ── Protección de rutas ── */
 import ProtectedRoute from './ProtectedRoute';
 
@@ -70,8 +76,19 @@ export default function AppRouter() {
         <Route path="/recuperar-contrasena"   element={<RecuperarContrasena />} />
         <Route path="/restablecer-contrasena" element={<RestablecerContrasena />} />
         <Route path="/landing"                element={<LandingPage />} />
+        <Route path="/distribuidora-bloqueada" element={<DistribuidoraBloqueada />} />
         <Route path="/tienda/:subdominio"     element={<LandingPage />} />
         <Route path="/"                       element={<Navigate to="/login" replace />} />
+
+        {/* ══ Plataforma — solo Superadministrador (RF58, RF59) ══ */}
+        <Route element={<ProtectedRoute rolesPermitidos={['SUPERADMINISTRADOR']} />}>
+          <Route path="/plataforma"                      element={<Navigate to="/plataforma/distribuidoras" replace />} />
+          <Route path="/plataforma/distribuidoras"       element={<Distribuidoras />} />
+          <Route path="/plataforma/distribuidoras/nueva" element={<NuevaDistribuidora />} />
+          <Route path="/plataforma/distribuidoras/:id"   element={<DetalleDistribuidora />} />
+          {/* Ajustes del superadministrador — mantiene SidebarPlataforma */}
+          <Route path="/plataforma/ajustes"              element={<Ajustes />} />
+        </Route>
 
         {/* ══ Solo Administrador ══ */}
         <Route element={<ProtectedRoute rolesPermitidos={['ADMINISTRADOR']} />}>
