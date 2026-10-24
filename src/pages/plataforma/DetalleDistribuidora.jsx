@@ -8,6 +8,7 @@ import AppLayout from '../../components/AppLayout';
 import SuccessToast from '../../components/SuccessToast';
 import EstadoBadge from '../../components/plataforma/EstadoBadge';
 import ModalConfirmacion from '../../components/plataforma/ModalConfirmacion';
+import ContenidoCarga from '../../components/ui/ContenidoCarga';
 import {
   ESTADOS_DISTRIBUIDORA, TRANSICIONES, etiquetaPlan, formatoFecha, formatoFechaHora, iniciales, mensajeError,
 } from '../../components/plataforma/plataformaUtils';
@@ -130,8 +131,17 @@ function Historial({ historial }) {
   );
 }
 
+/**
+ * Cada id monta un detalle nuevo: al pasar de una distribuidora a otra (atrás / adelante del
+ * navegador) React Router reutiliza el componente, y sin la key se mostraría la distribuidora
+ * anterior si la nueva no carga, junto con su formulario de cambio de estado.
+ */
 export default function DetalleDistribuidora() {
   const { id } = useParams();
+  return <ContenidoDetalle key={id} id={id} />;
+}
+
+function ContenidoDetalle({ id }) {
   const location = useLocation();
 
   const [dist, setDist] = useState(null);
@@ -468,8 +478,9 @@ export default function DetalleDistribuidora() {
                     disabled={isSubmitting}
                     className="flex items-center justify-center gap-2 px-5 py-3 bg-primary text-white text-sm font-semibold rounded-xl hover:bg-primary-dark transition duration-300 active:scale-[0.97] shadow-[0_2px_8px_rgba(158,32,22,0.25)] disabled:opacity-60"
                   >
-                    {isSubmitting && <span className="w-4 h-4 rounded-full border-2 border-white/40 border-t-white animate-spin" />}
-                    {isSubmitting ? 'Guardando...' : 'Confirmar cambio de estado'}
+                    <ContenidoCarga cargando={isSubmitting} textoCargando="Guardando...">
+                      Confirmar cambio de estado
+                    </ContenidoCarga>
                   </button>
                 </div>
               </form>

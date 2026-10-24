@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import AppLayout from '../../components/AppLayout';
 import CustomSelect from '../../components/ui/CustomSelect';
 import SuccessToast from '../../components/SuccessToast';
+import ContenidoCarga from '../../components/ui/ContenidoCarga';
 
 const MOTIVOS  = ['Merma', 'Degustación', 'Daño', 'Vencimiento', 'Otro'];
 const UNIDADES = ['Unidades', 'Cajas'];
@@ -256,9 +257,7 @@ export default function RegistroMerma() {
                 disabled={guardando}
                 className="flex items-center gap-2 bg-[#9e2016] hover:bg-[#c0392b] disabled:opacity-70 text-white font-['Manrope'] font-bold text-[14px] px-6 py-3 rounded-[8px] cursor-pointer transition-colors"
               >
-                {guardando ? (
-                  <><span className="w-4 h-4 rounded-full border-2 border-white/40 border-t-white animate-spin shrink-0" />Guardando...</>
-                ) : 'Guardar Registro'}
+                <ContenidoCarga cargando={guardando} textoCargando="Guardando...">Guardar Registro</ContenidoCarga>
               </button>
             </div>
           </form>

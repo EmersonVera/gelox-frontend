@@ -2,8 +2,18 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import AppLayout from '../../components/AppLayout';
 import EncabezadoDocumento from '../../components/EncabezadoDocumento';
+import ContenidoCarga from '../../components/ui/ContenidoCarga';
 import { useIdentidad } from '../../context/IdentidadContext';
 import { imprimirPlanilla, liquidarPlanilla } from '../../services/ventasService';
+
+function SpinnerSvg() {
+  return (
+    <svg className="animate-spin w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none">
+      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+    </svg>
+  );
+}
 
 const MESES_LARGO = [
   'ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO',
@@ -332,19 +342,14 @@ export default function PlanillaDetalle() {
                 disabled={imprimiendo}
                 className="flex items-center justify-center gap-2 w-full sm:w-auto bg-primary hover:bg-primary-dark disabled:opacity-60 text-white font-['Manrope'] font-bold text-[14px] rounded-[10px] px-5 py-2.5 transition-colors cursor-pointer shadow-sm"
               >
-                {imprimiendo ? (
-                  <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
-                  </svg>
-                ) : (
+                <ContenidoCarga cargando={imprimiendo} textoCargando="Preparando…" spinner={<SpinnerSvg />}>
                   <svg width="14" height="14" fill="none" viewBox="0 0 14 14">
                     <polyline points="3.5 5 3.5 1.5 10.5 1.5 10.5 5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
                     <path d="M3.5 9.5H2A1 1 0 0 1 1 8.5V6A1 1 0 0 1 2 5h10a1 1 0 0 1 1 1v2.5a1 1 0 0 1-1 1h-1.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
                     <rect x="3.5" y="8" width="7" height="5" rx="0.5" stroke="currentColor" strokeWidth="1.2"/>
                   </svg>
-                )}
-                {imprimiendo ? 'Preparando…' : 'Imprimir Plantilla'}
+                  Imprimir Plantilla
+                </ContenidoCarga>
               </button>
             </div>
           </>
@@ -394,9 +399,9 @@ export default function PlanillaDetalle() {
                 })}
                 className="flex-1 sm:flex-none bg-primary hover:bg-primary-dark disabled:opacity-60 disabled:cursor-not-allowed text-white font-['Manrope'] font-bold text-[13px] sm:text-[14px] rounded-[10px] px-5 py-2.5 sm:py-3 transition-colors cursor-pointer shadow-sm text-center flex items-center justify-center gap-2"
               >
-                {cerrando ? (
-                  <><svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>Cerrando...</>
-                ) : 'Hacer Cierre Diario ✓'}
+                <ContenidoCarga cargando={cerrando} textoCargando="Cerrando..." spinner={<SpinnerSvg />}>
+                  Hacer Cierre Diario ✓
+                </ContenidoCarga>
               </button>
             )}
           </div>

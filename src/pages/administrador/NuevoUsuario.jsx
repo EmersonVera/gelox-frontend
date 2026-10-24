@@ -1,17 +1,21 @@
+// src/pages/administrador/NuevoUsuario.jsx — RF62: el Gerente crea un usuario de Ventas o Inventarios de su distribuidora
 import { useState, useRef } from 'react';
-import { useForm } from 'react-hook-form';
-import { useNavigate } from 'react-router-dom';
+import { useForm, useWatch } from 'react-hook-form';
+import { Link, useNavigate } from 'react-router-dom';
 import AppLayout from '../../components/AppLayout';
-import { crearUsuario } from '../../services/usuariosService';
-import api from '../../api/axiosConfig';
 import SuccessToast from '../../components/SuccessToast';
+import RolIcono from '../../components/administrador/RolIcono';
+import {
+  ROLES_INTERNOS, ROLES_PERMITIDOS, esErrorDeCorreo, esErrorDeRol, mensajeError,
+} from '../../components/administrador/usuariosUtils';
+import { useIdentidad } from '../../context/IdentidadContext';
+import { crearUsuario } from '../../services/usuariosService';
 
 /* ── Icons ── */
-function PersonIcon() {
+function ChevronLeftIcon() {
   return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-      <circle cx="12" cy="7" r="4" />
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="15 18 9 12 15 6" />
     </svg>
   );
 }
@@ -37,39 +41,30 @@ function EyeOffIcon() {
 
 function CameraIcon() {
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
       <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
       <circle cx="12" cy="13" r="4" />
     </svg>
   );
 }
 
-function BoxIcon() {
+function LockIcon() {
   return (
-    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-      <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
-      <line x1="12" y1="22.08" x2="12" y2="12" />
-    </svg>
-  );
-}
-
-function TrendIcon() {
-  return (
-    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
-      <polyline points="17 6 23 6 23 12" />
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
     </svg>
   );
 }
 
 /* ── Shared styles ── */
 const inputBase =
-  'w-full px-4 py-3 border rounded-xl text-sm outline-none transition duration-300 bg-white text-ink placeholder:text-[#c0c0c0]';
-const inputNormal = 'border-divider focus:border-primary focus:ring-2 focus:ring-primary/20';
+  'w-full px-4 py-3 border rounded-xl text-sm outline-none transition duration-300 text-ink placeholder:text-[#c0c0c0]';
+const inputNormal = 'bg-surface border-transparent focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20';
 const inputError  = 'border-danger ring-2 ring-danger/20 bg-error-bg';
 const lbl         = 'text-xs font-semibold text-faint uppercase tracking-wider block mb-1.5';
 const errMsg      = 'text-xs text-error-fg mt-1 animate-slide-down';
+const card        = 'bg-white rounded-2xl border border-border shadow-[0_1px_3px_rgba(0,0,0,0.07)] p-6';
 
 function SectionTitle({ children }) {
   return (
@@ -80,29 +75,12 @@ function SectionTitle({ children }) {
   );
 }
 
-const ROLES = [
-  {
-    value: 'ENCARGADO_INVENTARIO',
-    label: 'Inventarios',
-    description: 'Gestión de activos, control de stock y auditoría de almacén.',
-    icon: <BoxIcon />,
-  },
-  {
-    value: 'ENCARGADO_VENTAS',
-    label: 'Ventas / Comercialización',
-    description: 'Gestión de clientes, cierre de tratos y reportes comerciales.',
-    icon: <TrendIcon />,
-  },
-];
-
 export default function NuevoUsuario() {
   const navigate = useNavigate();
-  const [rolSeleccionado, setRolSeleccionado] = useState('ENCARGADO_INVENTARIO');
+  const { identidad } = useIdentidad();
   const [mostrarPassword, setMostrarPassword] = useState(false);
   const [foto, setFoto] = useState(null);
   const [fotoPreview, setFotoPreview] = useState(null);
-  const [enviando, setEnviando] = useState(false);
-  const [rolError, setRolError] = useState('');
   const [toast, setToast] = useState({ show: false, msg: '', type: 'success' });
   const fileRef = useRef(null);
 
@@ -110,8 +88,14 @@ export default function NuevoUsuario() {
     register,
     handleSubmit,
     setError,
-    formState: { errors },
-  } = useForm({ defaultValues: { nombre: '', correo: '', contrasena: '' } });
+    control,
+    formState: { errors, isSubmitting },
+  } = useForm({
+    mode: 'onTouched',
+    defaultValues: { nombre: '', correo: '', contrasena: '', rol: 'ENCARGADO_VENTAS' },
+  });
+
+  const rolSeleccionado = useWatch({ control, name: 'rol' });
 
   const handleFotoChange = (e) => {
     const file = e.target.files?.[0];
@@ -120,52 +104,33 @@ export default function NuevoUsuario() {
     setFotoPreview(URL.createObjectURL(file));
   };
 
-  const handleRolClick = (value) => {
-    setRolSeleccionado(value);
-    setRolError('');
-  };
-
   const onSubmit = async (data) => {
-    if (!rolSeleccionado) {
-      setRolError('Selecciona un rol para continuar.');
-      return;
-    }
-    setEnviando(true);
     try {
       if (foto) {
         const fd = new FormData();
         fd.append('nombre', data.nombre);
         fd.append('correo', data.correo);
         fd.append('contrasenaTemporal', data.contrasena);
-        fd.append('rol', rolSeleccionado);
+        fd.append('rol', data.rol);
         fd.append('foto', foto);
-        await api.post('/api/usuarios', fd);
+        await crearUsuario(fd);
       } else {
         await crearUsuario({
           nombre: data.nombre,
           correo: data.correo,
           contrasenaTemporal: data.contrasena,
-          rol: rolSeleccionado,
+          rol: data.rol,
         });
       }
       setToast({ show: true, msg: 'Usuario creado correctamente.', type: 'success' });
     } catch (err) {
-      const data = err?.response?.data;
-      const msg =
-        (typeof data === 'string' ? data : undefined) ??
-        data?.mensaje ??
-        data?.message ??
-        data?.error ??
-        data?.detail ??
-        data?.descripcion ??
-        '';
-      const lower = msg.toLowerCase();
-      if (lower.includes('correo') || lower.includes('email') || lower.includes('duplicado')) {
-        setError('correo', { message: msg || 'El correo ya está en uso.' });
+      const msg = mensajeError(err, 'Error al crear el usuario. Intenta de nuevo.');
+      if (esErrorDeRol(err)) {
+        setError('rol', { type: 'server', message: msg });
+      } else if (esErrorDeCorreo(err)) {
+        setError('correo', { type: 'server', message: msg }, { shouldFocus: true });
       }
-      setToast({ show: true, msg: msg || 'Error al crear el usuario. Intenta de nuevo.', type: 'error' });
-    } finally {
-      setEnviando(false);
+      setToast({ show: true, msg, type: 'error' });
     }
   };
 
@@ -173,25 +138,28 @@ export default function NuevoUsuario() {
     <AppLayout>
       <div className="max-w-4xl mx-auto flex flex-col gap-6 animate-fade-in-up">
 
-        <div className="flex items-center gap-2 text-primary text-xs font-semibold uppercase tracking-wider">
-          <PersonIcon />
-          <span>Administración de Usuarios</span>
-        </div>
-
         <div>
-          <h1 className="font-display text-2xl font-extrabold text-ink tracking-tight">
-            Registrar Nuevo Usuario
+          <Link
+            to="/usuarios"
+            className="inline-flex items-center gap-1 text-primary text-xs font-semibold uppercase tracking-wider hover:underline"
+          >
+            <ChevronLeftIcon />
+            Usuarios / Nuevo
+          </Link>
+          <h1 className="font-display text-2xl font-extrabold text-ink tracking-tight mt-2">
+            Añadir Nuevo Usuario
           </h1>
           <p className="text-sm text-muted mt-1">
-            Asigne credenciales y roles para el nuevo personal dentro del ecosistema GELOX.
+            Crea la cuenta de un integrante de tu equipo. Podrá iniciar sesión con la contraseña temporal y cambiarla después.
           </p>
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} noValidate>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
 
-            <div className="bg-white rounded-2xl border border-border shadow-[0_1px_3px_rgba(0,0,0,0.07)] p-6">
-              <SectionTitle>Información Personal</SectionTitle>
+            {/* Datos del usuario */}
+            <div className={card}>
+              <SectionTitle>Datos del usuario</SectionTitle>
 
               <div className="flex flex-col gap-5">
                 <div>
@@ -199,11 +167,11 @@ export default function NuevoUsuario() {
                   <input
                     id="nombre"
                     type="text"
-                    placeholder="Ej. Juan Pérez García"
+                    placeholder="Ej. Laura Gómez"
                     className={`${inputBase} ${errors.nombre ? inputError : inputNormal}`}
                     {...register('nombre', {
                       required: 'El nombre es requerido.',
-                      minLength: { value: 3, message: 'Mínimo 3 caracteres.' },
+                      validate: (v) => v.trim().length >= 3 || 'Mínimo 3 caracteres.',
                     })}
                   />
                   {errors.nombre && <p className={errMsg}>{errors.nombre.message}</p>}
@@ -214,7 +182,8 @@ export default function NuevoUsuario() {
                   <input
                     id="correo"
                     type="email"
-                    placeholder="usuario@gelox.com"
+                    autoComplete="off"
+                    placeholder="nombre@correo.com"
                     className={`${inputBase} ${errors.correo ? inputError : inputNormal}`}
                     {...register('correo', {
                       required: 'El correo es requerido.',
@@ -233,7 +202,8 @@ export default function NuevoUsuario() {
                     <input
                       id="contrasena"
                       type={mostrarPassword ? 'text' : 'password'}
-                      placeholder="Mínimo 8 caracteres"
+                      autoComplete="new-password"
+                      placeholder="••••••••••••"
                       className={`${inputBase} pr-11 ${errors.contrasena ? inputError : inputNormal}`}
                       {...register('contrasena', {
                         required: 'La contraseña es requerida.',
@@ -249,10 +219,9 @@ export default function NuevoUsuario() {
                       {mostrarPassword ? <EyeOffIcon /> : <EyeIcon />}
                     </button>
                   </div>
-                  {errors.contrasena && <p className={errMsg}>{errors.contrasena.message}</p>}
-                  <p className="text-xs text-muted mt-1.5">
-                    El usuario deberá cambiar esta contraseña en su primer inicio de sesión.
-                  </p>
+                  {errors.contrasena
+                    ? <p className={errMsg}>{errors.contrasena.message}</p>
+                    : <p className="text-xs text-muted mt-1.5">Mínimo 8 caracteres.</p>}
                 </div>
 
                 <div>
@@ -274,7 +243,7 @@ export default function NuevoUsuario() {
                       <CameraIcon />
                     )}
                     <span className="text-xs font-semibold uppercase tracking-wider">
-                      {fotoPreview ? 'Cambiar Archivo' : 'Subir Archivo'}
+                      {fotoPreview ? 'Cambiar fotografía' : 'Subir fotografía'}
                     </span>
                   </button>
                   <input
@@ -289,33 +258,39 @@ export default function NuevoUsuario() {
             </div>
 
             <div className="flex flex-col gap-4">
-              <div className="bg-white rounded-2xl border border-border shadow-[0_1px_3px_rgba(0,0,0,0.07)] p-6 flex-1">
-                <SectionTitle>Asignación de Rol</SectionTitle>
+              {/* Rol de acceso: solo Ventas e Inventarios (RF62) */}
+              <fieldset className={card}>
+                <legend className="sr-only">Rol de acceso</legend>
+                <SectionTitle>Rol de acceso</SectionTitle>
 
                 <div className="flex flex-col gap-3">
-                  {ROLES.map((rol) => {
+                  {ROLES_INTERNOS.map((rol) => {
                     const activo = rolSeleccionado === rol.value;
                     return (
-                      <button
+                      <label
                         key={rol.value}
-                        type="button"
-                        onClick={() => handleRolClick(rol.value)}
-                        className={`w-full text-left flex items-start gap-4 px-4 py-4 rounded-xl border-2 transition duration-200 ${
-                          activo
-                            ? 'border-primary bg-primary/5'
-                            : 'border-border bg-white hover:border-divider hover:bg-surface'
+                        className={`flex items-start gap-3 px-4 py-3.5 rounded-xl border-2 cursor-pointer transition duration-200 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary/20 ${
+                          errors.rol
+                            ? 'border-danger/40 bg-white'
+                            : activo
+                              ? 'border-primary bg-primary/5'
+                              : 'border-border bg-white hover:border-divider hover:bg-surface'
                         }`}
                       >
+                        <input
+                          type="radio"
+                          value={rol.value}
+                          className="sr-only"
+                          {...register('rol', {
+                            validate: (v) => ROLES_PERMITIDOS.includes(v) || 'Selecciona Encargado de Ventas o de Inventarios.',
+                          })}
+                        />
                         <span className={`mt-0.5 shrink-0 ${activo ? 'text-primary' : 'text-faint'}`}>
-                          {rol.icon}
+                          <RolIcono rol={rol.value} />
                         </span>
-                        <div>
-                          <p className={`text-sm font-semibold ${activo ? 'text-primary' : 'text-ink'}`}>
-                            {rol.label}
-                          </p>
-                          <p className="text-xs text-muted mt-0.5 leading-relaxed">
-                            {rol.description}
-                          </p>
+                        <div className="min-w-0">
+                          <p className={`text-sm font-semibold ${activo ? 'text-primary' : 'text-ink'}`}>{rol.label}</p>
+                          <p className="text-xs text-muted mt-0.5 leading-relaxed">{rol.descripcion}</p>
                         </div>
                         <span
                           className={`ml-auto mt-0.5 w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center ${
@@ -324,21 +299,35 @@ export default function NuevoUsuario() {
                         >
                           {activo && <span className="w-2 h-2 rounded-full bg-primary block" />}
                         </span>
-                      </button>
+                      </label>
                     );
                   })}
                 </div>
 
-                {rolError && <p className={`${errMsg} mt-2`}>{rolError}</p>}
+                {errors.rol
+                  ? <p className={`${errMsg} mt-3`}>{errors.rol.message}</p>
+                  : <p className="text-xs text-muted mt-3">El rol Gerente no se asigna desde aquí.</p>}
+              </fieldset>
+
+              {/* Distribuidora: la asigna el backend con el tenant del Gerente */}
+              <div className="flex items-center justify-between gap-3 flex-wrap rounded-xl bg-surface px-4 py-3">
+                <div className="min-w-0">
+                  <p className="text-[10px] font-bold text-muted uppercase tracking-widest">Distribuidora</p>
+                  <p className="text-sm font-semibold text-ink truncate">{identidad?.nombreComercial ?? 'Tu distribuidora'}</p>
+                </div>
+                <span className="inline-flex items-center gap-1.5 text-[11px] text-faint whitespace-nowrap">
+                  <LockIcon />
+                  Asignada automáticamente
+                </span>
               </div>
 
               <div className="flex flex-col gap-3">
                 <button
                   type="submit"
-                  disabled={enviando}
+                  disabled={isSubmitting}
                   className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary text-white text-sm font-semibold rounded-xl hover:bg-primary-dark transition duration-300 active:scale-[0.97] shadow-[0_2px_8px_rgba(158,32,22,0.25)] disabled:opacity-60"
                 >
-                  {enviando ? (
+                  {isSubmitting ? (
                     <>
                       <span className="w-4 h-4 rounded-full border-2 border-white/40 border-t-white animate-spin" />
                       Creando Usuario...
@@ -351,7 +340,8 @@ export default function NuevoUsuario() {
                 <button
                   type="button"
                   onClick={() => navigate('/usuarios')}
-                  className="w-full text-center text-sm text-primary font-medium hover:underline transition duration-200 py-1"
+                  disabled={isSubmitting}
+                  className="w-fit mx-auto text-sm text-primary font-medium underline underline-offset-2 hover:text-primary-dark transition duration-200 py-1 disabled:opacity-60"
                 >
                   Cancelar
                 </button>
@@ -363,7 +353,9 @@ export default function NuevoUsuario() {
 
       </div>
 
+      {/* La key monta un aviso nuevo por mensaje: SuccessToast conserva el onClose con el que se abrió. */}
       <SuccessToast
+        key={`${toast.type}-${toast.msg}`}
         message={toast.msg}
         show={toast.show}
         onClose={() => {
