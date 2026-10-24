@@ -25,7 +25,7 @@ function TiendaIcon() {
   );
 }
 
-const PASOS = [
+const pasos = (barrio) => [
   {
     num: 1,
     Icono: CubiertosIcon,
@@ -42,17 +42,17 @@ const PASOS = [
     num: 3,
     Icono: TiendaIcon,
     titulo: 'Recoge en nuestro local',
-    descripcion: 'Pasa por nuestro punto en Pueblo Nuevo y disfruta de tu pedido bien frío.',
+    descripcion: `Pasa por nuestro punto en ${barrio} y disfruta de tu pedido bien frío.`,
   },
 ];
 
-export default function PasosSection() {
+export default function PasosSection({ nombre = 'Mágico Sabor', barrio = 'Pueblo Nuevo' }) {
   return (
     <section className="bg-zinc-50 py-16">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-12">
           <h2 className="font-['Manrope'] font-extrabold text-[32px] text-zinc-900 leading-tight">
-            ¿Cómo disfrutar tu Mágico Sabor?
+            ¿Cómo disfrutar tu {nombre}?
           </h2>
           <p className="font-['Inter'] font-normal text-[16px] text-zinc-500 mt-2">
             Simple, rápido y delicioso.
@@ -60,13 +60,13 @@ export default function PasosSection() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {PASOS.map(({ num, Icono, titulo, descripcion }) => (
+          {pasos(barrio).map(({ num, Icono, titulo, descripcion }) => (
             <div
               key={num}
               className="bg-white border border-zinc-200 rounded-2xl shadow-sm p-7 flex flex-col gap-4 hover:shadow-md transition-all duration-200"
             >
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-full bg-red-700 text-white font-['Manrope'] font-extrabold text-[16px] flex items-center justify-center flex-shrink-0">
+                <div className="w-9 h-9 rounded-full bg-primary text-white font-['Manrope'] font-extrabold text-[16px] flex items-center justify-center flex-shrink-0">
                   {num}
                 </div>
                 <div className="text-zinc-400">

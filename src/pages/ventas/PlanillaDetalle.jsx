@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import AppLayout from '../../components/AppLayout';
+import EncabezadoDocumento from '../../components/EncabezadoDocumento';
+import { useIdentidad } from '../../context/IdentidadContext';
 import { imprimirPlanilla, liquidarPlanilla } from '../../services/ventasService';
 
 const MESES_LARGO = [
@@ -14,6 +16,11 @@ function formatFechaBadge(iso) {
   return `${d} ${MESES_LARGO[m - 1]}, ${y}`;
 }
 
+function formatFechaCorta(iso) {
+  const [y, m, d] = iso.split('-');
+  return `${d}/${m}/${y}`;
+}
+
 function formatCOP(n) {
   return '$' + Number(n || 0).toLocaleString('es-CO', { minimumFractionDigits: 0 });
 }
@@ -22,6 +29,7 @@ export default function PlanillaDetalle() {
   const navigate                       = useNavigate();
   const location                       = useLocation();
   const { comercianteId, planillaId }  = location.state ?? {};
+  const { identidad }                  = useIdentidad();
 
   const [datos,        setDatos]        = useState(null);
   const [cargando,     setCargando]     = useState(true);
@@ -110,6 +118,15 @@ export default function PlanillaDetalle() {
 
       <div className="flex flex-col gap-4 sm:gap-5 animate-fade-in-up pb-40 sm:pb-28">
 
+        {/* ── Encabezado con la identidad de la distribuidora — solo al imprimir ── */}
+        <div className="hidden print:block">
+          <EncabezadoDocumento
+            identidad={datos?.identidad ?? identidad}
+            subtitulo={datos?.fecha ? `Planilla diaria · ${formatFechaCorta(datos.fecha)}` : 'Planilla diaria'}
+            detalle={`Comerciante: ${nombreComerciante}`}
+          />
+        </div>
+
         {/* ── Volver al comerciante ── */}
         {idComerciante && (
           <button
@@ -139,7 +156,7 @@ export default function PlanillaDetalle() {
                 />
               ) : (
                 <div className="w-7 h-7 rounded-full bg-[#f6f3f3] flex items-center justify-center shrink-0">
-                  <span className="font-['Manrope'] font-bold text-[10px] text-[#9e2016]">
+                  <span className="font-['Manrope'] font-bold text-[10px] text-primary">
                     {iniciales}
                   </span>
                 </div>
@@ -156,7 +173,7 @@ export default function PlanillaDetalle() {
           </div>
 
           {datos?.fecha && (
-            <span className="self-start sm:self-auto bg-[#9e2016] text-white font-['Inter'] font-bold text-[11px] uppercase tracking-[0.6px] px-3 py-1.5 rounded-[8px] no-print">
+            <span className="self-start sm:self-auto bg-primary text-white font-['Inter'] font-bold text-[11px] uppercase tracking-[0.6px] px-3 py-1.5 rounded-[8px] no-print">
               FECHA: {formatFechaBadge(datos.fecha)}
             </span>
           )}
@@ -165,7 +182,7 @@ export default function PlanillaDetalle() {
         {/* ── Contenido principal ── */}
         {cargando ? (
           <div className="flex items-center justify-center py-24">
-            <svg className="animate-spin w-8 h-8 text-[#9e2016]" viewBox="0 0 24 24" fill="none">
+            <svg className="animate-spin w-8 h-8 text-primary" viewBox="0 0 24 24" fill="none">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
             </svg>
@@ -232,11 +249,11 @@ export default function PlanillaDetalle() {
                                   }))}
                                   className={`w-20 rounded-[8px] px-2 py-1.5 text-center font-['Inter'] text-[14px] text-[#1b1b1c] outline-none transition-all ${
                                     errFila
-                                      ? 'border border-[#9e2016] bg-[#fff1f0]'
-                                      : 'border border-transparent bg-[#f6f3f3] focus:border-[#9e2016]'
+                                      ? 'border border-primary bg-[#fff1f0]'
+                                      : 'border border-transparent bg-[#f6f3f3] focus:border-primary'
                                   }`}
                                 />
-                                {errFila && <p className="font-['Inter'] text-[10px] text-[#9e2016]">Supera lo despachado</p>}
+                                {errFila && <p className="font-['Inter'] text-[10px] text-primary">Supera lo despachado</p>}
                               </div>
                             ) : (
                               <span className="font-['Manrope'] font-bold text-[14px] text-[#1b1b1c]">
@@ -313,7 +330,7 @@ export default function PlanillaDetalle() {
               <button
                 onClick={handleImprimir}
                 disabled={imprimiendo}
-                className="flex items-center justify-center gap-2 w-full sm:w-auto bg-[#9e2016] hover:bg-[#c0392b] disabled:opacity-60 text-white font-['Manrope'] font-bold text-[14px] rounded-[10px] px-5 py-2.5 transition-colors cursor-pointer shadow-sm"
+                className="flex items-center justify-center gap-2 w-full sm:w-auto bg-primary hover:bg-primary-dark disabled:opacity-60 text-white font-['Manrope'] font-bold text-[14px] rounded-[10px] px-5 py-2.5 transition-colors cursor-pointer shadow-sm"
               >
                 {imprimiendo ? (
                   <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
@@ -357,7 +374,7 @@ export default function PlanillaDetalle() {
 
           {/* Error cierre */}
           {errorCierre && (
-            <p className="font-['Inter'] text-[12px] text-[#9e2016] text-center sm:text-left flex-1">{errorCierre}</p>
+            <p className="font-['Inter'] text-[12px] text-primary text-center sm:text-left flex-1">{errorCierre}</p>
           )}
 
           {/* Botones */}
@@ -375,7 +392,7 @@ export default function PlanillaDetalle() {
                   const it = items[i];
                   return Number(v) > (it?.unidadesDespachadas ?? 0);
                 })}
-                className="flex-1 sm:flex-none bg-[#9e2016] hover:bg-[#c0392b] disabled:opacity-60 disabled:cursor-not-allowed text-white font-['Manrope'] font-bold text-[13px] sm:text-[14px] rounded-[10px] px-5 py-2.5 sm:py-3 transition-colors cursor-pointer shadow-sm text-center flex items-center justify-center gap-2"
+                className="flex-1 sm:flex-none bg-primary hover:bg-primary-dark disabled:opacity-60 disabled:cursor-not-allowed text-white font-['Manrope'] font-bold text-[13px] sm:text-[14px] rounded-[10px] px-5 py-2.5 sm:py-3 transition-colors cursor-pointer shadow-sm text-center flex items-center justify-center gap-2"
               >
                 {cerrando ? (
                   <><svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>Cerrando...</>

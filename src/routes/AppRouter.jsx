@@ -24,6 +24,7 @@ import EditarUsuario    from '../pages/administrador/EditarUsuario';
 import Reportes         from '../pages/administrador/Reportes';
 import HistorialCierres from '../pages/administrador/HistorialCierres';
 import DetalleCierre    from '../pages/administrador/DetalleCierre';
+import IdentidadVisual  from '../pages/administrador/IdentidadVisual';
 
 /* ── Módulo Ventas ── */
 import PedidoVentanilla from '../pages/ventas/PedidoVentanilla';
@@ -76,6 +77,7 @@ export default function AppRouter() {
         <Route path="/restablecer-contrasena" element={<RestablecerContrasena />} />
         <Route path="/landing"                element={<LandingPage />} />
         <Route path="/distribuidora-bloqueada" element={<DistribuidoraBloqueada />} />
+        <Route path="/tienda/:subdominio"     element={<LandingPage />} />
         <Route path="/"                       element={<Navigate to="/login" replace />} />
 
         {/* ══ Plataforma — solo Superadministrador (RF58, RF59) ══ */}
@@ -100,6 +102,7 @@ export default function AppRouter() {
           <Route path="/cierres-caja/:id"        element={<DetalleCierre />} />
           {/* Ajustes del admin — mantiene SidebarAdministrador */}
           <Route path="/ajustes"                 element={<Ajustes />} />
+          <Route path="/ajustes/identidad"       element={<IdentidadVisual />} />
         </Route>
 
         {/* ══ Módulo Inventarios (Administrador + Encargado de Inventario) ══ */}
