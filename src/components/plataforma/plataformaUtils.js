@@ -42,14 +42,21 @@ export function sugerirSubdominio(nombre) {
 /** URL pública de la landing de la distribuidora (RF61): mismo despliegue, ruta /tienda/{subdominio}. */
 export const urlTienda = (subdominio) => `${window.location.host}/tienda/${subdominio}`;
 
+/** Palabras que no aportan a las iniciales: «Distribuidora La Frontera» → LF. */
+const PALABRAS_GENERICAS = new Set(['distribuidora', 'distribuidoras']);
+
+/**
+ * Iniciales como en el mockup RF59: se saltan los conectores en minúscula y la palabra
+ * genérica «Distribuidora» («Helados del Norte» → HN). Si no queda ninguna, usa todas.
+ */
 export function iniciales(nombre) {
   if (!nombre) return '?';
-  return nombre
-    .split(' ')
-    .filter((w) => /^[\p{L}\d]/u.test(w))
+  const palabras = nombre.split(/\s+/).filter((w) => /^[\p{L}\d]/u.test(w));
+  const relevantes = palabras.filter((w) => /^[\p{Lu}\d]/u.test(w) && !PALABRAS_GENERICAS.has(w.toLowerCase()));
+  return (relevantes.length ? relevantes : palabras)
     .slice(0, 2)
     .map((w) => w[0].toUpperCase())
-    .join('');
+    .join('') || '?';
 }
 
 export function formatoFecha(iso) {

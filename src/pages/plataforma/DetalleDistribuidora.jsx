@@ -173,9 +173,13 @@ export default function DetalleDistribuidora() {
   const destino = useWatch({ control, name: 'estado' });
   const permitidos = dist ? TRANSICIONES[dist.estado] ?? [] : [];
   const bloquea = destino === 'SUSPENDIDO' || destino === 'INACTIVO';
-  const usuarios = typeof dist?.usuariosActivos === 'number'
-    ? `los ${dist.usuariosActivos} usuario${dist.usuariosActivos !== 1 ? 's' : ''}`
-    : 'todos los usuarios';
+  // «de los 4 usuarios» (igual al mockup RF59), «del único usuario» o, sin el dato, «de todos los usuarios».
+  const totalUsuarios = dist?.usuariosActivos;
+  const sesionesDe = typeof totalUsuarios !== 'number'
+    ? <>de <strong>todos los usuarios</strong></>
+    : totalUsuarios === 1
+      ? <>del <strong>único usuario</strong></>
+      : <>de los <strong>{totalUsuarios} usuarios</strong></>;
 
   const onCambiarEstado = async ({ estado, motivo }) => {
     setErrorCambio('');
@@ -426,7 +430,7 @@ export default function DetalleDistribuidora() {
                   <div className="flex items-start gap-2.5 px-4 py-3 rounded-xl bg-error-bg border border-[#ffb4a9] text-sm text-error-fg animate-slide-down">
                     <span className="shrink-0 mt-0.5"><AlertIcon /></span>
                     <p>
-                      Al confirmar se cierran de inmediato las sesiones de <strong>{usuarios}</strong> de {dist.nombreComercial}.
+                      Al confirmar se cierran de inmediato las sesiones {sesionesDe} de {dist.nombreComercial}.
                       {destino === 'SUSPENDIDO'
                         ? ' Verán la pantalla de acceso suspendido y su página pública dejará de mostrarse.'
                         : ' Verán la pantalla de distribuidora inactiva, su página pública dejará de mostrarse y el cambio no se puede deshacer.'}
