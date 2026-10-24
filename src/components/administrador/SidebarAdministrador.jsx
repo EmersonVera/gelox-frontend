@@ -1,6 +1,8 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../api/axiosConfig';
+import { useIdentidad } from '../../context/IdentidadContext';
+import LogoDistribuidora from '../LogoDistribuidora';
 
 /* ── Icons ── */
 function GridIcon() {
@@ -93,6 +95,16 @@ function SettingsIcon() {
   );
 }
 
+function PaletteIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 22a10 10 0 1 1 10-10c0 2.5-2 4-4.5 4H15a2 2 0 0 0-1.5 3.3A1.6 1.6 0 0 1 12 22z" />
+      <circle cx="7.5" cy="11.5" r="1" /><circle cx="10.5" cy="7.5" r="1" />
+      <circle cx="15.5" cy="7.5" r="1" />
+    </svg>
+  );
+}
+
 function LogoutIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -127,6 +139,8 @@ const navItemBase =
 
 export default function SidebarAdministrador({ open, onClose }) {
   const { perfil, logout } = useAuth();
+  const { identidad } = useIdentidad();
+  const nombreComercial = identidad?.nombreComercial || 'GELOX';
   const navigate = useNavigate();
 
   const handleLogout = async () => {
@@ -140,7 +154,7 @@ export default function SidebarAdministrador({ open, onClose }) {
 
   const linkClass = ({ isActive }) =>
     `${navItemBase} ${isActive
-      ? 'bg-white border-r-4 border-[#9e2016] text-[#9e2016] font-bold'
+      ? 'bg-white border-r-4 border-primary text-primary font-bold'
       : 'text-[#78716c] font-medium hover:bg-surface hover:text-ink'
     }`;
 
@@ -155,12 +169,21 @@ export default function SidebarAdministrador({ open, onClose }) {
         ${open ? 'translate-x-0' : '-translate-x-full'}`}
     >
       {/* Logo */}
-      <div className="px-8 pt-8 pb-6 border-b border-border">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="font-display text-2xl font-bold text-[#9e2016] tracking-[-0.6px]">GELOX</div>
-            <div className="font-display font-normal text-[12px] text-[#a8a29e] uppercase tracking-[1.2px] mt-1">
-              Gestión Distribuidora
+      <div className="px-6 py-6 border-b border-border">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-3 min-w-0">
+            <LogoDistribuidora
+              nombre={nombreComercial}
+              logoUrl={identidad?.logoUrl}
+              className="w-10 h-10 rounded-full text-[14px]"
+            />
+            <div className="min-w-0">
+              <div className="font-display text-[18px] leading-6 font-extrabold text-primary tracking-[-0.4px] truncate">
+                {nombreComercial}
+              </div>
+              <div className="font-display font-normal text-[11px] text-[#a8a29e] uppercase tracking-[1px] mt-0.5 whitespace-nowrap">
+                Gestión Distribuidora
+              </div>
             </div>
           </div>
           <button
@@ -176,7 +199,7 @@ export default function SidebarAdministrador({ open, onClose }) {
 
       {/* Rol badge */}
       <div className="px-6 pt-4 pb-2">
-        <span className="text-[10px] uppercase tracking-widest font-bold text-[#9e2016]/60 font-inter">
+        <span className="text-[10px] uppercase tracking-widest font-bold text-primary/60 font-inter">
           Administrador
         </span>
       </div>
@@ -199,7 +222,11 @@ export default function SidebarAdministrador({ open, onClose }) {
 
       {/* Bottom section */}
       <div className="px-4 py-5 border-t border-border flex flex-col gap-0.5">
-        <NavLink to="/ajustes" className={linkClass} onClick={handleNavClick}>
+        <NavLink to="/ajustes/identidad" className={linkClass} onClick={handleNavClick}>
+          <span className="shrink-0"><PaletteIcon /></span>
+          Identidad visual
+        </NavLink>
+        <NavLink to="/ajustes" className={linkClass} end onClick={handleNavClick}>
           <span className="shrink-0"><SettingsIcon /></span>
           Ajustes
         </NavLink>

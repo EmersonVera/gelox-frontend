@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import LogoDistribuidora from '../LogoDistribuidora';
 
 const NAV_LINKS = [
   { label: 'Inicio',       href: '#inicio'    },
@@ -12,7 +13,7 @@ function scrollTo(e, href) {
   document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
 }
 
-export default function LandingNav() {
+export default function LandingNav({ nombre, logoUrl }) {
   const [active, setActive] = useState('inicio');
 
   useEffect(() => {
@@ -48,11 +49,14 @@ export default function LandingNav() {
   return (
     <nav className="sticky top-0 z-40 bg-white border-b border-zinc-100 shadow-sm">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-        <span className="font-['Manrope'] font-extrabold text-[22px] text-red-700 tracking-tight">
-          Mágico Sabor
-        </span>
+        <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
+          <LogoDistribuidora nombre={nombre} logoUrl={logoUrl} className="w-8 h-8 rounded-lg text-[12px]" />
+          <span className="font-['Manrope'] font-extrabold text-[16px] sm:text-[22px] text-primary tracking-tight truncate">
+            {nombre}
+          </span>
+        </div>
 
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
           {NAV_LINKS.map(({ label, href }) => {
             const id = href.replace('#', '');
             const isActive = active === id;
@@ -61,9 +65,9 @@ export default function LandingNav() {
                 key={href}
                 href={href}
                 onClick={(e) => scrollTo(e, href)}
-                className={`font-['Inter'] font-medium text-[14px] px-3 py-1.5 rounded-lg transition-all duration-300 ${
+                className={`font-['Inter'] font-medium text-[12px] sm:text-[14px] px-2 sm:px-3 py-1.5 rounded-lg transition-all duration-300 ${
                   isActive
-                    ? 'bg-red-700 text-white'
+                    ? 'bg-primary text-white'
                     : 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900'
                 }`}
               >

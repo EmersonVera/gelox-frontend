@@ -1,18 +1,9 @@
-import { useEffect, useState } from 'react';
-import api from '../../api/axiosConfig';
+import { useState } from 'react';
 
 const CATEGORIAS = ['Todas', 'Paletas', 'Conos', 'Familiares'];
 
-// Endpoint a llamar según el filtro seleccionado
-const ENDPOINT_MAP = {
-  Todas:      '/api/landing/productos',
-  Paletas:    '/api/landing/productos/paletas',
-  Conos:      '/api/landing/productos/conos',
-  Familiares: '/api/landing/productos/familiares',
-};
-
 const BADGE_STYLES = {
-  FAVORITO:   'bg-red-100 text-red-700',
+  FAVORITO:   'bg-primary-tint text-primary',
   POPULAR:    'bg-zinc-200 text-zinc-700',
   DISPONIBLE: 'bg-emerald-100 text-emerald-700',
 };
@@ -35,19 +26,6 @@ function parseAgrupado(data) {
       badge: null,
     }))
   );
-}
-
-/** Convierte la respuesta plana de /productos/paletas (items[]) */
-function parsePlano(items, categoria) {
-  return items.filter((p) => Number(p.precioVenta) > 0).map((p, i) => ({
-    id: `${categoria}-${i}`,
-    nombre: p.nombre,
-    descripcion: p.descripcion || '',
-    precio: p.precioVenta,
-    categoria,                       // e.g. "PALETAS"
-    imagen_url: p.imagenUrl,
-    badge: null,
-  }));
 }
 
 function CartIcon() {
@@ -117,31 +95,19 @@ function ProductCard({ producto, waUrl }) {
   );
 }
 
-export default function CatalogoSection({ waUrl }) {
-  const [productos, setProductos] = useState(null);
-  const [cargando, setCargando] = useState(true);
-  const [error, setError]       = useState('');
-  const [filtro, setFiltro]     = useState('Todas');
+/**
+ * productos — respuesta agrupada de /api/landing/{subdominio}/productos
+ *             (Map<categoria, items[]>), o null si no se pudo cargar.
+ * El filtro por categoría se aplica sobre esa misma respuesta.
+ */
+export default function CatalogoSection({ waUrl, productos: agrupados, cargando }) {
+  const [filtro, setFiltro] = useState('Todas');
 
-  // Cada vez que cambia el filtro, llama al endpoint correspondiente
-  useEffect(() => {
-    setCargando(true);
-    setError('');
-
-    api.get(ENDPOINT_MAP[filtro])
-      .then((r) => {
-        const plano =
-          filtro === 'Todas'
-            ? parseAgrupado(r.data)
-            : parsePlano(r.data, filtro.toUpperCase());
-        setProductos(plano);
-      })
-      .catch(() => {
-        setProductos([]);
-        setError('No se pudo cargar el catálogo.');
-      })
-      .finally(() => setCargando(false));
-  }, [filtro]);
+  const error = !cargando && !agrupados ? 'No se pudo cargar el catálogo.' : '';
+  const todos = agrupados ? parseAgrupado(agrupados) : [];
+  const productos = filtro === 'Todas'
+    ? todos
+    : todos.filter((p) => p.categoria.toUpperCase() === filtro.toUpperCase());
 
   // Categorías únicas presentes en los productos cargados (para los separadores)
   const categoriasFiltradas = [...new Set((productos ?? []).map((p) => p.categoria))];
@@ -169,8 +135,8 @@ export default function CatalogoSection({ waUrl }) {
                 onClick={() => setFiltro(cat)}
                 className={`font-['Inter'] font-semibold text-[13px] px-4 py-1.5 rounded-full border transition-all duration-200 ${
                   filtro === cat
-                    ? 'bg-red-700 text-white border-red-700 shadow-sm'
-                    : 'bg-white text-zinc-600 border-zinc-300 hover:border-red-400 hover:text-red-700'
+                    ? 'bg-primary text-white border-primary shadow-sm'
+                    : 'bg-white text-zinc-600 border-zinc-300 hover:border-primary/60 hover:text-primary'
                 }`}
               >
                 {cat}
@@ -201,8 +167,8 @@ export default function CatalogoSection({ waUrl }) {
                 <div key={cat}>
                   {/* Separador de categoría */}
                   <div className="flex items-center gap-3 mb-6">
-                    <div className="w-6 h-0.5 bg-red-600" />
-                    <span className="font-['Manrope'] font-bold text-[13px] text-red-700 uppercase tracking-widest">
+                    <div className="w-6 h-0.5 bg-primary" />
+                    <span className="font-['Manrope'] font-bold text-[13px] text-primary uppercase tracking-widest">
                       {label}
                     </span>
                     <div className="flex-1 h-px bg-zinc-100" />

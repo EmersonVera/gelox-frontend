@@ -49,7 +49,7 @@ export default function BeneficiosSection() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {BENEFICIOS.map(({ Icono, titulo, descripcion }) => (
             <div key={titulo} className="flex items-start gap-4">
-              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-red-100 text-red-700 flex items-center justify-center">
+              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary-tint/60 text-primary flex items-center justify-center">
                 <Icono />
               </div>
               <div>

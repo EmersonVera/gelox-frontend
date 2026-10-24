@@ -4,29 +4,31 @@ function scrollToCatalogo() {
   document.getElementById('catalogo')?.scrollIntoView({ behavior: 'smooth' });
 }
 
-export default function HeroSection({ waUrl }) {
+const HORARIO_PILOTO = 'Sabor auténtico desde las 7 AM hasta las 10 PM todos los días.';
+
+export default function HeroSection({ waUrl, nombre, eslogan, barrio = 'Pueblo Nuevo', ciudad = 'Cúcuta', horario }) {
   return (
     <section
       id="inicio"
       className="relative overflow-hidden bg-white"
     >
       {/* background gradient blob */}
-      <div className="absolute inset-y-0 right-0 w-1/2 bg-gradient-to-bl from-red-50 via-rose-50 to-white pointer-events-none" />
+      <div className="absolute inset-y-0 right-0 w-1/2 bg-gradient-to-bl from-secundario/10 via-primary-tint/40 to-white pointer-events-none" />
 
       <div className="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24 grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
         {/* Text side */}
         <div className="flex flex-col gap-6">
-          <span className="inline-flex items-center self-start gap-2 bg-red-50 text-red-700 font-['Inter'] font-bold text-[11px] uppercase tracking-widest px-3 py-1.5 rounded-full">
-            <span className="w-1.5 h-1.5 rounded-full bg-red-600 inline-block" />
+          <span className="inline-flex items-center self-start gap-2 bg-primary-tint/50 text-primary font-['Inter'] font-bold text-[11px] uppercase tracking-widest px-3 py-1.5 rounded-full">
+            <span className="w-1.5 h-1.5 rounded-full bg-secundario inline-block" />
             Oficial Crem Helado
           </span>
 
-          <h1 className="font-['Manrope'] font-extrabold text-[42px] md:text-[52px] text-red-700 leading-[1.1] tracking-tight">
-            Tu antojo de Crem Helado a un clic
+          <h1 className="font-['Manrope'] font-extrabold text-[42px] md:text-[52px] text-primary leading-[1.1] tracking-tight">
+            {eslogan || 'Tu antojo de Crem Helado a un clic'}
           </h1>
 
           <p className="font-['Inter'] font-normal text-[17px] text-zinc-500 leading-[1.7] max-w-md">
-            Distribuidor oficial en Cúcuta, Barrio Pueblo Nuevo. Venta al por mayor y al detal con la frescura que nos caracteriza.
+            Distribuidor oficial en {ciudad}, Barrio {barrio}. Venta al por mayor y al detal con la frescura que nos caracteriza.
           </p>
 
           <div className="flex flex-wrap gap-3 mt-2">
@@ -54,7 +56,7 @@ export default function HeroSection({ waUrl }) {
         <div className="relative flex justify-center">
           <img
             src={heroImg}
-            alt="Helados Mágico Sabor"
+            alt={`Helados ${nombre}`}
             className="w-full max-w-sm md:max-w-full object-contain drop-shadow-2xl rounded-2xl"
           />
 
@@ -67,9 +69,9 @@ export default function HeroSection({ waUrl }) {
               </svg>
             </div>
             <div>
-              <p className="font-['Manrope'] font-bold text-[13px] text-zinc-900">Pueblo Nuevo</p>
+              <p className="font-['Manrope'] font-bold text-[13px] text-zinc-900">{barrio}</p>
               <p className="font-['Inter'] font-normal text-[11px] text-zinc-500 leading-[1.5] mt-0.5">
-                Sabor auténtico desde las 7 AM hasta las 10 PM todos los días.
+                {horario ? `Sabor auténtico · ${horario}` : HORARIO_PILOTO}
               </p>
             </div>
           </div>

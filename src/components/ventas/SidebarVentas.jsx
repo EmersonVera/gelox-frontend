@@ -1,6 +1,8 @@
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../api/axiosConfig';
+import { useIdentidad } from '../../context/IdentidadContext';
+import LogoDistribuidora from '../LogoDistribuidora';
 
 /* ── Icons ── */
 function TruckIcon() {
@@ -84,6 +86,8 @@ const navItemBase =
 
 export default function SidebarVentas({ open, onClose }) {
   const { perfil, logout, rol } = useAuth();
+  const { identidad } = useIdentidad();
+  const nombreComercial = identidad?.nombreComercial || 'GELOX';
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -105,7 +109,7 @@ export default function SidebarVentas({ open, onClose }) {
 
   const linkClass = ({ isActive }) =>
     `${navItemBase} ${isActive
-      ? 'bg-white border-r-4 border-[#9e2016] text-[#9e2016] font-bold shadow-sm'
+      ? 'bg-white border-r-4 border-primary text-primary font-bold shadow-sm'
       : 'text-[#78716c] font-medium hover:bg-surface hover:text-ink'
     }`;
 
@@ -120,12 +124,21 @@ export default function SidebarVentas({ open, onClose }) {
         ${open ? 'translate-x-0' : '-translate-x-full'}`}
     >
       {/* Logo */}
-      <div className="px-8 pt-8 pb-6 border-b border-border">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="font-display text-2xl font-bold text-[#9e2016] tracking-[-0.6px]">GELOX</div>
-            <div className="font-display font-normal text-[12px] text-[#a8a29e] uppercase tracking-[1.2px] mt-1">
-              Gestión Distribuidora
+      <div className="px-6 py-6 border-b border-border">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-3 min-w-0">
+            <LogoDistribuidora
+              nombre={nombreComercial}
+              logoUrl={identidad?.logoUrl}
+              className="w-10 h-10 rounded-full text-[14px]"
+            />
+            <div className="min-w-0">
+              <div className="font-display text-[18px] leading-6 font-extrabold text-primary tracking-[-0.4px] truncate">
+                {nombreComercial}
+              </div>
+              <div className="font-display font-normal text-[11px] text-[#a8a29e] uppercase tracking-[1px] mt-0.5 whitespace-nowrap">
+                Gestión Distribuidora
+              </div>
             </div>
           </div>
           <button
@@ -146,7 +159,7 @@ export default function SidebarVentas({ open, onClose }) {
             type="button"
             onClick={handleBackToAdmin}
             className="flex items-center gap-2 w-full px-4 py-2.5 rounded-xl text-sm font-semibold
-              text-[#9e2016] bg-[#9e2016]/8 hover:bg-[#9e2016]/15
+              text-primary bg-primary/8 hover:bg-primary/15
               transition duration-300 active:scale-[0.97] font-display"
           >
             <ArrowLeftIcon />
@@ -157,7 +170,7 @@ export default function SidebarVentas({ open, onClose }) {
 
       {/* Rol badge */}
       <div className="px-6 pt-3 pb-1">
-        <span className="text-[10px] uppercase tracking-widest font-bold text-[#9e2016]/60 font-inter">
+        <span className="text-[10px] uppercase tracking-widest font-bold text-primary/60 font-inter">
           Ventas / Comerciantes
         </span>
       </div>
