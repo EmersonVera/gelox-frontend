@@ -1,6 +1,17 @@
 import { useState } from 'react';
 
-const CATEGORIAS = ['Todas', 'Paletas', 'Conos', 'Familiares'];
+// Orden de CategoriaProducto en el backend; mientras carga se muestran las de la plantilla.
+const ORDEN_CATEGORIAS = ['PALETAS', 'CONOS', 'FAMILIARES', 'VASOS'];
+const CATEGORIAS_PLANTILLA = ['PALETAS', 'CONOS', 'FAMILIARES'];
+
+const etiqueta = (cat) => cat.charAt(0) + cat.slice(1).toLowerCase();
+
+/** Desconocidas al final, en orden alfabético. */
+const porOrden = (a, b) => {
+  const ia = ORDEN_CATEGORIAS.indexOf(a);
+  const ib = ORDEN_CATEGORIAS.indexOf(b);
+  return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || a.localeCompare(b);
+};
 
 const BADGE_STYLES = {
   FAVORITO:   'bg-primary-tint text-primary',
@@ -109,8 +120,15 @@ export default function CatalogoSection({ waUrl, productos: agrupados, cargando 
     ? todos
     : todos.filter((p) => p.categoria.toUpperCase() === filtro.toUpperCase());
 
+  // Botones: las categorías que trae el catálogo de esta distribuidora
+  const categoriasCatalogo = agrupados
+    ? [...new Set(todos.map((p) => p.categoria.toUpperCase()))].sort(porOrden)
+    : CATEGORIAS_PLANTILLA;
+  const botones = ['Todas', ...categoriasCatalogo.map(etiqueta)];
+
   // Categorías únicas presentes en los productos cargados (para los separadores)
-  const categoriasFiltradas = [...new Set((productos ?? []).map((p) => p.categoria))];
+  const categoriasFiltradas = [...new Set((productos ?? []).map((p) => p.categoria))]
+    .sort((a, b) => porOrden(a.toUpperCase(), b.toUpperCase()));
 
   return (
     <section id="catalogo" className="bg-white py-16">
@@ -129,7 +147,7 @@ export default function CatalogoSection({ waUrl, productos: agrupados, cargando 
 
           {/* Botones de categoría */}
           <div className="flex flex-wrap gap-2">
-            {CATEGORIAS.map((cat) => (
+            {botones.map((cat) => (
               <button
                 key={cat}
                 onClick={() => setFiltro(cat)}
@@ -162,7 +180,7 @@ export default function CatalogoSection({ waUrl, productos: agrupados, cargando 
           <div className="flex flex-col gap-10">
             {categoriasFiltradas.map((cat) => {
               const items = (productos ?? []).filter((p) => p.categoria === cat);
-              const label = cat.charAt(0) + cat.slice(1).toLowerCase();
+              const label = etiqueta(cat);
               return (
                 <div key={cat}>
                   {/* Separador de categoría */}
