@@ -192,7 +192,7 @@ function FormularioEditarUsuario({ id }) {
               <PersonIcon />
             </div>
             <p className="font-display font-bold text-lg text-ink">
-              {es404 ? 'No encontramos este usuario' : 'No se pudo cargar el usuario'}
+              {es404 ? 'Usuario no encontrado' : 'No se pudo cargar el usuario'}
             </p>
             <p className="text-sm text-muted max-w-md">
               {es404
@@ -361,7 +361,7 @@ function FormularioEditarUsuario({ id }) {
                         className={`flex items-start gap-4 px-4 py-4 rounded-xl border-2 transition duration-200 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary/20 ${estaDeshabilitado ? 'border-border bg-surface cursor-not-allowed opacity-60' : activo ? 'border-primary bg-primary/5 cursor-pointer' : 'border-border bg-white hover:border-divider hover:bg-surface cursor-pointer'}`}>
                         <input type="radio" value={rol.value} className="sr-only" disabled={estaDeshabilitado}
                           {...register('rol', {
-                            validate: (v) => ROLES_PERMITIDOS.includes(v) || 'Selecciona Encargado de Ventas o de Inventarios.',
+                            validate: (v) => ROLES_PERMITIDOS.includes(v) || 'Solo se permiten los roles de Ventas e Inventarios.',
                           })} />
                         <span className={`mt-0.5 shrink-0 ${activo ? 'text-primary' : 'text-faint'}`}><RolIcono rol={rol.value} size={22} /></span>
                         <div>

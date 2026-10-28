@@ -42,7 +42,7 @@ const store = new Map();
 [
   {
     id: '00000000-0000-0000-0000-000000000001',
-    razonSocial: 'Mágico Sabor S.A.S.', nit: '901.245.318-2', nombreComercial: 'Mágico Sabor',
+    razonSocial: 'Mágico Sabor S.A.S.', nit: '901245318', nombreComercial: 'Mágico Sabor',
     subdominio: 'magicosabor', nombreGerente: 'Ayde Arévalo', correoGerente: 'ayde.arevalo@magicosabor.co',
     telefono: '+57 312 409 9628', direccion: 'Calle 0 Av 9 #9-36, Carora, Cúcuta', plan: 'ESTANDAR',
     estado: 'ACTIVO', usuariosActivos: 6, creada: 253,
@@ -50,7 +50,7 @@ const store = new Map();
   },
   {
     id: '7a1d4c2e-8f3c-41a7-9b2e-5d6f0a1b2c3d',
-    razonSocial: 'Helados del Norte S.A.S.', nit: '900.876.112-5', nombreComercial: 'Helados del Norte',
+    razonSocial: 'Helados del Norte S.A.S.', nit: '900876112', nombreComercial: 'Helados del Norte',
     subdominio: 'helados-del-norte', nombreGerente: 'Diana Patricia Rojas', correoGerente: 'gerencia@heladosdelnorte.co',
     telefono: '+57 317 520 4418', direccion: 'Calle 10 # 4-62, Centro, Cúcuta', plan: 'BASICO',
     estado: 'ACTIVO', usuariosActivos: 4, creada: 50,
@@ -58,14 +58,14 @@ const store = new Map();
   },
   {
     id: 'c4e8a2f1-3b5d-4c6e-8a9b-1d2e3f4a5b6c',
-    razonSocial: 'Frío Express Distribuciones S.A.S.', nit: '901.552.047-9', nombreComercial: 'Frío Express Cúcuta',
+    razonSocial: 'Frío Express Distribuciones S.A.S.', nit: '901552047', nombreComercial: 'Frío Express Cúcuta',
     subdominio: 'frio-express', nombreGerente: 'Luis Fernando Contreras', correoGerente: 'gerencia@frioexpress.co',
     telefono: '+57 315 284 6120', direccion: 'Av. 7 # 12-45, La Playa, Cúcuta', plan: 'BASICO',
     estado: 'PRUEBA', usuariosActivos: 2, creada: 13, historial: [],
   },
   {
     id: 'e2b7c9d4-6a1f-4e3b-9c8d-7f6e5d4c3b2a',
-    razonSocial: 'La Frontera Comercializadora Ltda.', nit: '900.334.981-1', nombreComercial: 'Distribuidora La Frontera',
+    razonSocial: 'La Frontera Comercializadora Ltda.', nit: '900334981', nombreComercial: 'Distribuidora La Frontera',
     subdominio: 'la-frontera', nombreGerente: 'Jorge Iván Peñaloza', correoGerente: 'jorge.penaloza@lafrontera.co',
     telefono: '+57 310 778 2290', direccion: 'Av. Libertadores # 15-30, Villa del Rosario', plan: 'ESTANDAR',
     estado: 'SUSPENDIDO', usuariosActivos: 5, creada: 155,
@@ -76,7 +76,7 @@ const store = new Map();
   },
   {
     id: '9f8e7d6c-5b4a-4392-8a1b-0c9d8e7f6a5b',
-    razonSocial: 'Polo Andino S.A.S.', nit: '901.009.776-4', nombreComercial: 'Polo Andino',
+    razonSocial: 'Polo Andino S.A.S.', nit: '901009776', nombreComercial: 'Polo Andino',
     subdominio: 'polo-andino', nombreGerente: 'Camila Andrea Suárez', correoGerente: 'camila.suarez@poloandino.co',
     telefono: '+57 318 902 1145', direccion: 'Calle 13 # 3-21, Pamplona', plan: 'BASICO',
     estado: 'INACTIVO', usuariosActivos: 0, creada: 223,
@@ -182,13 +182,14 @@ export function reenviarAcceso(id) {
  * La respuesta pasa por los interceptores reales de axiosConfig, igual que una
  * respuesta del backend (T111-BE2).
  */
+// Forma y valores del ejemplo de respuesta del FP-15 (sección 2.9.5).
 const RESPUESTAS_BLOQUEO = {
-  DISTRIBUIDORA_SUSPENDIDA: { error: 'La distribuidora está suspendida', distribuidora: 'Helados del Norte' },
-  DISTRIBUIDORA_INACTIVA:   { error: 'La distribuidora está inactiva', distribuidora: 'Polo Andino' },
+  DISTRIBUIDORA_SUSPENDIDA: { error: 'El acceso de esta distribuidora está suspendido.', distribuidora: 'Helados del Norte' },
+  DISTRIBUIDORA_INACTIVA:   { error: 'Esta distribuidora ya no está activa.', distribuidora: 'Polo Andino' },
   USUARIO_INACTIVO:         { error: 'Usuario inactivo' },
 };
 
-const CONTACTO_SOPORTE = { correo: 'soporte@gelox.co', whatsapp: '573001234567' };
+const CONTACTO_SOPORTE = { correo: 'soporte@gelox.app', whatsapp: '+57 300 000 0000' };
 
 export function instalarSimuladorBloqueo(api) {
   window.geloxSimularBloqueo = (codigo = 'DISTRIBUIDORA_SUSPENDIDA') => {

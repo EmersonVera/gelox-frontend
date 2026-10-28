@@ -282,7 +282,7 @@ export default function NuevoUsuario() {
                           value={rol.value}
                           className="sr-only"
                           {...register('rol', {
-                            validate: (v) => ROLES_PERMITIDOS.includes(v) || 'Selecciona Encargado de Ventas o de Inventarios.',
+                            validate: (v) => ROLES_PERMITIDOS.includes(v) || 'Solo se permiten los roles de Ventas e Inventarios.',
                           })}
                         />
                         <span className={`mt-0.5 shrink-0 ${activo ? 'text-primary' : 'text-faint'}`}>
