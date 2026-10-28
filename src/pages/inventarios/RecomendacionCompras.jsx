@@ -11,7 +11,7 @@ import BarraPresupuesto from '../../components/inventarios/recomendaciones/Barra
 import FilaRecomendacion from '../../components/inventarios/recomendaciones/FilaRecomendacion';
 import ModalConfirmarPedido from '../../components/inventarios/recomendaciones/ModalConfirmarPedido';
 import {
-  ESTADOS_RECOMENDACION, formatoFechaHora, mensajeError, resumenRecomendacion,
+  ESTADOS_RECOMENDACION, esExcluido, formatoFechaHora, mensajeError, resumenRecomendacion,
 } from '../../components/inventarios/recomendaciones/recomendacionUtils';
 import {
   USAR_MOCK, decidirItem, generarPedido, generarRecomendacion, obtenerRecomendacion,
@@ -22,10 +22,12 @@ import ContenidoCarga from '../../components/ui/ContenidoCarga';
 const schema = yup.object({
   presupuesto: yup
     .number()
-    .typeError('Ingresa el presupuesto disponible')
-    .required('Ingresa el presupuesto disponible')
-    .positive('El presupuesto debe ser mayor a 0'),
+    .typeError('El presupuesto debe ser mayor a cero')
+    .required('El presupuesto debe ser mayor a cero')
+    .positive('El presupuesto debe ser mayor a cero'),
 });
+
+const urlExportacion = (pedidoId) => `/api/inventario/pedidos/${pedidoId}/exportar`;
 
 const formatoMiles = (n) => (n === '' || n == null ? '' : new Intl.NumberFormat('es-CO').format(n));
 
@@ -102,7 +104,9 @@ export default function RecomendacionCompras() {
 
   const mostrarRecomendacion = useCallback((data) => {
     setRec(data);
-    setPedido(data.pedidoProveedorId ? { pedidoId: data.pedidoProveedorId, exportUrl: null } : null);
+    setPedido(data.pedidoProveedorId
+      ? { pedidoId: data.pedidoProveedorId, exportUrl: urlExportacion(data.pedidoProveedorId) }
+      : null);
     const primero = data.items?.find((i) => i.urgencia === 'CRITICO') ?? data.items?.[0];
     setAbiertos(new Set(primero ? [primero.id] : []));
   }, []);
@@ -133,15 +137,16 @@ export default function RecomendacionCompras() {
     }
   };
 
-  const onDecidir = async (item, { decision, cajas, motivo }) => {
-    // Modificar a 0 cajas equivale a rechazar el ítem.
-    const payload = decision === 'MODIFICADO' && cajas === 0
-      ? { decision: 'RECHAZADO', cajas: 0, motivo: 'Cantidad modificada a 0' }
-      : { decision, cajas, motivo };
+  // El PATCH devuelve solo el ítem; luego se relee la recomendación para traer el costo
+  // aprobado y el estado que recalcula el backend. productosExcluidos solo llega al generar.
+  const onDecidir = async (item, payload) => {
     setGuardandoItem(item.id);
     try {
-      const actualizada = await decidirItem(rec.id, item.id, payload);
-      setRec(actualizada);
+      const actualizado = await decidirItem(rec.id, item.id, payload);
+      setRec((r) => ({ ...r, items: r.items.map((i) => (i.id === actualizado.id ? actualizado : i)) }));
+      obtenerRecomendacion(rec.id)
+        .then((data) => setRec((r) => ({ ...data, productosExcluidos: r?.productosExcluidos })))
+        .catch(() => { /* se conserva el ítem ya actualizado */ });
       return true;
     } catch (err) {
       setToast({ show: true, msg: mensajeError(err, 'No se pudo guardar la decisión.'), type: 'error' });
@@ -152,8 +157,7 @@ export default function RecomendacionCompras() {
   };
 
   const descargarExcel = async (datosPedido) => {
-    const url = datosPedido?.exportUrl
-      ?? (USAR_MOCK ? null : `/api/inventario/pedidos/${datosPedido?.pedidoId}/exportar`);
+    const url = datosPedido?.exportUrl;
     if (!url) {
       setToast({ show: true, msg: 'En modo simulado no hay archivo Excel para descargar.', type: 'info' });
       return;
@@ -192,7 +196,8 @@ export default function RecomendacionCompras() {
   const items = rec?.items ?? [];
   const pedidoGenerado = rec?.estado === 'PEDIDO_GENERADO';
   const sinAprobados = r.aprobados.length === 0;
-  const baja = items.filter((i) => i.confianzaBaja);
+  const excluidosPresupuesto = items.filter(esExcluido);
+  const excluidosDatos = rec?.productosExcluidos ?? [];
   const estado = ESTADOS_RECOMENDACION[rec?.estado];
 
   return (
@@ -255,7 +260,7 @@ export default function RecomendacionCompras() {
             <div className="text-left lg:text-right font-['Inter']">
               <p className="text-[12px] text-[#a8a29e]">Recomendación abierta</p>
               <p className="text-[14px] font-semibold text-[#1b1b1c]">
-                {rec.codigo ?? rec.id.slice(0, 8).toUpperCase()} · {formatoFechaHora(rec.createdAt)}
+                #{rec.id.slice(0, 8).toUpperCase()} · {formatoFechaHora(rec.createdAt)}
               </p>
               <p className="text-[12px] text-[#78716c]">
                 Presupuesto {formatoCOP(rec.presupuesto)} · Historial analizado: {rec.diasHistorial} días ({rec.diasConVentas} con ventas)
@@ -267,7 +272,7 @@ export default function RecomendacionCompras() {
 
         {USAR_MOCK && (
           <p className="font-['Inter'] text-[12px] text-[#a8a29e] -mt-3">
-            Modo simulado: los datos son de ejemplo hasta que el backend de recomendaciones esté disponible.
+            Modo simulado (VITE_USAR_MOCK_RECOMENDACION=true): los datos son de ejemplo.
           </p>
         )}
 
@@ -295,96 +300,127 @@ export default function RecomendacionCompras() {
         {rec && !cargando && (
           <>
             {/* Confianza baja */}
-            {baja.length > 0 && (
+            {rec.confianzaBaja && (
               <div className="bg-[#fffbeb] border border-[#fcd34d] rounded-[10px] px-4 py-3 flex items-start gap-2.5">
                 <span className="text-[#d97706] mt-0.5"><AlertIcon size={15} /></span>
                 <div className="font-['Inter'] text-[14px]">
-                  <p className="font-semibold text-[#92400e]">Confianza baja en {baja.length} producto(s)</p>
+                  <p className="font-semibold text-[#92400e]">Confianza baja</p>
                   <p className="text-[#b45309]">
-                    {baja.map((i) => i.producto?.nombre).join(' y ')} tienen menos de 3 meses de historial de ventas.
-                    Sus cantidades se estimaron con datos limitados; revísalas antes de aprobar.
+                    El cálculo usó {rec.diasHistorial} días de historial, {rec.diasConVentas} de ellos con ventas
+                    (se recomiendan al menos 90 días y 20 con ventas). Revisa las cantidades antes de aprobar.
                   </p>
                 </div>
               </div>
             )}
 
-            {/* KPIs */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-              <Kpi titulo="Productos recomendados" valor={items.length}
-                detalle={`${r.aprobados.length} aprobados · ${r.pendientes} pendientes`}
-                icono={<BoxIcon />} tono="bg-[#fef2f2] text-[#9e2016]" />
-              <Kpi titulo="Críticos" valor={r.criticos} detalle="bajo el punto de reorden"
-                icono={<AlertIcon />} tono="bg-[#fef2f2] text-[#dc2626]" />
-              <Kpi titulo="Costo estimado" valor={formatoCOP(r.costo)}
-                detalle={`${formatoPct(rec.presupuesto > 0 ? Math.round((r.costo / rec.presupuesto) * 1000) / 10 : null)} del presupuesto`}
-                icono={<CashIcon />} tono="bg-[#f5f5f4] text-[#57534e]" />
-              <Kpi titulo="Margen esperado" valor={formatoCOP(r.margen)}
-                detalle={`${formatoPct(r.margenPct == null ? null : Math.round(r.margenPct * 10) / 10)} promedio`}
-                icono={<TrendIcon />} tono="bg-[#f0fdf4] text-[#16a34a]" />
-            </div>
-
-            <BarraPresupuesto presupuesto={rec.presupuesto} porUrgencia={r.porUrgencia} costo={r.costo} />
-
-            {/* Lista priorizada */}
-            <section className="bg-white rounded-[12px] border border-[#f5f5f4] overflow-hidden">
-              <div className="flex items-center justify-between gap-3 px-5 py-4 flex-wrap">
-                <h2 className="font-['Manrope'] font-bold text-[18px] text-[#1b1b1c]">Lista priorizada</h2>
-                <p className="font-['Inter'] text-[12px] text-[#78716c]">
-                  <span className="uppercase tracking-[0.5px] font-bold mr-2">Orden</span> Urgencia ↓ · Margen ↓
+            {/* Productos excluidos por datos incompletos (solo llegan al generar) */}
+            {excluidosDatos.length > 0 && (
+              <div className="bg-white border border-[#e7e5e4] rounded-[10px] px-4 py-3 font-['Inter'] text-[14px]">
+                <p className="font-semibold text-[#1b1b1c]">Productos excluidos por datos incompletos</p>
+                <ul className="mt-1.5 flex flex-col gap-0.5 text-[#57534e]">
+                  {excluidosDatos.map((p) => (
+                    <li key={p.productoId}>
+                      <span className="font-medium text-[#1b1b1c]">{p.nombre}</span> — {p.motivo}
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-2 text-[13px] text-[#78716c]">
+                  Complétalos en el{' '}
+                  <Link to="/inventarios/catalogo" className="font-semibold text-[#9e2016] hover:underline">catálogo de productos</Link>
+                  {' '}para que entren en la próxima recomendación.
                 </p>
               </div>
+            )}
 
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[1000px]">
-                  <thead className="bg-[#f6f3f3]">
-                    <tr className="font-['Inter'] font-bold text-[11px] uppercase tracking-[0.5px] text-[#57534e]">
-                      <th className="px-4 py-3 text-left">Producto</th>
-                      <th className="px-4 py-3 text-left">Urgencia</th>
-                      <th className="px-4 py-3 text-right">Stock (cajas)</th>
-                      <th className="px-4 py-3 text-right">Cajas sugeridas</th>
-                      <th className="px-4 py-3 text-right">Costo estimado</th>
-                      <th className="px-4 py-3 text-right">Margen esperado</th>
-                      <th className="px-4 py-3 text-left">Decisión</th>
-                      <th className="px-4 py-3 text-center">Justificación</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {items.map((item) => (
-                      <FilaRecomendacion key={item.id} item={item}
-                        abierto={abiertos.has(item.id)} onToggle={() => alternar(item.id)}
-                        onDecidir={onDecidir} bloqueado={pedidoGenerado}
-                        guardando={guardandoItem === item.id} />
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Pie */}
-              <div className="border-t border-[#f5f5f4] px-5 py-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                <p className="font-['Inter'] text-[13px] text-[#78716c]">
-                  {items.length} productos recomendados
-                  {rec.excluidos?.length > 0 && (
-                    <> · {rec.excluidos.length} quedaron fuera por presupuesto ({rec.excluidos.map((e) => e.nombre).join(', ')})</>
-                  )}
+            {items.length === 0 ? (
+              <div className="bg-white rounded-[12px] border border-dashed border-[#e7e5e4] p-10 text-center">
+                <p className="font-['Manrope'] font-bold text-[18px] text-[#1b1b1c]">Ningún producto requiere compra por ahora</p>
+                <p className="font-['Inter'] text-[14px] text-[#78716c] mt-1">
+                  El stock de todos los productos cubre la demanda esperada hasta el próximo pedido.
                 </p>
-                <div className="flex items-center gap-4 flex-wrap">
-                  <p className="font-['Inter'] text-[13px] text-[#1b1b1c]">
-                    Aprobado: <span className="font-bold">{r.cajasAprobadas} cajas · {formatoCOP(r.costoAprobado)}</span>
-                  </p>
-                  <button type="button" onClick={() => setModalAbierto(true)}
-                    disabled={sinAprobados || pedidoGenerado}
-                    title={sinAprobados ? 'Aprueba o modifica al menos un producto' : undefined}
-                    className="px-5 py-2.5 rounded-[10px] bg-[#9e2016] text-white font-['Inter'] font-semibold text-[14px] hover:bg-[#7f1a12] transition-colors active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed">
-                    Generar pedido
-                  </button>
+              </div>
+            ) : (
+              <>
+                {/* KPIs */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+                  <Kpi titulo="Productos recomendados" valor={items.length}
+                    detalle={`${r.aprobados.length} aprobados · ${r.pendientes} pendientes`}
+                    icono={<BoxIcon />} tono="bg-[#fef2f2] text-[#9e2016]" />
+                  <Kpi titulo="Críticos" valor={r.criticos} detalle="por debajo del stock de seguridad"
+                    icono={<AlertIcon />} tono="bg-[#fef2f2] text-[#dc2626]" />
+                  <Kpi titulo="Costo sugerido" valor={formatoCOP(r.costoSugerido)}
+                    detalle={`${formatoPct(rec.presupuesto > 0 ? Math.round((r.costoSugerido / rec.presupuesto) * 1000) / 10 : null)} del presupuesto`}
+                    icono={<CashIcon />} tono="bg-[#f5f5f4] text-[#57534e]" />
+                  <Kpi titulo="Margen esperado" valor={formatoCOP(r.margenSugerido)}
+                    detalle={`${formatoPct(r.margenPct == null ? null : Math.round(r.margenPct * 10) / 10)} sobre el costo`}
+                    icono={<TrendIcon />} tono="bg-[#f0fdf4] text-[#16a34a]" />
                 </div>
-              </div>
-              {sinAprobados && !pedidoGenerado && (
-                <p className="px-5 pb-4 -mt-2 font-['Inter'] text-[12px] text-[#a8a29e] text-right">
-                  Aprueba o modifica al menos un producto para generar el pedido.
-                </p>
-              )}
-            </section>
+
+                <BarraPresupuesto presupuesto={rec.presupuesto} costoAprobado={r.costoAprobado}
+                  costoSugerido={r.costoSugerido} porUrgencia={r.porUrgencia} />
+
+                {/* Lista priorizada */}
+                <section className="bg-white rounded-[12px] border border-[#f5f5f4] overflow-hidden">
+                  <div className="flex items-center justify-between gap-3 px-5 py-4 flex-wrap">
+                    <h2 className="font-['Manrope'] font-bold text-[18px] text-[#1b1b1c]">Lista priorizada</h2>
+                    <p className="font-['Inter'] text-[12px] text-[#78716c]">
+                      <span className="uppercase tracking-[0.5px] font-bold mr-2">Orden</span> Urgencia ↓ · Margen ↓ · Score ↓
+                    </p>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[1000px]">
+                      <thead className="bg-[#f6f3f3]">
+                        <tr className="font-['Inter'] font-bold text-[11px] uppercase tracking-[0.5px] text-[#57534e]">
+                          <th className="px-4 py-3 text-left">Producto</th>
+                          <th className="px-4 py-3 text-left">Urgencia · score</th>
+                          <th className="px-4 py-3 text-right">Stock</th>
+                          <th className="px-4 py-3 text-right">Cajas sugeridas</th>
+                          <th className="px-4 py-3 text-right">Costo estimado</th>
+                          <th className="px-4 py-3 text-right">Margen esperado</th>
+                          <th className="px-4 py-3 text-left">Decisión</th>
+                          <th className="px-4 py-3 text-center">Justificación</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {items.map((item) => (
+                          <FilaRecomendacion key={item.id} item={item}
+                            abierto={abiertos.has(item.id)} onToggle={() => alternar(item.id)}
+                            onDecidir={onDecidir} bloqueado={pedidoGenerado}
+                            guardando={guardandoItem === item.id} />
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Pie */}
+                  <div className="border-t border-[#f5f5f4] px-5 py-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                    <p className="font-['Inter'] text-[13px] text-[#78716c]">
+                      {items.length} productos recomendados
+                      {excluidosPresupuesto.length > 0 && (
+                        <> · {excluidosPresupuesto.length} exceden el presupuesto</>
+                      )}
+                    </p>
+                    <div className="flex items-center gap-4 flex-wrap">
+                      <p className="font-['Inter'] text-[13px] text-[#1b1b1c]">
+                        Aprobado: <span className="font-bold">{r.cajasAprobadas} cajas · {formatoCOP(r.costoAprobado)}</span>
+                      </p>
+                      <button type="button" onClick={() => setModalAbierto(true)}
+                        disabled={sinAprobados || pedidoGenerado}
+                        title={sinAprobados ? 'Aprueba o modifica al menos un producto' : undefined}
+                        className="px-5 py-2.5 rounded-[10px] bg-[#9e2016] text-white font-['Inter'] font-semibold text-[14px] hover:bg-[#7f1a12] transition-colors active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed">
+                        Generar pedido
+                      </button>
+                    </div>
+                  </div>
+                  {sinAprobados && !pedidoGenerado && (
+                    <p className="px-5 pb-4 -mt-2 font-['Inter'] text-[12px] text-[#a8a29e] text-right">
+                      Aprueba o modifica al menos un producto para generar el pedido.
+                    </p>
+                  )}
+                </section>
+              </>
+            )}
 
             {/* Resultado del pedido */}
             {pedidoGenerado && pedido && (

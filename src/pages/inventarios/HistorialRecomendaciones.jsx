@@ -12,6 +12,9 @@ import { USAR_MOCK, listarHistorial, obtenerMetricas } from '../../services/reco
 
 const TAMANO_PAGINA = 8;
 
+/** El backend envía fracciones (0–1); null se muestra como «—». */
+const aPct = (v) => (v == null ? null : Math.round(v * 1000) / 10);
+
 const isoLocal = (d) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
@@ -102,7 +105,7 @@ export default function HistorialRecomendaciones() {
               Historial de Recomendaciones
             </h1>
             <p className="font-['Inter'] text-[14px] text-[#78716c] mt-1">
-              Qué tanto se aceptan las recomendaciones y cuántas terminan en pedido.
+              Qué tanto se aceptan las recomendaciones y qué tan precisas resultan las cantidades.
             </p>
           </div>
           <Link to="/inventarios/recomendaciones"
@@ -131,14 +134,14 @@ export default function HistorialRecomendaciones() {
           </div>
         ) : metricas && (
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-            <Metrica titulo="Recomendaciones" valor={metricas.totalRecomendaciones}
-              detalle={`Presupuesto promedio ${formatoCOP(metricas.presupuestoPromedio)}`} />
-            <Metrica titulo="Convertidas en pedido" valor={formatoPct(metricas.tasaConversion)}
-              detalle={`${metricas.convertidasEnPedido} de ${metricas.totalRecomendaciones}`} />
-            <Metrica titulo="Aceptación de ítems" valor={formatoPct(metricas.tasaAceptacion)}
-              detalle={`${metricas.itemsModificados} modificados · ${metricas.itemsRechazados} rechazados`} />
-            <Metrica titulo="Costo aprobado" valor={formatoCOP(metricas.costoAprobadoTotal)}
-              detalle="en pedidos generados" />
+            <Metrica titulo="Recomendaciones" valor={metricas.generadas}
+              detalle={`${metricas.itemsSugeridos} productos sugeridos`} />
+            <Metrica titulo="Tasa de aprobación" valor={formatoPct(aPct(metricas.tasaAprobacion))}
+              detalle="aprobados y modificados sobre lo sugerido" />
+            <Metrica titulo="Decisiones" valor={metricas.aprobados + metricas.modificados + metricas.rechazados}
+              detalle={`${metricas.aprobados} aprobados · ${metricas.modificados} modificados · ${metricas.rechazados} rechazados`} />
+            <Metrica titulo="Precisión de cantidad" valor={formatoPct(aPct(metricas.precisionCantidad))}
+              detalle={metricas.precisionCantidad == null ? 'Sin pedidos generados en el período' : 'cajas pedidas y recibidas vs. sugeridas'} />
           </div>
         )}
 
@@ -150,10 +153,11 @@ export default function HistorialRecomendaciones() {
                 <tr className="font-['Inter'] font-bold text-[11px] uppercase tracking-[0.5px] text-[#57534e]">
                   <th className="px-4 py-3 text-left">Fecha</th>
                   <th className="px-4 py-3 text-left">Código</th>
-                  <th className="px-4 py-3 text-left">Generada por</th>
+                  <th className="px-4 py-3 text-left">Origen</th>
                   <th className="px-4 py-3 text-right">Presupuesto</th>
+                  <th className="px-4 py-3 text-right">Costo sugerido</th>
                   <th className="px-4 py-3 text-right">Costo aprobado</th>
-                  <th className="px-4 py-3 text-center">Ítems aprobados</th>
+                  <th className="px-4 py-3 text-center">Decisiones</th>
                   <th className="px-4 py-3 text-left">Estado</th>
                   <th className="px-4 py-3 text-right">Acciones</th>
                 </tr>
@@ -161,7 +165,7 @@ export default function HistorialRecomendaciones() {
               <tbody>
                 {!cargando && lista.content.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="px-4 py-10 text-center font-['Inter'] text-[14px] text-[#78716c]">
+                    <td colSpan={9} className="px-4 py-10 text-center font-['Inter'] text-[14px] text-[#78716c]">
                       No hay recomendaciones en este período.
                     </td>
                   </tr>
@@ -171,14 +175,22 @@ export default function HistorialRecomendaciones() {
                   return (
                     <tr key={r.id} className={`border-t border-[#f5f5f4] font-['Inter'] text-[14px] ${cargando ? 'opacity-50' : ''}`}>
                       <td className="px-4 py-3 text-[#1b1b1c] whitespace-nowrap">{formatoFechaHora(r.createdAt)}</td>
-                      <td className="px-4 py-3 font-semibold text-[#1b1b1c]">{r.codigo ?? r.id.slice(0, 8).toUpperCase()}</td>
-                      <td className="px-4 py-3 text-[#57534e]">
-                        {r.usuario?.nombre ?? '—'}
-                        {r.origen === 'VOZ' && <span className="ml-2 text-[11px] text-[#9e2016]">por voz</span>}
+                      <td className="px-4 py-3 font-semibold text-[#1b1b1c]">
+                        #{r.id.slice(0, 8).toUpperCase()}
+                        {r.confianzaBaja && (
+                          <span className="ml-2 text-[11px] font-medium text-[#d97706]" title="Historial de ventas insuficiente">⚠ confianza baja</span>
+                        )}
                       </td>
+                      <td className="px-4 py-3 text-[#57534e]">{r.origen === 'VOZ' ? 'Voz' : 'Pantalla'}</td>
                       <td className="px-4 py-3 text-right text-[#1b1b1c] whitespace-nowrap">{formatoCOP(r.presupuesto)}</td>
+                      <td className="px-4 py-3 text-right text-[#57534e] whitespace-nowrap">{formatoCOP(r.costoTotal)}</td>
                       <td className="px-4 py-3 text-right font-semibold text-[#1b1b1c] whitespace-nowrap">{formatoCOP(r.costoAprobado)}</td>
-                      <td className="px-4 py-3 text-center text-[#57534e]">{r.itemsAprobados} / {r.totalItems}</td>
+                      <td className="px-4 py-3 text-center text-[12px] text-[#57534e] whitespace-nowrap">
+                        <span className="text-[#16a34a]">{r.aprobados + r.modificados}</span> aprob. ·{' '}
+                        <span className="text-[#dc2626]">{r.rechazados}</span> rech. ·{' '}
+                        <span className="text-[#a8a29e]">{r.pendientes}</span> pend.
+                        <span className="text-[#a8a29e]"> / {r.totalItems}</span>
+                      </td>
                       <td className="px-4 py-3">
                         <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold ${estado.clase}`}>{estado.label}</span>
                       </td>
@@ -202,7 +214,7 @@ export default function HistorialRecomendaciones() {
           </div>
           <div className="border-t border-[#f5f5f4] px-5 py-3 flex items-center justify-between gap-3 flex-wrap">
             <p className="font-['Inter'] text-[13px] text-[#78716c]">{lista.totalElements} recomendaciones</p>
-            <Pagination page={pagina} totalPages={lista.totalPages} onPageChange={cambiarPagina} />
+            <Pagination page={pagina} totalPages={Math.max(1, lista.totalPages)} onPageChange={cambiarPagina} />
           </div>
         </section>
       </div>

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { formatoCOP } from '../../voz/formato';
 import {
-  URGENCIAS, aCajas, cajasVigentes, costoCaja, costoVigente, margenCaja, margenVigente,
+  AJUSTES, URGENCIAS, cajasVigentes, costoCaja, costoVigente, esExcluido, formatoNumero, margenCaja, margenVigente,
 } from './recomendacionUtils';
 
 function ChevronIcon({ abierto }) {
@@ -13,12 +13,23 @@ function ChevronIcon({ abierto }) {
   );
 }
 
-export function UrgenciaBadge({ urgencia }) {
+export function UrgenciaBadge({ urgencia, score }) {
   const u = URGENCIAS[urgencia] ?? URGENCIAS.ESTABLE;
   return (
-    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full font-['Inter'] font-bold text-[11px] uppercase tracking-[0.4px] ${u.badge}`}>
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full font-['Inter'] font-bold text-[11px] uppercase tracking-[0.4px] whitespace-nowrap ${u.badge}`}>
       <span className={`w-1.5 h-1.5 rounded-full ${u.dot}`} />
       {u.label}
+      {score != null && <span className="font-semibold normal-case tracking-normal opacity-80">· {formatoNumero(score)}</span>}
+    </span>
+  );
+}
+
+function AjusteBadge({ ajuste }) {
+  const a = AJUSTES[ajuste];
+  if (!a) return null;
+  return (
+    <span className={`inline-block px-2 py-0.5 rounded-full font-['Inter'] font-bold text-[10px] uppercase tracking-[0.4px] ${a.clase}`}>
+      {a.label}
     </span>
   );
 }
@@ -44,49 +55,56 @@ function Dato({ titulo, valor, destacado }) {
 
 function Detalle({ item }) {
   const u = URGENCIAS[item.urgencia] ?? URGENCIAS.ESTABLE;
-  const estacionalidad = Math.round((Number(item.factorEstacionalidad) - 1) * 100);
-  const ventaSemanal = aCajas(Number(item.demandaDiaria) * 7, item);
+  const cCaja = costoCaja(item);
+  const mCaja = margenCaja(item);
   return (
     <div className="border border-[#fecaca]/60 bg-[#fffafa] rounded-[12px] p-4 flex flex-col lg:flex-row gap-4">
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 shrink-0">
-        <Dato titulo="Venta prom. semanal" valor={`${ventaSemanal} cajas`} />
-        <Dato titulo="Punto de reorden" valor={`${aCajas(item.puntoReorden, item)} cajas`} />
-        <Dato titulo="Estacionalidad" valor={`${estacionalidad >= 0 ? '+' : ''}${estacionalidad} %`}
-          destacado={estacionalidad > 0 ? 'text-[#9e2016]' : undefined} />
-        <Dato titulo="Cobertura actual" valor={item.coberturaDias == null ? '—' : `${String(item.coberturaDias).replace('.', ',')} días`}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 shrink-0">
+        <Dato titulo="Demanda diaria" valor={`${formatoNumero(item.demandaDiaria)} und`} />
+        <Dato titulo="Estacionalidad" valor={`${formatoNumero(item.factorEstacionalidad)}×`}
+          destacado={Number(item.factorEstacionalidad) > 1 ? 'text-[#9e2016]' : undefined} />
+        <Dato titulo="Cobertura actual" valor={item.coberturaDias == null ? '—' : `${formatoNumero(item.coberturaDias)} días`}
           destacado={u.texto} />
+        <Dato titulo="Stock de seguridad" valor={`${formatoNumero(item.stockSeguridad)} und`} />
+        <Dato titulo="Punto de reorden" valor={`${formatoNumero(item.puntoReorden)} und`} />
+        <Dato titulo="Necesidad" valor={`${formatoNumero(item.unidadesSugeridas)} und`} />
       </div>
-      <p className="font-['Inter'] text-[13px] leading-relaxed text-[#57534e]">
-        <span className="font-semibold text-[#1b1b1c]">¿Por qué se recomienda? </span>
-        {item.justificacion}{' '}
-        Costo por caja: {formatoCOP(costoCaja(item))}. Margen por caja: {formatoCOP(margenCaja(item))}.
-        {item.motivoRechazo && (
-          <span className="block mt-2 text-[#dc2626]">Motivo del rechazo: {item.motivoRechazo}</span>
+      <div className="font-['Inter'] text-[13px] leading-relaxed text-[#57534e]">
+        <p>
+          <span className="font-semibold text-[#1b1b1c]">¿Por qué se recomienda? </span>
+          {item.justificacion}
+        </p>
+        {cCaja != null && (
+          <p className="mt-2">Costo por caja: {formatoCOP(cCaja)}. Margen por caja: {formatoCOP(mCaja)}.</p>
         )}
-      </p>
+        {item.motivoRechazo && (
+          <p className="mt-2 text-[#dc2626]">Motivo del rechazo: {item.motivoRechazo}</p>
+        )}
+      </div>
     </div>
   );
 }
 
-/** Fila de la lista priorizada con justificación desplegable y decisión (RF56). */
+/** Fila de la lista priorizada con justificación desplegable y decisión (RF55). */
 export default function FilaRecomendacion({ item, abierto, onToggle, onDecidir, bloqueado, guardando }) {
   const [modo, setModo] = useState(null); // null | 'modificar' | 'rechazar'
   const [cajas, setCajas] = useState('');
   const [motivo, setMotivo] = useState('');
   const [error, setError] = useState('');
 
+  const excluido = esExcluido(item);
   const decision = DECISIONES[item.decision] ?? DECISIONES.PENDIENTE;
   const cajasActuales = cajasVigentes(item);
   const costo = costoVigente(item);
   const margen = margenVigente(item);
-  const margenPct = costo > 0 ? Math.round((margen / costo) * 100) : 0;
+  const margenPct = costo > 0 && margen != null ? Math.round((margen / costo) * 100) : null;
   const deshabilitado = bloqueado || guardando;
-  const stockCritico = item.urgencia !== 'ESTABLE';
+  const cambioCajas = item.decision !== 'PENDIENTE' && cajasActuales !== item.cajasSugeridas;
 
   const abrirModo = (m) => {
     setError('');
     setModo((actual) => (actual === m ? null : m));
-    setCajas(String(cajasActuales || item.cajasSugeridas));
+    setCajas(String(cajasActuales || item.cajasSugeridas || 1));
     setMotivo(item.motivoRechazo ?? '');
   };
 
@@ -95,6 +113,7 @@ export default function FilaRecomendacion({ item, abierto, onToggle, onDecidir, 
     if (ok) setModo(null);
   };
 
+  // Modificar a 0 cajas: el backend lo registra como RECHAZADO.
   const guardarModificacion = () => {
     const n = Number(cajas);
     if (cajas === '' || !Number.isInteger(n) || n < 0) {
@@ -112,23 +131,18 @@ export default function FilaRecomendacion({ item, abierto, onToggle, onDecidir, 
             <span className="w-6 h-6 shrink-0 rounded-full bg-[#f5f5f4] flex items-center justify-center font-['Inter'] font-semibold text-[11px] text-[#57534e]">
               {item.prioridad}
             </span>
-            <div className="min-w-0">
-              <p className="font-['Inter'] font-semibold text-[14px] text-[#1b1b1c]">{item.producto?.nombre}</p>
-              <p className="font-['Inter'] text-[12px] text-[#a8a29e]">{item.producto?.codigo}</p>
-              {item.confianzaBaja && (
-                <p className="font-['Inter'] text-[11px] text-[#d97706] mt-0.5">
-                  ⚠ Confianza baja · {item.mesesHistorial ?? '<3'} meses de historial
-                </p>
-              )}
+            <div className="min-w-0 flex flex-col items-start gap-1">
+              <p className="font-['Inter'] font-semibold text-[14px] text-[#1b1b1c]">{item.productoNombre}</p>
+              <AjusteBadge ajuste={item.ajustePresupuesto} />
             </div>
           </div>
         </td>
-        <td className="px-4 py-3"><UrgenciaBadge urgencia={item.urgencia} /></td>
-        <td className={`px-4 py-3 text-right font-['Inter'] font-semibold text-[14px] ${stockCritico ? URGENCIAS[item.urgencia].texto : 'text-[#78716c]'}`}>
-          {aCajas(item.stockActual, item)}
+        <td className="px-4 py-3"><UrgenciaBadge urgencia={item.urgencia} score={item.score} /></td>
+        <td className={`px-4 py-3 text-right font-['Inter'] font-semibold text-[14px] ${item.urgencia !== 'ESTABLE' ? URGENCIAS[item.urgencia]?.texto : 'text-[#78716c]'}`}>
+          {formatoNumero(item.stockActual)} <span className="font-normal text-[11px] text-[#a8a29e]">und</span>
         </td>
         <td className="px-4 py-3 text-right font-['Inter'] text-[14px] text-[#1b1b1c]">
-          {item.decision === 'MODIFICADO' || item.decision === 'RECHAZADO' ? (
+          {cambioCajas ? (
             <span>
               <span className="line-through text-[#a8a29e] mr-1.5">{item.cajasSugeridas}</span>
               <span className="font-bold">{cajasActuales}</span>
@@ -136,11 +150,17 @@ export default function FilaRecomendacion({ item, abierto, onToggle, onDecidir, 
           ) : (
             <span className="font-bold">{item.cajasSugeridas}</span>
           )}
+          {excluido && (
+            <p className="font-['Inter'] text-[11px] text-[#78716c] whitespace-nowrap">Excede el presupuesto</p>
+          )}
         </td>
-        <td className="px-4 py-3 text-right font-['Inter'] text-[14px] text-[#1b1b1c] whitespace-nowrap">{formatoCOP(costo)}</td>
+        <td className="px-4 py-3 text-right font-['Inter'] text-[14px] text-[#1b1b1c] whitespace-nowrap"
+          title={costo == null ? 'Sin costo por caja: el producto no cupo en el presupuesto' : undefined}>
+          {formatoCOP(costo)}
+        </td>
         <td className="px-4 py-3 text-right whitespace-nowrap">
           <p className="font-['Inter'] font-semibold text-[14px] text-[#16a34a]">{formatoCOP(margen)}</p>
-          <p className="font-['Inter'] text-[11px] text-[#a8a29e]">{margenPct} %</p>
+          {margenPct != null && <p className="font-['Inter'] text-[11px] text-[#a8a29e]">{margenPct} %</p>}
         </td>
         <td className="px-4 py-3">
           <div className="flex flex-col gap-1.5 items-start">
@@ -148,7 +168,8 @@ export default function FilaRecomendacion({ item, abierto, onToggle, onDecidir, 
               {guardando ? 'Guardando…' : decision.label}
             </span>
             <div className="flex gap-1">
-              <button type="button" disabled={deshabilitado}
+              <button type="button" disabled={deshabilitado || excluido}
+                title={excluido ? 'Excede el presupuesto: indica las cajas con Modificar o recházalo' : undefined}
                 onClick={() => enviar({ decision: 'APROBADO' })}
                 className={`${botonBase} ${item.decision === 'APROBADO' ? 'bg-[#16a34a] text-white' : 'bg-[#f0fdf4] text-[#16a34a] hover:bg-[#dcfce7]'}`}>
                 Aprobar
