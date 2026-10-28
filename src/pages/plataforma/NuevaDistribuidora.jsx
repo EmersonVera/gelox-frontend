@@ -17,10 +17,10 @@ const schema = yup.object({
   razonSocial: yup.string().trim()
     .required('La razón social es obligatoria.')
     .max(150, 'Máximo 150 caracteres.'),
+  // FP-15, 2.7.1: «NIT sin dígito de verificación separado por guion» → solo el número (ej. 900123456).
   nit: yup.string().trim()
     .required('El NIT es obligatorio.')
-    .max(20, 'Máximo 20 caracteres.')
-    .matches(/^\d{1,3}(\.?\d{3}){2,3}-\d$/, 'Escribe el NIT con su dígito de verificación, ej. 901.552.047-9.'),
+    .matches(/^\d{6,15}$/, 'Escribe solo el número del NIT, sin puntos, guion ni dígito de verificación (ej. 900123456).'),
   nombreComercial: yup.string().trim()
     .required('El nombre comercial es obligatorio.')
     .max(100, 'Máximo 100 caracteres.'),
@@ -238,12 +238,13 @@ export default function NuevaDistribuidora() {
                   />
                 </Campo>
 
-                <Campo id="nit" label="NIT" error={errors.nit} hint="Incluye el dígito de verificación después del guion.">
+                <Campo id="nit" label="NIT" error={errors.nit} hint="Solo el número, sin dígito de verificación ni guion.">
                   <input
                     id="nit"
                     type="text"
                     inputMode="numeric"
-                    placeholder="901.552.047-9"
+                    maxLength={15}
+                    placeholder="901552047"
                     className={`${inputBase} ${errors.nit ? inputError : inputNormal}`}
                     {...register('nit')}
                   />

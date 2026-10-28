@@ -41,14 +41,6 @@ function MailIcon() {
   );
 }
 
-function ClockIcon() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="10" />
-      <polyline points="12 6 12 12 16 14" />
-    </svg>
-  );
-}
 
 function LogoutIcon() {
   return (
@@ -60,7 +52,13 @@ function LogoutIcon() {
   );
 }
 
-/* Textos de la tabla 2.12.3 del FP-15. El motivo interno del cambio de estado no se muestra. */
+const Nombre = ({ children }) => <strong className="font-semibold text-ink">{children}</strong>;
+
+/*
+ * Textos exactos de la tabla 2.12.3 del FP-15 (Figura 21): título, explicación, contacto
+ * (correo y WhatsApp de soporte de la plataforma) y botón «Cerrar sesión».
+ * El motivo interno del cambio de estado no se muestra.
+ */
 const CONTENIDO = {
   DISTRIBUIDORA_SUSPENDIDA: {
     icono: <LockIcon />,
@@ -69,8 +67,12 @@ const CONTENIDO = {
     badgeClase: 'bg-error-bg text-error-fg',
     dot: 'bg-danger',
     titulo: 'Tu distribuidora está suspendida',
-    texto: (nombre) =>
-      `El acceso de ${nombre} a GELOX está suspendido temporalmente. Tu información sigue guardada y podrás entrar de nuevo cuando el gerente de tu distribuidora regularice el pago con el equipo de GELOX.`,
+    texto: (nombre) => (
+      <>
+        El acceso de <Nombre>{nombre}</Nombre> a GELOX está suspendido temporalmente. Tus datos se conservan y el
+        servicio se reactiva en cuanto se resuelva la situación con la administración de la plataforma.
+      </>
+    ),
   },
   DISTRIBUIDORA_INACTIVA: {
     icono: <ArchiveIcon />,
@@ -79,8 +81,12 @@ const CONTENIDO = {
     badgeClase: 'bg-border text-faint',
     dot: 'bg-muted',
     titulo: 'Esta distribuidora ya no está activa',
-    texto: (nombre) =>
-      `La cuenta de ${nombre} fue dada de baja y sus usuarios ya no pueden ingresar. Si crees que se trata de un error, comunícate con el equipo de la plataforma.`,
+    texto: (nombre) => (
+      <>
+        La cuenta de <Nombre>{nombre}</Nombre> fue dada de baja en la plataforma GELOX. Si crees que se trata de un
+        error, comunícate con nosotros.
+      </>
+    ),
   },
 };
 
@@ -122,7 +128,8 @@ export default function DistribuidoraBloqueada() {
   if (!contenido) return <Navigate to="/login" replace />;
 
   const nombre = bloqueo.distribuidora || 'tu distribuidora';
-  const { correo, whatsapp, horario } = bloqueo.contacto ?? {};
+  // Contrato 2.9.5: contacto = { correo, whatsapp } de la plataforma (no de la distribuidora bloqueada).
+  const { correo, whatsapp } = bloqueo.contacto ?? {};
   const digitosWhatsapp = String(whatsapp ?? '').replace(/\D/g, '');
 
   const cerrarSesion = async () => {
@@ -166,10 +173,19 @@ export default function DistribuidoraBloqueada() {
             <p className="text-sm text-muted leading-relaxed">{contenido.texto(nombre)}</p>
           </div>
 
-          {(whatsapp || correo || horario) && (
+          {(correo || whatsapp) && (
             <div className="mt-6 pt-5 border-t border-border">
               <p className="text-xs font-semibold text-faint uppercase tracking-wider mb-3">Canales de contacto</p>
               <div className="flex flex-col gap-2">
+                {correo && (
+                  <Canal
+                    icono={<MailIcon />}
+                    iconoClase="bg-primary-tint text-primary"
+                    etiqueta="Correo de soporte"
+                    valor={correo}
+                    href={`mailto:${correo}`}
+                  />
+                )}
                 {whatsapp && (
                   <Canal
                     icono={<ChatIcon />}
@@ -179,19 +195,8 @@ export default function DistribuidoraBloqueada() {
                     href={digitosWhatsapp ? `https://wa.me/${digitosWhatsapp}` : undefined}
                   />
                 )}
-                {correo && (
-                  <Canal
-                    icono={<MailIcon />}
-                    iconoClase="bg-primary-tint text-primary"
-                    etiqueta="Correo"
-                    valor={correo}
-                    href={`mailto:${correo}`}
-                  />
-                )}
-                {horario && (
-                  <Canal icono={<ClockIcon />} iconoClase="bg-border text-faint" etiqueta="Horario de atención" valor={horario} />
-                )}
               </div>
+              <p className="text-[11px] text-muted mt-3">Código: {bloqueo.codigo}</p>
             </div>
           )}
 
