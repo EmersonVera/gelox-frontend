@@ -8,7 +8,7 @@ import { formatoCOP, formatoPct } from '../../components/voz/formato';
 import {
   ESTADOS_RECOMENDACION, formatoFechaHora, mensajeError,
 } from '../../components/inventarios/recomendaciones/recomendacionUtils';
-import { USAR_MOCK, listarHistorial, obtenerMetricas } from '../../services/recomendacionService';
+import { listarHistorial, obtenerMetricas } from '../../services/recomendacionService';
 
 const TAMANO_PAGINA = 8;
 
@@ -117,7 +117,7 @@ export default function HistorialRecomendaciones() {
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <FiltroPeriodo defaultTipo="mes" onChange={cambiarPeriodo} />
           <p className="font-['Inter'] text-[12px] text-[#a8a29e]">
-            {rango.desde} → {rango.hasta}{USAR_MOCK && ' · Modo simulado'}
+            {rango.desde} → {rango.hasta}
           </p>
         </div>
 

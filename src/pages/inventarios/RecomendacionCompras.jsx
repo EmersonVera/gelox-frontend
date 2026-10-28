@@ -14,7 +14,7 @@ import {
   ESTADOS_RECOMENDACION, esExcluido, formatoFechaHora, mensajeError, resumenRecomendacion,
 } from '../../components/inventarios/recomendaciones/recomendacionUtils';
 import {
-  USAR_MOCK, decidirItem, generarPedido, generarRecomendacion, obtenerRecomendacion,
+  decidirItem, generarPedido, generarRecomendacion, obtenerRecomendacion,
 } from '../../services/recomendacionService';
 import { descargarExportacionPedido } from '../../services/vozService';
 import ContenidoCarga from '../../components/ui/ContenidoCarga';
@@ -87,7 +87,8 @@ export default function RecomendacionCompras() {
   const [searchParams, setSearchParams] = useSearchParams();
   const idParam = searchParams.get('id');
 
-  const [rec, setRec] = useState(null);
+  const [recCargada, setRec] = useState(null);
+  const [generadaId, setGeneradaId] = useState(null); // la generada en esta visita
   const [error, setError] = useState('');
   const [errorCarga, setErrorCarga] = useState(null); // { id, mensaje }
   const [abiertos, setAbiertos] = useState(() => new Set());
@@ -111,9 +112,14 @@ export default function RecomendacionCompras() {
     setAbiertos(new Set(primero ? [primero.id] : []));
   }, []);
 
-  // Abrir una recomendación existente (viene del historial: ?id=...).
+  // Con ?id=... (viene del historial) solo se consulta la recomendación: sin formulario de
+  // presupuesto. Sin id se muestra la que se generó en esta visita, si hay.
+  const desdeHistorial = !!idParam;
+  const rec = desdeHistorial
+    ? (recCargada?.id === idParam ? recCargada : null)
+    : (recCargada?.id === generadaId ? recCargada : null);
   // "cargando" se deriva: hay un id en la URL que todavía no está en pantalla ni falló.
-  const cargando = !!idParam && rec?.id !== idParam && errorCarga?.id !== idParam;
+  const cargando = desdeHistorial && !rec && errorCarga?.id !== idParam;
 
   useEffect(() => {
     if (!cargando) return undefined;
@@ -131,7 +137,7 @@ export default function RecomendacionCompras() {
     try {
       const data = await generarRecomendacion(presupuesto);
       mostrarRecomendacion(data);
-      setSearchParams({ id: data.id }, { replace: true });
+      setGeneradaId(data.id);
     } catch (err) {
       setError(mensajeError(err, 'No se pudo generar la recomendación. Intenta de nuevo.'));
     }
@@ -157,13 +163,9 @@ export default function RecomendacionCompras() {
   };
 
   const descargarExcel = async (datosPedido) => {
-    const url = datosPedido?.exportUrl;
-    if (!url) {
-      setToast({ show: true, msg: 'En modo simulado no hay archivo Excel para descargar.', type: 'info' });
-      return;
-    }
+    if (!datosPedido?.exportUrl) return;
     try {
-      await descargarExportacionPedido(url);
+      await descargarExportacionPedido(datosPedido.exportUrl);
     } catch (err) {
       setToast({ show: true, msg: mensajeError(err, 'No se pudo descargar el Excel del pedido.'), type: 'error' });
     }
@@ -200,6 +202,41 @@ export default function RecomendacionCompras() {
   const excluidosDatos = rec?.productosExcluidos ?? [];
   const estado = ESTADOS_RECOMENDACION[rec?.estado];
 
+  const datosRecomendacion = rec && (
+    <div className="font-['Inter']">
+      <p className="text-[12px] text-[#a8a29e]">{desdeHistorial ? 'Recomendación' : 'Recomendación abierta'}</p>
+      <p className="text-[14px] font-semibold text-[#1b1b1c]">
+        #{rec.id.slice(0, 8).toUpperCase()} · {formatoFechaHora(rec.createdAt)}
+        {estado && <span className={`ml-2 px-2 py-0.5 rounded-full text-[11px] font-semibold ${estado.clase}`}>{estado.label}</span>}
+      </p>
+      <p className="text-[12px] text-[#78716c]">
+        Presupuesto {formatoCOP(rec.presupuesto)} · Historial analizado: {rec.diasHistorial} días ({rec.diasConVentas} con ventas)
+        {rec.origen === 'VOZ' && ' · Generada por voz'}
+      </p>
+    </div>
+  );
+
+  const avisoPedido = pedidoGenerado && pedido && (
+    <div className="bg-[#f0fdf4] border border-[#86efac] rounded-[12px] px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="font-['Inter']">
+        <p className="font-semibold text-[15px] text-[#166534]">Pedido a proveedor generado</p>
+        <p className="text-[13px] text-[#15803d]">
+          Las decisiones de esta recomendación ya no se pueden cambiar.
+        </p>
+      </div>
+      <div className="flex gap-2 flex-wrap">
+        <Link to={`/inventarios/pedidos/${pedido.pedidoId}`}
+          className="px-4 py-2 rounded-[10px] bg-white border border-[#86efac] font-['Inter'] font-semibold text-[13px] text-[#166534] hover:bg-[#dcfce7] transition-colors">
+          Ver pedido
+        </Link>
+        <button type="button" onClick={() => descargarExcel(pedido)}
+          className="px-4 py-2 rounded-[10px] bg-[#16a34a] font-['Inter'] font-semibold text-[13px] text-white hover:bg-[#15803d] transition-colors">
+          Descargar Excel
+        </button>
+      </div>
+    </div>
+  );
+
   return (
     <AppLayout>
       <div className="flex flex-col gap-6">
@@ -217,13 +254,33 @@ export default function RecomendacionCompras() {
               Prioriza el pedido semanal por urgencia de reabastecimiento y margen, sin pasarte del presupuesto.
             </p>
           </div>
-          <Link to="/inventarios/recomendaciones/historial"
-            className="font-['Inter'] font-semibold text-[13px] text-[#9e2016] hover:underline">
-            Ver historial →
-          </Link>
+          {!desdeHistorial && (
+            <Link to="/inventarios/recomendaciones/historial"
+              className="font-['Inter'] font-semibold text-[13px] text-[#9e2016] hover:underline">
+              Ver historial →
+            </Link>
+          )}
         </div>
 
+        {/* Abierta desde el historial: solo sus datos, sin generar otra */}
+        {desdeHistorial && (
+          <div className="bg-white rounded-[12px] border border-[#f5f5f4] p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            {datosRecomendacion || (cargando ? <div className="h-[54px] w-64 rounded-[8px] bg-[#f5f5f4] animate-pulse" /> : <span />)}
+            <div className="flex gap-2 flex-wrap">
+              <Link to="/inventarios/recomendaciones/historial"
+                className="px-4 py-2.5 rounded-[10px] border border-[#e7e5e4] font-['Inter'] font-semibold text-[13px] text-[#57534e] hover:bg-[#f5f5f4] transition-colors">
+                ← Volver al historial
+              </Link>
+              <button type="button" onClick={() => setSearchParams({})}
+                className="px-4 py-2.5 rounded-[10px] bg-[#9e2016] text-white font-['Inter'] font-semibold text-[13px] hover:bg-[#7f1a12] transition-colors">
+                Nueva recomendación
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Presupuesto */}
+        {!desdeHistorial && (
         <form onSubmit={handleSubmit(onGenerar)} noValidate
           className="bg-white rounded-[12px] border border-[#f5f5f4] p-5 flex flex-col lg:flex-row lg:items-end justify-between gap-4">
           <div className="flex flex-col sm:flex-row sm:items-start gap-3 flex-1">
@@ -256,24 +313,8 @@ export default function RecomendacionCompras() {
               <ContenidoCarga cargando={isSubmitting} textoCargando="Generando…" spinner={null}>Generar recomendación</ContenidoCarga>
             </button>
           </div>
-          {rec && (
-            <div className="text-left lg:text-right font-['Inter']">
-              <p className="text-[12px] text-[#a8a29e]">Recomendación abierta</p>
-              <p className="text-[14px] font-semibold text-[#1b1b1c]">
-                #{rec.id.slice(0, 8).toUpperCase()} · {formatoFechaHora(rec.createdAt)}
-              </p>
-              <p className="text-[12px] text-[#78716c]">
-                Presupuesto {formatoCOP(rec.presupuesto)} · Historial analizado: {rec.diasHistorial} días ({rec.diasConVentas} con ventas)
-                {estado && <span className={`ml-2 px-2 py-0.5 rounded-full text-[11px] font-semibold ${estado.clase}`}>{estado.label}</span>}
-              </p>
-            </div>
-          )}
+          {rec && <div className="text-left lg:text-right">{datosRecomendacion}</div>}
         </form>
-
-        {USAR_MOCK && (
-          <p className="font-['Inter'] text-[12px] text-[#a8a29e] -mt-3">
-            Modo simulado (VITE_USAR_MOCK_RECOMENDACION=true): los datos son de ejemplo.
-          </p>
         )}
 
         {(error || (errorCarga?.id === idParam && errorCarga.mensaje)) && (
@@ -288,7 +329,7 @@ export default function RecomendacionCompras() {
           </div>
         )}
 
-        {!rec && !cargando && (
+        {!rec && !cargando && !desdeHistorial && (
           <div className="bg-white rounded-[12px] border border-dashed border-[#e7e5e4] p-10 text-center">
             <p className="font-['Manrope'] font-bold text-[18px] text-[#1b1b1c]">Aún no hay una recomendación abierta</p>
             <p className="font-['Inter'] text-[14px] text-[#78716c] mt-1">
@@ -299,6 +340,8 @@ export default function RecomendacionCompras() {
 
         {rec && !cargando && (
           <>
+            {desdeHistorial && avisoPedido}
+
             {/* Confianza baja */}
             {rec.confianzaBaja && (
               <div className="bg-[#fffbeb] border border-[#fcd34d] rounded-[10px] px-4 py-3 flex items-start gap-2.5">
@@ -405,12 +448,18 @@ export default function RecomendacionCompras() {
                       <p className="font-['Inter'] text-[13px] text-[#1b1b1c]">
                         Aprobado: <span className="font-bold">{r.cajasAprobadas} cajas · {formatoCOP(r.costoAprobado)}</span>
                       </p>
-                      <button type="button" onClick={() => setModalAbierto(true)}
-                        disabled={sinAprobados || pedidoGenerado}
-                        title={sinAprobados ? 'Aprueba o modifica al menos un producto' : undefined}
-                        className="px-5 py-2.5 rounded-[10px] bg-[#9e2016] text-white font-['Inter'] font-semibold text-[14px] hover:bg-[#7f1a12] transition-colors active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed">
-                        Generar pedido
-                      </button>
+                      {pedidoGenerado ? (
+                        <span className="px-3 py-1.5 rounded-full bg-[#f0fdf4] font-['Inter'] font-semibold text-[13px] text-[#16a34a]">
+                          Pedido generado
+                        </span>
+                      ) : (
+                        <button type="button" onClick={() => setModalAbierto(true)}
+                          disabled={sinAprobados || pedidoGenerado}
+                          title={sinAprobados ? 'Aprueba o modifica al menos un producto' : undefined}
+                          className="px-5 py-2.5 rounded-[10px] bg-[#9e2016] text-white font-['Inter'] font-semibold text-[14px] hover:bg-[#7f1a12] transition-colors active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed">
+                          Generar pedido
+                        </button>
+                      )}
                     </div>
                   </div>
                   {sinAprobados && !pedidoGenerado && (
@@ -423,26 +472,7 @@ export default function RecomendacionCompras() {
             )}
 
             {/* Resultado del pedido */}
-            {pedidoGenerado && pedido && (
-              <div className="bg-[#f0fdf4] border border-[#86efac] rounded-[12px] px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="font-['Inter']">
-                  <p className="font-semibold text-[15px] text-[#166534]">Pedido a proveedor generado</p>
-                  <p className="text-[13px] text-[#15803d]">
-                    Quedó en estado Pendiente. Las decisiones de esta recomendación ya no se pueden cambiar.
-                  </p>
-                </div>
-                <div className="flex gap-2 flex-wrap">
-                  <Link to={`/inventarios/pedidos/${pedido.pedidoId}`}
-                    className="px-4 py-2 rounded-[10px] bg-white border border-[#86efac] font-['Inter'] font-semibold text-[13px] text-[#166534] hover:bg-[#dcfce7] transition-colors">
-                    Ver pedido
-                  </Link>
-                  <button type="button" onClick={() => descargarExcel(pedido)}
-                    className="px-4 py-2 rounded-[10px] bg-[#16a34a] font-['Inter'] font-semibold text-[13px] text-white hover:bg-[#15803d] transition-colors">
-                    Descargar Excel
-                  </button>
-                </div>
-              </div>
-            )}
+            {!desdeHistorial && avisoPedido}
           </>
         )}
       </div>

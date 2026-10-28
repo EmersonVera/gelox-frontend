@@ -2,8 +2,7 @@
 // mocks/mockXxx.js exporta { coincide(texto), interpretar(texto, confianza),
 // confirmar(comandoId, confirmar) } y queda registrado solo con crear el
 // archivo — no hay que tocar este archivo para que participe.
-// Los archivos de esa carpeta que no exportan coincide() (p. ej. los datos de
-// mockRecomendacion.js para la pantalla) no son mocks de voz y se ignoran.
+// Los archivos de esa carpeta que no exportan coincide() no son mocks de voz y se ignoran.
 // Un mock puede exportar `prioridad` (número, por defecto 0): se pregunta
 // primero a los de mayor prioridad.
 const modulos = import.meta.glob('./mocks/*.js', { eager: true });

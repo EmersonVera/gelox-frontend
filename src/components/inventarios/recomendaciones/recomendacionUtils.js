@@ -85,9 +85,14 @@ export function formatoFechaHora(iso) {
 export const formatoNumero = (n) =>
   n == null ? '—' : new Intl.NumberFormat('es-CO', { maximumFractionDigits: 2 }).format(Number(n));
 
-/** Mensaje legible de un error de axios ({ error } es el formato del backend). */
+/**
+ * Mensaje legible de un error de axios. El backend responde { error } (400, 404, 409) y,
+ * en las validaciones con @Valid, { campo: mensaje }: se toma el primero.
+ */
 export function mensajeError(err, porDefecto) {
   const data = err?.response?.data;
   if (!err?.response) return 'Sin conexión con el servidor. Intenta de nuevo.';
-  return data?.error ?? data?.mensaje ?? data?.message ?? porDefecto;
+  if (err.response.status === 403) return 'No tienes permiso para esta acción.';
+  const validacion = data && typeof data === 'object' ? Object.values(data).find((v) => typeof v === 'string') : null;
+  return data?.error ?? data?.mensaje ?? validacion ?? porDefecto;
 }
