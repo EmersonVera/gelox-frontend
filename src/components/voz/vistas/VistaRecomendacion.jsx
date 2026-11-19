@@ -207,6 +207,11 @@ function Decision({ respuesta, onConfirmar, onCancelar }) {
             <p className="text-[11px] text-muted text-center">
               {expirado ? 'El tiempo para confirmar expiró. Repite el comando.' : `Expira en ${restantes ?? '—'}s`}
             </p>
+            {!expirado && (
+              <p className="text-[11px] text-muted text-center">
+                Por voz: “sí, apruébala”, “cancelar” o “déjame modificarla”
+              </p>
+            )}
           </div>
         </>
       )}

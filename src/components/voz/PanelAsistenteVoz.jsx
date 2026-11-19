@@ -10,6 +10,7 @@ export default function PanelAsistenteVoz({
   estado,
   escuchandoConfirmacion,
   esperandoRespuesta,
+  narrando,
   transcripcionParcial,
   textoFinal,
   respuesta,
@@ -50,7 +51,18 @@ export default function PanelAsistenteVoz({
           </div>
         )}
 
-        {esperandoRespuesta && !escuchando && !interpretando && !esperandoConfirmacion && (
+        {narrando && (
+          <div className="flex items-center gap-2 text-[12px] text-muted">
+            <span className="flex gap-0.5 items-end h-3" aria-hidden="true">
+              <span className="w-0.5 h-2 bg-primary rounded animate-pulse" />
+              <span className="w-0.5 h-3 bg-primary rounded animate-pulse [animation-delay:150ms]" />
+              <span className="w-0.5 h-1.5 bg-primary rounded animate-pulse [animation-delay:300ms]" />
+            </span>
+            GELOX está hablando · puedes interrumpir hablando o diciendo "espera"
+          </div>
+        )}
+
+        {esperandoRespuesta && !narrando && !escuchando && !interpretando && !esperandoConfirmacion && (
           <div className="flex items-center gap-2 text-[13px] text-muted font-medium">
             <span className="w-2 h-2 rounded-full bg-muted animate-pulse" />
             Leyendo la pregunta… luego responde por voz

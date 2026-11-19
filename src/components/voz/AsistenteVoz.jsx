@@ -28,6 +28,7 @@ export default function AsistenteVoz() {
     respuesta,
     escuchandoConfirmacion,
     esperandoRespuesta,
+    narrando,
     iniciar,
     responder,
     cancelar,
@@ -112,6 +113,7 @@ export default function AsistenteVoz() {
           estado={estado}
           escuchandoConfirmacion={escuchandoConfirmacion}
           esperandoRespuesta={esperandoRespuesta}
+          narrando={narrando}
           transcripcionParcial={transcripcionParcial}
           textoFinal={textoFinal}
           respuesta={respuesta}

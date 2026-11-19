@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { interpretarComando, confirmarComando } from '../services/vozService';
-import { contienePalabraClave, esCancelar, esConfirmar, normalizar } from './frasesVoz';
+import {
+  contienePalabraClave, detectarInterrupcion, esAprobarEsa, esCancelar, esConfirmar, esModificar, normalizar,
+  palabrasDe, sinEcoInicial,
+} from './frasesVoz';
 
 const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
 
@@ -33,6 +36,9 @@ export function setPalabraClaveHabilitada(habilitada) {
 // sin hablar (antes se cortaba en la primera pausa que detectaba el navegador).
 const SILENCIO_FIN_MS = 2500;
 const ESCUCHA_MAX_MS = 30000;
+// Tras interrumpir al asistente, pausa que da por terminado lo que dijo el usuario.
+const SILENCIO_INTERRUPCION_MS = 1500;
+const RUTA_RECOMENDACIONES = '/inventarios/recomendaciones';
 
 const MENSAJE_NO_TE_ESCUCHE = 'No te escuché, repite el comando';
 const MENSAJE_ERROR_GENERICO = 'No pude procesar el comando';
@@ -146,31 +152,155 @@ export function useAsistenteVoz({ alActivarPorVoz } = {}) {
     alActivarPorVozRef.current = alActivarPorVoz;
   }, [alActivarPorVoz]);
 
-  // alTerminar: para volver a escuchar sin que el micrófono capte la propia narración.
+  // Estado vigente para los callbacks del micrófono (que no se recrean en cada render).
+  const estadoRef = useRef(estado);
+  const respuestaRef = useRef(respuesta);
+  const esperandoRespuestaRef = useRef(false);
+  useEffect(() => { estadoRef.current = estado; }, [estado]);
+  useEffect(() => { respuestaRef.current = respuesta; }, [respuesta]);
+
+  const esperaNarracionRef = useRef(null);
+  const esperaPreguntaRef = useRef({ timer: null, turno: 0 });
+
+  // Interrupción por voz: mientras GELOX habla, un reconocedor escucha. El eco de la narración
+  // se descarta (frasesVoz.detectarInterrupcion); si el usuario habla, la narración se corta y lo
+  // dicho se atiende según lo que se estaba esperando (alInterrumpirRef).
+  const narracionRef = useRef(null);
+  const alInterrumpirRef = useRef(null);
+  const reanudarPendienteRef = useRef(false);
+  const [narrando, setNarrando] = useState(false);
+
+  const detenerEscuchaNarracion = (narracion) => {
+    const rec = narracion?.rec;
+    if (!rec) return;
+    narracion.rec = null;
+    rec.onresult = null;
+    rec.onerror = null;
+    rec.onend = null;
+    try { rec.abort(); } catch { /* ya terminó */ }
+  };
+
+  // Corta la narración en curso sin ejecutar lo que venía después (al iniciar o cancelar a mano).
+  const callarNarracion = useCallback(() => {
+    const narracion = narracionRef.current;
+    if (narracion) {
+      narracion.interrumpida = true;
+      detenerEscuchaNarracion(narracion);
+      narracionRef.current = null;
+    }
+    setNarrando(false);
+    window.speechSynthesis?.cancel();
+  }, []);
+
+  const escucharInterrupcion = useCallback((narracion, narrado) => {
+    if (!SpeechRecognitionCtor) return;
+    // Si el micrófono ya está escuchando un comando, no se abre otro.
+    if (estadoRef.current === ESTADOS_VOZ.ESCUCHANDO || estadoRef.current === ESTADOS_VOZ.TRANSCRIBIENDO) return;
+    const narradas = palabrasDe(narrado);
+    const rec = new SpeechRecognitionCtor();
+    rec.lang = 'es-CO';
+    rec.continuous = true;
+    rec.interimResults = true;
+    rec.maxAlternatives = 1;
+    narracion.rec = rec;
+
+    let interrumpido = false;
+    let finales = '';
+    let parcial = '';
+    let confianza = 1;
+    let silencioId = null;
+
+    rec.onresult = (evento) => {
+      for (let i = evento.resultIndex; i < evento.results.length; i += 1) {
+        const resultado = evento.results[i];
+        const transcrito = resultado[0].transcript;
+        if (!interrumpido) {
+          if (!detectarInterrupcion(transcrito, narradas)) continue;
+          interrumpido = true;
+          narracion.interrumpida = true;
+          clearTimeout(esperaNarracionRef.current);
+          clearTimeout(esperaPreguntaRef.current.timer);
+          esperaPreguntaRef.current.turno += 1;
+          window.speechSynthesis?.cancel();
+          setNarrando(false);
+          console.info('[voz] el usuario interrumpió la narración');
+        }
+        if (resultado.isFinal) {
+          finales = `${finales} ${transcrito}`;
+          if (resultado[0].confidence) confianza = resultado[0].confidence;
+          parcial = '';
+        } else {
+          parcial = transcrito;
+        }
+      }
+      if (!interrumpido) return;
+      const visible = sinEcoInicial(`${finales} ${parcial}`, narradas);
+      if (visible) setTranscripcionParcial(visible);
+      setEstado(ESTADOS_VOZ.TRANSCRIBIENDO);
+      clearTimeout(silencioId);
+      silencioId = setTimeout(() => rec.stop(), SILENCIO_INTERRUPCION_MS);
+    };
+    rec.onerror = () => { };
+    rec.onend = () => {
+      clearTimeout(silencioId);
+      if (narracion.rec === rec) narracion.rec = null;
+      if (!interrumpido) return;
+      alInterrumpirRef.current?.(sinEcoInicial(`${finales} ${parcial}`, narradas), confianza);
+    };
+    try {
+      rec.start();
+    } catch {
+      narracion.rec = null; // el micrófono está ocupado: la narración sigue sin interrupción
+    }
+  }, []);
+
+  // alTerminar: lo que sigue cuando GELOX termina de hablar (p. ej. escuchar "confirmar"). Si el
+  // usuario interrumpe, no se llama: la interrupción decide qué hacer con lo que dijo.
   const hablar = useCallback((texto, alTerminar) => {
     if (!window.speechSynthesis) {
       alTerminar?.();
       return;
     }
+    const narracion = { interrumpida: false, terminada: false, rec: null };
+    const fin = () => {
+      if (narracion.terminada) return;
+      narracion.terminada = true;
+      if (narracionRef.current === narracion) {
+        narracionRef.current = null;
+        setNarrando(false);
+      }
+      if (narracion.interrumpida) return; // sigue escuchando al usuario; lo atiende alInterrumpirRef
+      detenerEscuchaNarracion(narracion);
+      if (alTerminar) {
+        alTerminar();
+      } else if (reanudarPendienteRef.current) {
+        reanudarPendienteRef.current = false;
+        reanudarPalabraClaveRef.current?.();
+      }
+    };
     try {
       window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(paraNarrar(texto));
+      const narrado = paraNarrar(texto);
+      const utterance = new SpeechSynthesisUtterance(narrado);
       utterance.lang = 'es-CO';
-      if (alTerminar) {
-        utterance.onend = alTerminar;
-        utterance.onerror = alTerminar;
-      }
+      utterance.onend = fin;
+      utterance.onerror = fin;
+      utterance.onstart = () => {
+        if (narracion.terminada) return;
+        escucharInterrupcion(narracion, narrado);
+      };
+      narracionRef.current = narracion;
+      setNarrando(true);
       window.speechSynthesis.speak(utterance);
     } catch {
       // Narración best-effort: si speechSynthesis falla no debe romper el flujo de voz.
-      alTerminar?.();
+      fin();
     }
-  }, []);
+  }, [escucharInterrupcion]);
 
   // La confirmación se escucha solo cuando GELOX termina de leer el resumen: si
   // no, el micrófono capta la narración y el "confirmar" queda pegado a ella.
   const [escuchandoConfirmacion, setEscuchandoConfirmacion] = useState(false);
-  const esperaNarracionRef = useRef(null);
 
   const dejarDeEsperarNarracion = useCallback(() => {
     clearTimeout(esperaNarracionRef.current);
@@ -191,17 +321,20 @@ export function useAsistenteVoz({ alActivarPorVoz } = {}) {
   // true mientras el asistente espera la respuesta a una pregunta suya (ver hablarYResponder).
   const [esperandoRespuesta, setEsperandoRespuesta] = useState(false);
 
+  useEffect(() => { esperandoRespuestaRef.current = esperandoRespuesta; }, [esperandoRespuesta]);
+
   const terminar = useCallback((estadoFinal) => {
     dejarDeEsperarNarracion();
     setEsperandoRespuesta(false);
     setEstado(estadoFinal);
-    reanudarPalabraClaveRef.current?.();
+    // "Hola GELOX" vuelve cuando GELOX termine de hablar: mientras habla, el micrófono escucha interrupciones.
+    if (narracionRef.current) reanudarPendienteRef.current = true;
+    else reanudarPalabraClaveRef.current?.();
   }, [dejarDeEsperarNarracion]);
 
   // El backend hizo una pregunta (datos.esperaRespuesta): al terminar de leerla se vuelve a
   // abrir el micrófono y lo que se diga se envía como respuesta, sin repetir el comando.
   const iniciarRef = useRef(null);
-  const esperaPreguntaRef = useRef({ timer: null, turno: 0 });
   // true mientras la escucha en curso es la respuesta a una pregunta (se manda como continuacion).
   const respondiendoRef = useRef(false);
 
@@ -225,6 +358,10 @@ export function useAsistenteVoz({ alActivarPorVoz } = {}) {
     hablar(texto ?? '', escuchar);
   }, [hablar, dejarDeEsperarPregunta]);
 
+  const hablarYSeguir = useCallback((texto) => {
+    hablar(texto, () => iniciarRef.current?.({ conservarRespuesta: true, continuacion: false, silencioso: true }));
+  }, [hablar]);
+
   const procesarTextoFinal = useCallback(
     async (texto, confianza, continuacion) => {
       setTextoFinal(texto);
@@ -239,6 +376,14 @@ export function useAsistenteVoz({ alActivarPorVoz } = {}) {
           return;
         }
         setEsperandoRespuesta(false);
+        if (!data?.requiereConfirmacion && data?.ok && data?.datos?.recomendacionId
+            && data?.intencion !== 'NAVEGACION' && data?.textoRespuesta) {
+          // Tras narrar una recomendación el micrófono queda abierto un momento para seguir:
+          // "sí, apruébala", "déjame modificarla"…
+          setEstado(ESTADOS_VOZ.COMPLETADO);
+          hablarYSeguir(data.textoRespuesta);
+          return;
+        }
         if (data?.requiereConfirmacion) hablarYLuegoEscuchar(data.textoRespuesta);
         else if (data?.textoRespuesta) hablar(data.textoRespuesta);
         if (data?.requiereConfirmacion) {
@@ -256,7 +401,7 @@ export function useAsistenteVoz({ alActivarPorVoz } = {}) {
         terminar(ESTADOS_VOZ.ERROR);
       }
     },
-    [hablar, hablarYLuegoEscuchar, hablarYResponder, terminar]
+    [hablar, hablarYLuegoEscuchar, hablarYResponder, hablarYSeguir, terminar]
   );
 
   const confirmar = useCallback(
@@ -287,6 +432,13 @@ export function useAsistenteVoz({ alActivarPorVoz } = {}) {
           datos: huboDatosNuevos ? { ...datosPrevios, ...data.datos } : datosPrevios,
           cancelado: !si,
         });
+        const seguir = si && intencionPrevia === 'DECIDIR_RECOMENDACION' && !data?.datos?.pedidoId
+          && datosPrevios?.recomendacionId && data?.textoRespuesta;
+        if (seguir) {
+          setEstado(ESTADOS_VOZ.COMPLETADO);
+          hablarYSeguir(data.textoRespuesta);
+          return;
+        }
         if (data?.textoRespuesta) hablar(data.textoRespuesta);
         terminar(si ? ESTADOS_VOZ.COMPLETADO : ESTADOS_VOZ.CANCELADO);
       } catch (err) {
@@ -313,12 +465,13 @@ export function useAsistenteVoz({ alActivarPorVoz } = {}) {
         confirmarEnCursoRef.current = false;
       }
     },
-    [respuesta, hablar, terminar, dejarDeEsperarNarracion]
+    [respuesta, hablar, hablarYSeguir, terminar, dejarDeEsperarNarracion]
   );
 
   // Escucha continua: junta lo dicho entre pausas cortas y solo envía el
   // comando cuando el usuario lleva SILENCIO_FIN_MS callado.
-  const crearReconocedor = useCallback(() => {
+  // silencioso: escucha de seguimiento; si no se dice nada, termina sin "No te escuché".
+  const crearReconocedor = useCallback((opciones = {}) => {
     const reconocimiento = new SpeechRecognitionCtor();
     reconocimiento.lang = 'es-CO';
     reconocimiento.interimResults = true;
@@ -376,6 +529,10 @@ export function useAsistenteVoz({ alActivarPorVoz } = {}) {
         terminar(ESTADOS_VOZ.ERROR);
         return;
       }
+      if (opciones.silencioso) {
+        terminar(ESTADOS_VOZ.COMPLETADO);
+        return;
+      }
       if (reintentoNoSpeechRef.current) {
         reintentoNoSpeechRef.current = false;
         terminar(ESTADOS_VOZ.CANCELADO);
@@ -410,13 +567,14 @@ export function useAsistenteVoz({ alActivarPorVoz } = {}) {
   const iniciar = useCallback((opciones) => {
     if (!soportado) return;
     const respondiendo = opciones?.conservarRespuesta === true;
-    respondiendoRef.current = respondiendo;
+    respondiendoRef.current = typeof opciones?.continuacion === 'boolean' ? opciones.continuacion : respondiendo;
     if (!respondiendo) {
       dejarDeEsperarPregunta();
       setEsperandoRespuesta(false);
     }
+    reanudarPendienteRef.current = false;
     pausarPalabraClaveRef.current?.();
-    window.speechSynthesis?.cancel();
+    callarNarracion();
     soltar(reconocedorRef.current);
     setTranscripcionParcial('');
     setTextoFinal('');
@@ -424,7 +582,7 @@ export function useAsistenteVoz({ alActivarPorVoz } = {}) {
     setPermisoDenegado(false);
     reintentoNoSpeechRef.current = false;
     setEstado(ESTADOS_VOZ.ESCUCHANDO);
-    const reconocimiento = crearReconocedor();
+    const reconocimiento = crearReconocedor({ silencioso: opciones?.silencioso === true });
     reconocedorRef.current = reconocimiento;
     try {
       reconocimiento.start();
@@ -439,7 +597,7 @@ export function useAsistenteVoz({ alActivarPorVoz } = {}) {
         }
       }, 300);
     }
-  }, [soportado, crearReconocedor, terminar, dejarDeEsperarPregunta]);
+  }, [soportado, crearReconocedor, terminar, dejarDeEsperarPregunta, callarNarracion]);
 
   useEffect(() => {
     iniciarRef.current = iniciar;
@@ -451,23 +609,119 @@ export function useAsistenteVoz({ alActivarPorVoz } = {}) {
     dejarDeEsperarPregunta();
     soltar(reconocedorRef.current);
     reconocedorRef.current = null;
-    window.speechSynthesis?.cancel();
+    callarNarracion();
     respondiendoRef.current = false;
     procesarTextoFinal(texto, 1, true);
-  }, [dejarDeEsperarPregunta, procesarTextoFinal]);
+  }, [dejarDeEsperarPregunta, procesarTextoFinal, callarNarracion]);
 
   const cancelar = useCallback(() => {
     dejarDeEsperarPregunta();
     setEsperandoRespuesta(false);
     soltar(reconocedorRef.current);
     reconocedorRef.current = null;
-    window.speechSynthesis?.cancel();
+    callarNarracion();
     terminar(ESTADOS_VOZ.CANCELADO);
-  }, [terminar, dejarDeEsperarPregunta]);
+  }, [terminar, dejarDeEsperarPregunta, callarNarracion]);
+
+  // "Déjame modificar": cancela lo que esperaba confirmación y abre la recomendación en pantalla.
+  const irAModificar = useCallback(async () => {
+    const r = respuestaRef.current;
+    const id = r?.datos?.recomendacionId;
+    dejarDeEsperarNarracion();
+    if (r?.comandoId && r?.requiereConfirmacion) {
+      try {
+        await confirmarComando(r.comandoId, false);
+      } catch {
+        // ya había expirado: no hay nada que cancelar
+      }
+    }
+    const texto = 'Te abro la recomendación para que la modifiques.';
+    setRespuesta({
+      intencion: 'NAVEGACION',
+      ok: true,
+      textoRespuesta: texto,
+      datos: { ruta: id ? `${RUTA_RECOMENDACIONES}?id=${id}` : RUTA_RECOMENDACIONES, pantalla: 'Recomendación de Compras' },
+    });
+    hablar(texto);
+    terminar(ESTADOS_VOZ.COMPLETADO);
+  }, [hablar, terminar, dejarDeEsperarNarracion]);
+
+  /**
+   * Lo dicho mientras se espera "confirmar" (o "cancelar", "déjame modificar", "sí, apruébala"…).
+   * Devuelve false si no es nada de eso.
+   */
+  const atenderEnConfirmacion = useCallback((alternativas, confianza) => {
+    const r = respuestaRef.current;
+    const principal = alternativas[0] ?? '';
+    const esperandoAclaracion = !!(r?.datos?.requiereAclaracion || r?.datos?.requiereDestinatario);
+    const tReconocido = respuestaLlegoEnRef.current ? Date.now() - respuestaLlegoEnRef.current : null;
+    const cuando = tReconocido != null ? `${(tReconocido / 1000).toFixed(1)}s desde que llegó la respuesta` : 'sin referencia';
+    if (r?.datos?.recomendacionId && alternativas.some(esModificar)) {
+      irAModificar();
+      return true;
+    }
+    if (alternativas.some(esCancelar)) {
+      console.info(`[voz-tiempos] "cancelar" reconocido por el navegador — ${cuando}`);
+      confirmar(false);
+      return true;
+    }
+    if (esperandoAclaracion) {
+      console.info(`[voz-tiempos] respuesta a aclaración reconocida — ${cuando}`);
+      procesarTextoFinal(principal, confianza);
+      return true;
+    }
+    const esAprobacion = /^aprobar\b/i.test(r?.textoRespuesta ?? '');
+    if (alternativas.some(esConfirmar) || (esAprobacion && alternativas.some(esAprobarEsa))) {
+      console.info(`[voz-tiempos] "confirmar" reconocido por el navegador — ${cuando}`);
+      confirmar(true);
+      return true;
+    }
+    if (AGREGAR_REGEX.test(normalizar(principal)) && r?.intencion === 'REGISTRAR_VENTA') {
+      procesarTextoFinal(principal, confianza);
+      return true;
+    }
+    return false;
+  }, [confirmar, procesarTextoFinal, irAModificar]);
+
+  // Qué hacer con lo que el usuario dijo al interrumpir a GELOX. Texto vacío = solo dijo "espera"/"para":
+  // se pasa directo a escuchar.
+  const atenderInterrupcion = useCallback((dicho, confianza) => {
+    const texto = (dicho ?? '').trim();
+    const r = respuestaRef.current;
+    if (estadoRef.current === ESTADOS_VOZ.ESPERANDO_CONFIRMACION || r?.requiereConfirmacion) {
+      setEstado(ESTADOS_VOZ.ESPERANDO_CONFIRMACION);
+      if (!texto) {
+        setEscuchandoConfirmacion(true);
+        return;
+      }
+      if (atenderEnConfirmacion([texto], confianza)) return;
+      procesarTextoFinal(texto, confianza, false); // otra cosa: comando nuevo
+      return;
+    }
+    if (esperandoRespuestaRef.current) {
+      if (!texto) iniciar({ conservarRespuesta: true });
+      else procesarTextoFinal(texto, confianza, true);
+      return;
+    }
+    if (!texto) {
+      iniciar({ conservarRespuesta: true, continuacion: false });
+      return;
+    }
+    if (r?.datos?.recomendacionId && esModificar(texto)) {
+      irAModificar();
+      return;
+    }
+    procesarTextoFinal(texto, confianza, false);
+  }, [atenderEnConfirmacion, procesarTextoFinal, iniciar, irAModificar]);
+
+  useEffect(() => {
+    alInterrumpirRef.current = atenderInterrupcion;
+  }, [atenderInterrupcion]);
 
   useEffect(() => {
     return () => {
       soltar(reconocedorRef.current);
+      detenerEscuchaNarracion(narracionRef.current);
       window.speechSynthesis?.cancel();
     };
   }, []);
@@ -476,7 +730,6 @@ export function useAsistenteVoz({ alActivarPorVoz } = {}) {
   useEffect(() => {
     if (estado !== ESTADOS_VOZ.ESPERANDO_CONFIRMACION || !escuchandoConfirmacion || !soportado) return;
 
-    const intencionActual = respuesta?.intencion;
     const esperandoAclaracion = !!(respuesta?.datos?.requiereAclaracion || respuesta?.datos?.requiereDestinatario);
     const reconocimiento = new SpeechRecognitionCtor();
     let debeSeguirEscuchando = false;
@@ -492,31 +745,9 @@ export function useAsistenteVoz({ alActivarPorVoz } = {}) {
       for (let i = evento.resultIndex; i < evento.results.length; i += 1) {
         const resultado = evento.results[i];
         if (!resultado.isFinal) continue;
-        const alternativa = resultado[0];
-        const normalizado = normalizar(alternativa.transcript);
         // A veces "confirmar" solo aparece en la 2.ª o 3.ª alternativa del reconocedor.
         const alternativas = Array.from(resultado, (alt) => alt.transcript);
-        const tReconocido = respuestaLlegoEnRef.current ? Date.now() - respuestaLlegoEnRef.current : null;
-        if (alternativas.some(esCancelar)) {
-          console.info(`[voz-tiempos] "cancelar" reconocido por el navegador — ${tReconocido != null ? (tReconocido / 1000).toFixed(1) + 's desde que llegó la respuesta' : 'sin referencia'}`);
-          confirmar(false);
-          return;
-        }
-        if (esperandoAclaracion) {
-
-          console.info(`[voz-tiempos] respuesta a aclaración reconocida — ${tReconocido != null ? (tReconocido / 1000).toFixed(1) + 's desde que llegó la respuesta' : 'sin referencia'}`);
-          procesarTextoFinal(alternativa.transcript, alternativa.confidence);
-          return;
-        }
-        if (alternativas.some(esConfirmar)) {
-          console.info(`[voz-tiempos] "confirmar" reconocido por el navegador — ${tReconocido != null ? (tReconocido / 1000).toFixed(1) + 's desde que llegó la respuesta' : 'sin referencia'}`);
-          confirmar(true);
-          return;
-        }
-        if (AGREGAR_REGEX.test(normalizado) && intencionActual === 'REGISTRAR_VENTA') {
-          procesarTextoFinal(alternativa.transcript, alternativa.confidence);
-          return;
-        }
+        if (atenderEnConfirmacion(alternativas, resultado[0].confidence)) return;
         // no matcheó ninguno de los patrones: se ignora, sigue escuchando
       }
     };
@@ -552,7 +783,7 @@ export function useAsistenteVoz({ alActivarPorVoz } = {}) {
       reconocimiento.onend = null;
       reconocimiento.abort();
     };
-  }, [estado, escuchandoConfirmacion, respuesta, soportado, confirmar, procesarTextoFinal]);
+  }, [estado, escuchandoConfirmacion, respuesta, soportado, atenderEnConfirmacion]);
 
   // T40-FE4 — Palabra clave "Hola GELOX" (encendida por defecto, se apaga en el panel).
   // Solo arranca con el permiso del micrófono ya concedido, para no pedirlo al
@@ -653,6 +884,7 @@ export function useAsistenteVoz({ alActivarPorVoz } = {}) {
     respuesta,
     escuchandoConfirmacion,
     esperandoRespuesta,
+    narrando,
     iniciar,
     responder,
     cancelar,
