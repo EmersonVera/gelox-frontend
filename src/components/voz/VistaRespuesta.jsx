@@ -7,6 +7,7 @@ import VistaModificarPedido from './vistas/VistaModificarPedido';
 import VistaVenta from './vistas/VistaVenta';
 import VistaInventario from './vistas/VistaInventario';
 import VistaRecomendacion from './vistas/VistaRecomendacion';
+import VistaElegirRecomendacion from './vistas/VistaElegirRecomendacion';
 
 function VistaNavegacion({ datos, textoRespuesta }) {
   const navigate = useNavigate();
@@ -51,10 +52,15 @@ function VistaNavegacion({ datos, textoRespuesta }) {
  * - CONSULTAR_RECOMENDACION / DECIDIR_RECOMENDACION (RF55): VistaRecomendacion.
  * - NAVEGACION: redirige dinámicamente a la pestaña solicitada por voz.
  */
-export default function VistaRespuesta({ respuesta, onConfirmar, onCancelar }) {
+export default function VistaRespuesta({ respuesta, onConfirmar, onCancelar, onResponder }) {
   if (!respuesta) return null;
 
   const { intencion, datos, textoRespuesta, requiereConfirmacion, expiraEnSegundos, ok } = respuesta;
+
+  // "¿Cuál de las recomendaciones del día?": tarjetas, sin importar la intención (aprobar, ver…).
+  if (datos?.tipoPregunta === 'ELEGIR_RECOMENDACION' && Array.isArray(datos.opciones)) {
+    return <VistaElegirRecomendacion datos={datos} onElegir={onResponder} />;
+  }
 
   switch (intencion) {
     case 'NAVEGACION':
@@ -96,6 +102,12 @@ export default function VistaRespuesta({ respuesta, onConfirmar, onCancelar }) {
       return <VistaRecomendacion respuesta={respuesta} onConfirmar={onConfirmar} onCancelar={onCancelar} />;
     case 'DECIDIR_RECOMENDACION':
       return <VistaRecomendacion respuesta={respuesta} onConfirmar={onConfirmar} onCancelar={onCancelar} />;
+    case 'CONSULTAR_GENERAL':
+      // "¿Cuántas recomendaciones / clientes…?": texto; con baja confianza, confirmar como las demás consultas.
+      if (requiereConfirmacion) {
+        return <VistaInventario respuesta={respuesta} onConfirmar={onConfirmar} onCancelar={onCancelar} />;
+      }
+      return <p className="text-[13px] text-ink leading-snug">{textoRespuesta}</p>;
     default:
       return (
         <p className="text-[13px] text-ink leading-snug">

@@ -27,7 +27,9 @@ export default function AsistenteVoz() {
     textoFinal,
     respuesta,
     escuchandoConfirmacion,
+    esperandoRespuesta,
     iniciar,
+    responder,
     cancelar,
     confirmar,
     hablar,
@@ -109,6 +111,7 @@ export default function AsistenteVoz() {
         <PanelAsistenteVoz
           estado={estado}
           escuchandoConfirmacion={escuchandoConfirmacion}
+          esperandoRespuesta={esperandoRespuesta}
           transcripcionParcial={transcripcionParcial}
           textoFinal={textoFinal}
           respuesta={respuesta}
@@ -116,6 +119,7 @@ export default function AsistenteVoz() {
           onCancelar={handleCancelar}
           onConfirmarPendiente={() => confirmar(true)}
           onCancelarPendiente={() => confirmar(false)}
+          onResponder={responder}
         />
       )}
     </div>

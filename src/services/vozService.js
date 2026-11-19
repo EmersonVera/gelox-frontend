@@ -5,11 +5,17 @@ import { interpretar as interpretarVozMock, confirmar as confirmarVozMock } from
 // que solo entienden frases fijas, se activan con VITE_USAR_MOCK_VOZ=true en el .env.
 const USAR_MOCK_VOZ = import.meta.env.VITE_USAR_MOCK_VOZ === 'true';
 
-export async function interpretarComando(texto, confianza) {
+/**
+ * continuacion: true si la frase responde la pregunta que el asistente acaba de hacer (el micrófono
+ * se abrió solo), false si es un comando nuevo (el usuario abrió el micrófono). Sin valor, decide el backend.
+ */
+export async function interpretarComando(texto, confianza, continuacion) {
   if (USAR_MOCK_VOZ) {
     return interpretarVozMock(texto, confianza);
   }
-  const { data } = await api.post('/api/voz/interpretar', { texto, confianza });
+  const body = { texto, confianza };
+  if (typeof continuacion === 'boolean') body.continuacion = continuacion;
+  const { data } = await api.post('/api/voz/interpretar', body);
   return data;
 }
 

@@ -9,6 +9,7 @@ const MENSAJE_PERMISO_DENEGADO = 'No pudimos acceder al micrófono. Revisa los p
 export default function PanelAsistenteVoz({
   estado,
   escuchandoConfirmacion,
+  esperandoRespuesta,
   transcripcionParcial,
   textoFinal,
   respuesta,
@@ -16,6 +17,7 @@ export default function PanelAsistenteVoz({
   onCancelar,
   onConfirmarPendiente,
   onCancelarPendiente,
+  onResponder,
 }) {
   const escuchando = estado === ESTADOS_VOZ.ESCUCHANDO || estado === ESTADOS_VOZ.TRANSCRIBIENDO;
   const interpretando = estado === ESTADOS_VOZ.INTERPRETANDO;
@@ -44,7 +46,14 @@ export default function PanelAsistenteVoz({
         {escuchando && (
           <div className="flex items-center gap-2 text-[13px] text-primary font-medium">
             <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-            Escuchando…
+            {esperandoRespuesta ? 'Escuchando tu respuesta… (o di "cancelar")' : 'Escuchando…'}
+          </div>
+        )}
+
+        {esperandoRespuesta && !escuchando && !interpretando && !esperandoConfirmacion && (
+          <div className="flex items-center gap-2 text-[13px] text-muted font-medium">
+            <span className="w-2 h-2 rounded-full bg-muted animate-pulse" />
+            Leyendo la pregunta… luego responde por voz
           </div>
         )}
 
@@ -54,7 +63,7 @@ export default function PanelAsistenteVoz({
               <p className="text-[10px] font-semibold text-muted uppercase tracking-wide mb-0.5">Dijiste</p>
             )}
             <p className="text-[13px] text-ink italic leading-snug min-h-[1.25em]">
-              {textoFinal || transcripcionParcial || 'Decí tu comando…'}
+              {textoFinal || transcripcionParcial || (esperandoRespuesta ? 'Decí tu respuesta…' : 'Decí tu comando…')}
             </p>
           </div>
         )}
@@ -107,6 +116,7 @@ export default function PanelAsistenteVoz({
               respuesta={respuesta}
               onConfirmar={onConfirmarPendiente}
               onCancelar={onCancelarPendiente}
+              onResponder={onResponder}
             />
           )
         )}

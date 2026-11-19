@@ -188,19 +188,57 @@ export function useAsistenteVoz({ alActivarPorVoz } = {}) {
     hablar(texto ?? '', listo);
   }, [hablar, dejarDeEsperarNarracion]);
 
+  // true mientras el asistente espera la respuesta a una pregunta suya (ver hablarYResponder).
+  const [esperandoRespuesta, setEsperandoRespuesta] = useState(false);
+
   const terminar = useCallback((estadoFinal) => {
     dejarDeEsperarNarracion();
+    setEsperandoRespuesta(false);
     setEstado(estadoFinal);
     reanudarPalabraClaveRef.current?.();
   }, [dejarDeEsperarNarracion]);
 
+  // El backend hizo una pregunta (datos.esperaRespuesta): al terminar de leerla se vuelve a
+  // abrir el micrófono y lo que se diga se envía como respuesta, sin repetir el comando.
+  const iniciarRef = useRef(null);
+  const esperaPreguntaRef = useRef({ timer: null, turno: 0 });
+  // true mientras la escucha en curso es la respuesta a una pregunta (se manda como continuacion).
+  const respondiendoRef = useRef(false);
+
+  const dejarDeEsperarPregunta = useCallback(() => {
+    clearTimeout(esperaPreguntaRef.current.timer);
+    esperaPreguntaRef.current.turno += 1; // invalida la escucha que estaba por arrancar
+  }, []);
+
+  const hablarYResponder = useCallback((texto) => {
+    dejarDeEsperarPregunta();
+    const turno = esperaPreguntaRef.current.turno;
+    setEsperandoRespuesta(true);
+    const escuchar = () => {
+      if (esperaPreguntaRef.current.turno !== turno) return; // cancelado o ya arrancó
+      esperaPreguntaRef.current.turno += 1;
+      clearTimeout(esperaPreguntaRef.current.timer);
+      iniciarRef.current?.({ conservarRespuesta: true });
+    };
+    // ponytail: igual que en la confirmación, por si el navegador no avisa el final de la narración.
+    esperaPreguntaRef.current.timer = setTimeout(escuchar, Math.min(60000, 1500 + (texto?.length ?? 0) * 75));
+    hablar(texto ?? '', escuchar);
+  }, [hablar, dejarDeEsperarPregunta]);
+
   const procesarTextoFinal = useCallback(
-    async (texto, confianza) => {
+    async (texto, confianza, continuacion) => {
       setTextoFinal(texto);
       setEstado(ESTADOS_VOZ.INTERPRETANDO);
       try {
-        const data = await interpretarComando(texto, confianza);
+        const data = await interpretarComando(texto, confianza, continuacion);
         setRespuesta(data);
+        if (data?.datos?.esperaRespuesta && !data?.requiereConfirmacion) {
+          // Pregunta del asistente: queda esperando la respuesta, sin volver a la palabra clave.
+          setEstado(ESTADOS_VOZ.COMPLETADO);
+          hablarYResponder(data.textoRespuesta);
+          return;
+        }
+        setEsperandoRespuesta(false);
         if (data?.requiereConfirmacion) hablarYLuegoEscuchar(data.textoRespuesta);
         else if (data?.textoRespuesta) hablar(data.textoRespuesta);
         if (data?.requiereConfirmacion) {
@@ -212,12 +250,13 @@ export function useAsistenteVoz({ alActivarPorVoz } = {}) {
         }
       } catch (err) {
         const mensaje = mensajeDeError(err);
+        setEsperandoRespuesta(false);
         setRespuesta({ textoRespuesta: mensaje });
         hablar(mensaje);
         terminar(ESTADOS_VOZ.ERROR);
       }
     },
-    [hablar, hablarYLuegoEscuchar, terminar]
+    [hablar, hablarYLuegoEscuchar, hablarYResponder, terminar]
   );
 
   const confirmar = useCallback(
@@ -329,7 +368,7 @@ export function useAsistenteVoz({ alActivarPorVoz } = {}) {
         const confianza = confianzas.length
           ? confianzas.reduce((a, b) => a + b, 0) / confianzas.length
           : 0; // solo hubo parcial: que el backend pida confirmación
-        procesarTextoFinal(texto, confianza);
+        procesarTextoFinal(texto, confianza, respondiendoRef.current);
         return;
       }
       if (ERRORES_PERMISO.includes(ultimoError)) {
@@ -366,14 +405,22 @@ export function useAsistenteVoz({ alActivarPorVoz } = {}) {
     return reconocimiento;
   }, [procesarTextoFinal, hablar, terminar]);
 
-  const iniciar = useCallback(() => {
+  // { conservarRespuesta: true }: escucha la respuesta a una pregunta sin borrar la pregunta de la pantalla.
+  // Al usarse como onClick recibe el evento, que no trae esa opción: arranca de cero.
+  const iniciar = useCallback((opciones) => {
     if (!soportado) return;
+    const respondiendo = opciones?.conservarRespuesta === true;
+    respondiendoRef.current = respondiendo;
+    if (!respondiendo) {
+      dejarDeEsperarPregunta();
+      setEsperandoRespuesta(false);
+    }
     pausarPalabraClaveRef.current?.();
     window.speechSynthesis?.cancel();
     soltar(reconocedorRef.current);
     setTranscripcionParcial('');
     setTextoFinal('');
-    setRespuesta(null);
+    if (!respondiendo) setRespuesta(null);
     setPermisoDenegado(false);
     reintentoNoSpeechRef.current = false;
     setEstado(ESTADOS_VOZ.ESCUCHANDO);
@@ -392,14 +439,31 @@ export function useAsistenteVoz({ alActivarPorVoz } = {}) {
         }
       }, 300);
     }
-  }, [soportado, crearReconocedor, terminar]);
+  }, [soportado, crearReconocedor, terminar, dejarDeEsperarPregunta]);
+
+  useEffect(() => {
+    iniciarRef.current = iniciar;
+  }, [iniciar]);
+
+  // Responder la pregunta sin hablar (p. ej. tocando una de las opciones en el panel).
+  const responder = useCallback((texto) => {
+    if (!texto) return;
+    dejarDeEsperarPregunta();
+    soltar(reconocedorRef.current);
+    reconocedorRef.current = null;
+    window.speechSynthesis?.cancel();
+    respondiendoRef.current = false;
+    procesarTextoFinal(texto, 1, true);
+  }, [dejarDeEsperarPregunta, procesarTextoFinal]);
 
   const cancelar = useCallback(() => {
+    dejarDeEsperarPregunta();
+    setEsperandoRespuesta(false);
     soltar(reconocedorRef.current);
     reconocedorRef.current = null;
     window.speechSynthesis?.cancel();
     terminar(ESTADOS_VOZ.CANCELADO);
-  }, [terminar]);
+  }, [terminar, dejarDeEsperarPregunta]);
 
   useEffect(() => {
     return () => {
@@ -588,7 +652,9 @@ export function useAsistenteVoz({ alActivarPorVoz } = {}) {
     textoFinal,
     respuesta,
     escuchandoConfirmacion,
+    esperandoRespuesta,
     iniciar,
+    responder,
     cancelar,
     hablar,
     confirmar,
