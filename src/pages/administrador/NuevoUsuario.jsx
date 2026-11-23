@@ -10,6 +10,7 @@ import {
 } from '../../components/administrador/usuariosUtils';
 import { useIdentidad } from '../../context/IdentidadContext';
 import { crearUsuario } from '../../services/usuariosService';
+import { esCuotaAlcanzada, mensajeCuota } from '../../utils/errores';
 
 /* ── Icons ── */
 function ChevronLeftIcon() {
@@ -124,6 +125,11 @@ export default function NuevoUsuario() {
       }
       setToast({ show: true, msg: 'Usuario creado correctamente.', type: 'success' });
     } catch (err) {
+      // 409 de cuota (RF70): el plan no admite más usuarios; no es un error de un campo.
+      if (esCuotaAlcanzada(err)) {
+        setToast({ show: true, msg: mensajeCuota('usuarios'), type: 'error' });
+        return;
+      }
       const msg = mensajeError(err, 'Error al crear el usuario. Intenta de nuevo.');
       if (esErrorDeRol(err)) {
         setError('rol', { type: 'server', message: msg });

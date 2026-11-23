@@ -1,4 +1,5 @@
-// src/pages/plataforma/DetalleDistribuidora.jsx — RF59: detalle y ciclo de vida de una distribuidora
+// src/pages/plataforma/DetalleDistribuidora.jsx — RF59: detalle y ciclo de vida de una distribuidora;
+// RF70: plan de suscripción asignado y uso de sus cuotas
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { useForm, useWatch } from 'react-hook-form';
@@ -9,10 +10,12 @@ import SuccessToast from '../../components/SuccessToast';
 import EstadoBadge from '../../components/plataforma/EstadoBadge';
 import ModalConfirmacion from '../../components/plataforma/ModalConfirmacion';
 import ContenidoCarga from '../../components/ui/ContenidoCarga';
+import ConsumoPlan from '../../components/plataforma/ConsumoPlan';
+import AsignarPlan from '../../components/plataforma/AsignarPlan';
 import {
-  ESTADOS_DISTRIBUIDORA, TRANSICIONES, etiquetaPlan, formatoFecha, formatoFechaHora, iniciales, mensajeError,
+  ESTADOS_DISTRIBUIDORA, TRANSICIONES, formatoFecha, formatoFechaHora, iniciales, mensajeError, nombrePlan,
 } from '../../components/plataforma/plataformaUtils';
-import { cambiarEstado, obtenerDistribuidora, reenviarAcceso } from '../../services/plataformaService';
+import { cambiarEstado, listarPlanes, obtenerDistribuidora, reenviarAcceso } from '../../services/plataformaService';
 
 const schema = yup.object({
   estado: yup.string().required('Selecciona el nuevo estado.'),
@@ -155,10 +158,21 @@ function ContenidoDetalle({ id }) {
       : { show: false, msg: '', type: 'success' }
   ));
 
+  // Planes para el selector (RF70): { lista, error }. Se cargan una vez por detalle.
+  const [planes, setPlanes] = useState(null);
+
   const {
     register, handleSubmit, reset, control,
     formState: { errors, isSubmitting },
   } = useForm({ resolver: yupResolver(schema), defaultValues: { estado: '', motivo: '' } });
+
+  useEffect(() => {
+    let vivo = true;
+    listarPlanes()
+      .then((lista) => { if (vivo) setPlanes({ lista, error: '' }); })
+      .catch((err) => { if (vivo) setPlanes({ lista: [], error: mensajeError(err, 'No se pudieron cargar los planes.') }); });
+    return () => { vivo = false; };
+  }, []);
 
   // "cargando" se deriva: hay un id en la URL que todavía no está en pantalla ni falló.
   const cargando = dist?.id !== id && errorCarga?.id !== id;
@@ -263,7 +277,7 @@ function ContenidoDetalle({ id }) {
                 <h1 className="font-display text-2xl font-extrabold text-ink tracking-tight">{dist.nombreComercial}</h1>
                 <EstadoBadge estado={dist.estado} />
               </div>
-              <p className="text-sm text-muted mt-0.5">{dist.razonSocial} · Plan {etiquetaPlan(dist.plan)}</p>
+              <p className="text-sm text-muted mt-0.5">{dist.razonSocial} · Plan {nombrePlan(dist)}</p>
             </div>
           </div>
         </div>
@@ -340,10 +354,20 @@ function ContenidoDetalle({ id }) {
                 </Fila>
                 <Fila label="Teléfono">{dist.telefono ?? '—'}</Fila>
                 <Fila label="Dirección">{dist.direccion ?? '—'}</Fila>
-                <Fila label="Plan">{etiquetaPlan(dist.plan)}</Fila>
+                <Fila label="Plan">
+                  {nombrePlan(dist)}
+                  {dist.fechaPlan && <span className="text-xs text-muted"> · desde {formatoFecha(dist.fechaPlan)}</span>}
+                </Fila>
                 <Fila label="Registro">{formatoFecha(dist.createdAt)}</Fila>
               </dl>
             </section>
+
+            {dist.uso && (
+              <section className={`${card} animate-fade-in-up [animation-delay:90ms]`}>
+                <SectionTitle>Consumo del plan actual</SectionTitle>
+                <ConsumoPlan uso={dist.uso} plan={nombrePlan(dist)} />
+              </section>
+            )}
 
             {(dist.historialEstados?.length > 0 || dist.fechaEstado) && (
               <section className={`${card} animate-fade-in-up [animation-delay:120ms]`}>
@@ -363,129 +387,149 @@ function ContenidoDetalle({ id }) {
             )}
           </div>
 
-          {/* Columna derecha: cambio de estado */}
-          <section className={`${card} animate-fade-in-up [animation-delay:90ms]`}>
-            <SectionTitle>Cambiar estado</SectionTitle>
+          {/* Columna derecha: plan de suscripción y cambio de estado */}
+          <div className="flex flex-col gap-6">
+            <section className={`${card} animate-fade-in-up [animation-delay:90ms]`}>
+              <SectionTitle>Plan de suscripción</SectionTitle>
+              <AsignarPlan
+                dist={dist}
+                planes={planes}
+                onAsignado={(actualizada, plan) => {
+                  setDist((prev) => ({
+                    ...prev,
+                    ...actualizada,
+                    // Si el backend no devuelve el uso o el nombre, se conservan los de pantalla.
+                    uso: actualizada.uso ?? prev.uso,
+                    planNombre: actualizada.planNombre ?? plan.nombre,
+                  }));
+                  setToast({ show: true, msg: `Plan cambiado a «${plan.nombre}». Las cuotas nuevas aplican de inmediato.`, type: 'success' });
+                }}
+              />
+            </section>
 
-            <div className="flex items-center gap-2 text-sm text-muted mb-5">
-              Estado actual <EstadoBadge estado={dist.estado} />
-            </div>
+            <section className={`${card} animate-fade-in-up [animation-delay:150ms]`}>
+              <SectionTitle>Cambiar estado</SectionTitle>
 
-            {esFinal ? (
-              <div className="flex items-start gap-3 rounded-xl bg-surface px-4 py-4 text-sm">
-                <span className="text-muted shrink-0"><ArchiveIcon /></span>
-                <p className="text-faint">
-                  <span className="font-semibold text-ink">Esta distribuidora está archivada.</span>{' '}
-                  Inactivo es un estado final: no admite más cambios y sus usuarios no pueden ingresar.
-                </p>
+              <div className="flex items-center gap-2 text-sm text-muted mb-5">
+                Estado actual <EstadoBadge estado={dist.estado} />
               </div>
-            ) : (
-              <form onSubmit={handleSubmit(onCambiarEstado)} noValidate className="flex flex-col gap-5">
-                <fieldset>
-                  <legend className={lbl}>Nuevo estado</legend>
-                  <div className="flex flex-col gap-3">
-                    {permitidos.map((e) => {
-                      const activo = destino === e;
-                      return (
-                        <label
-                          key={e}
-                          className={`flex items-start gap-3 px-4 py-3.5 rounded-xl border-2 cursor-pointer transition duration-200 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary/20 ${
-                            activo ? 'border-primary bg-primary/5' : 'border-border bg-white hover:border-divider hover:bg-surface'
-                          }`}
-                        >
-                          <input type="radio" value={e} className="sr-only" {...register('estado')} />
-                          <span className={`mt-0.5 w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center ${activo ? 'border-primary' : 'border-divider'}`}>
-                            {activo && <span className="w-2 h-2 rounded-full bg-primary block" />}
-                          </span>
-                          <div className="min-w-0">
-                            <EstadoBadge estado={e} />
-                            <p className="text-xs text-muted mt-1.5 leading-relaxed">{descripcionDestino(e, dist.estado)}</p>
-                          </div>
-                        </label>
-                      );
-                    })}
-                  </div>
-                  {errors.estado ? (
-                    <p className={errMsg}>{errors.estado.message}</p>
-                  ) : (
-                    <p className="text-xs text-muted mt-2">
-                      Solo se muestran los cambios permitidos desde {ESTADOS_DISTRIBUIDORA[dist.estado]?.label}.
-                    </p>
-                  )}
-                </fieldset>
 
-                <div>
-                  <label htmlFor="motivo" className={lbl}>
-                    Motivo del cambio <span className="text-primary">*</span>
-                  </label>
-                  <textarea
-                    id="motivo"
-                    rows={3}
-                    placeholder="Ej. Mensualidad de octubre sin pagar 15 días después del vencimiento."
-                    className={`w-full px-4 py-3 border rounded-xl text-sm outline-none transition duration-300 text-ink placeholder:text-[#c0c0c0] resize-none ${
-                      errors.motivo
-                        ? 'border-danger ring-2 ring-danger/20 bg-error-bg'
-                        : 'bg-surface border-transparent focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20'
-                    }`}
-                    {...register('motivo')}
-                  />
-                  {errors.motivo ? (
-                    <p className={errMsg}>{errors.motivo.message}</p>
-                  ) : (
-                    <p className="text-xs text-muted mt-1.5">Queda registrado en el historial con la fecha y el estado anterior.</p>
-                  )}
+              {esFinal ? (
+                <div className="flex items-start gap-3 rounded-xl bg-surface px-4 py-4 text-sm">
+                  <span className="text-muted shrink-0"><ArchiveIcon /></span>
+                  <p className="text-faint">
+                    <span className="font-semibold text-ink">Esta distribuidora está archivada.</span>{' '}
+                    Inactivo es un estado final: no admite más cambios y sus usuarios no pueden ingresar.
+                  </p>
                 </div>
+              ) : (
+                <form onSubmit={handleSubmit(onCambiarEstado)} noValidate className="flex flex-col gap-5">
+                  <fieldset>
+                    <legend className={lbl}>Nuevo estado</legend>
+                    <div className="flex flex-col gap-3">
+                      {permitidos.map((e) => {
+                        const activo = destino === e;
+                        return (
+                          <label
+                            key={e}
+                            className={`flex items-start gap-3 px-4 py-3.5 rounded-xl border-2 cursor-pointer transition duration-200 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary/20 ${
+                              activo ? 'border-primary bg-primary/5' : 'border-border bg-white hover:border-divider hover:bg-surface'
+                            }`}
+                          >
+                            <input type="radio" value={e} className="sr-only" {...register('estado')} />
+                            <span className={`mt-0.5 w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center ${activo ? 'border-primary' : 'border-divider'}`}>
+                              {activo && <span className="w-2 h-2 rounded-full bg-primary block" />}
+                            </span>
+                            <div className="min-w-0">
+                              <EstadoBadge estado={e} />
+                              <p className="text-xs text-muted mt-1.5 leading-relaxed">{descripcionDestino(e, dist.estado)}</p>
+                            </div>
+                          </label>
+                        );
+                      })}
+                    </div>
+                    {errors.estado ? (
+                      <p className={errMsg}>{errors.estado.message}</p>
+                    ) : (
+                      <p className="text-xs text-muted mt-2">
+                        Solo se muestran los cambios permitidos desde {ESTADOS_DISTRIBUIDORA[dist.estado]?.label}.
+                      </p>
+                    )}
+                  </fieldset>
 
-                {bloquea && (
-                  <div className="flex items-start gap-2.5 px-4 py-3 rounded-xl bg-error-bg border border-[#ffb4a9] text-sm text-error-fg animate-slide-down">
-                    <span className="shrink-0 mt-0.5"><AlertIcon /></span>
-                    <p>
-                      Al confirmar se cierran de inmediato las sesiones {sesionesDe} de {dist.nombreComercial}.
-                      {destino === 'SUSPENDIDO'
-                        ? ' Verán la pantalla de acceso suspendido y su página pública dejará de mostrarse.'
-                        : ' Verán la pantalla de distribuidora inactiva, su página pública dejará de mostrarse y el cambio no se puede deshacer.'}
-                    </p>
+                  <div>
+                    <label htmlFor="motivo" className={lbl}>
+                      Motivo del cambio <span className="text-primary">*</span>
+                    </label>
+                    <textarea
+                      id="motivo"
+                      rows={3}
+                      placeholder="Ej. Mensualidad de octubre sin pagar 15 días después del vencimiento."
+                      className={`w-full px-4 py-3 border rounded-xl text-sm outline-none transition duration-300 text-ink placeholder:text-[#c0c0c0] resize-none ${
+                        errors.motivo
+                          ? 'border-danger ring-2 ring-danger/20 bg-error-bg'
+                          : 'bg-surface border-transparent focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20'
+                      }`}
+                      {...register('motivo')}
+                    />
+                    {errors.motivo ? (
+                      <p className={errMsg}>{errors.motivo.message}</p>
+                    ) : (
+                      <p className="text-xs text-muted mt-1.5">Queda registrado en el historial con la fecha y el estado anterior.</p>
+                    )}
                   </div>
-                )}
-                {destino === 'ACTIVO' && (
-                  <div className="flex items-start gap-2.5 px-4 py-3 rounded-xl bg-emerald-50 border border-emerald-200 text-sm text-emerald-800 animate-slide-down">
-                    <span className="shrink-0 mt-0.5"><InfoIcon /></span>
-                    <p>
-                      {dist.estado === 'SUSPENDIDO'
-                        ? `Los usuarios de ${dist.nombreComercial} podrán volver a ingresar y su página pública se mostrará de nuevo.`
-                        : `Los usuarios de ${dist.nombreComercial} siguen ingresando con normalidad.`}
-                    </p>
-                  </div>
-                )}
 
-                {errorCambio && (
-                  <div className="px-4 py-3 rounded-xl bg-error-bg border border-[#ffb4a9] text-error-fg text-sm animate-slide-down">
-                    {errorCambio}
-                  </div>
-                )}
+                  {bloquea && (
+                    <div className="flex items-start gap-2.5 px-4 py-3 rounded-xl bg-error-bg border border-[#ffb4a9] text-sm text-error-fg animate-slide-down">
+                      <span className="shrink-0 mt-0.5"><AlertIcon /></span>
+                      <p>
+                        Al confirmar se cierran de inmediato las sesiones {sesionesDe} de {dist.nombreComercial}.
+                        {destino === 'SUSPENDIDO'
+                          ? ' Verán la pantalla de acceso suspendido y su página pública dejará de mostrarse.'
+                          : ' Verán la pantalla de distribuidora inactiva, su página pública dejará de mostrarse y el cambio no se puede deshacer.'}
+                      </p>
+                    </div>
+                  )}
+                  {destino === 'ACTIVO' && (
+                    <div className="flex items-start gap-2.5 px-4 py-3 rounded-xl bg-emerald-50 border border-emerald-200 text-sm text-emerald-800 animate-slide-down">
+                      <span className="shrink-0 mt-0.5"><InfoIcon /></span>
+                      <p>
+                        {dist.estado === 'SUSPENDIDO'
+                          ? `Los usuarios de ${dist.nombreComercial} podrán volver a ingresar y su página pública se mostrará de nuevo.`
+                          : `Los usuarios de ${dist.nombreComercial} siguen ingresando con normalidad.`}
+                      </p>
+                    </div>
+                  )}
 
-                <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
-                  <button
-                    type="button"
-                    onClick={() => { reset({ estado: '', motivo: '' }); setErrorCambio(''); }}
-                    disabled={isSubmitting}
-                    className="px-5 py-3 rounded-xl bg-surface text-ink text-sm font-semibold hover:bg-border transition duration-300 active:scale-[0.97] disabled:opacity-60"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="flex items-center justify-center gap-2 px-5 py-3 bg-primary text-white text-sm font-semibold rounded-xl hover:bg-primary-dark transition duration-300 active:scale-[0.97] shadow-[0_2px_8px_rgba(158,32,22,0.25)] disabled:opacity-60"
-                  >
-                    <ContenidoCarga cargando={isSubmitting} textoCargando="Guardando...">
-                      Confirmar cambio de estado
-                    </ContenidoCarga>
-                  </button>
-                </div>
-              </form>
-            )}
-          </section>
+                  {errorCambio && (
+                    <div className="px-4 py-3 rounded-xl bg-error-bg border border-[#ffb4a9] text-error-fg text-sm animate-slide-down">
+                      {errorCambio}
+                    </div>
+                  )}
+
+                  <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
+                    <button
+                      type="button"
+                      onClick={() => { reset({ estado: '', motivo: '' }); setErrorCambio(''); }}
+                      disabled={isSubmitting}
+                      className="px-5 py-3 rounded-xl bg-surface text-ink text-sm font-semibold hover:bg-border transition duration-300 active:scale-[0.97] disabled:opacity-60"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="flex items-center justify-center gap-2 px-5 py-3 bg-primary text-white text-sm font-semibold rounded-xl hover:bg-primary-dark transition duration-300 active:scale-[0.97] shadow-[0_2px_8px_rgba(158,32,22,0.25)] disabled:opacity-60"
+                    >
+                      <ContenidoCarga cargando={isSubmitting} textoCargando="Guardando...">
+                        Confirmar cambio de estado
+                      </ContenidoCarga>
+                    </button>
+                  </div>
+                </form>
+              )}
+            </section>
+          </div>
         </div>
       </div>
 
