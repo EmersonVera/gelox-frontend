@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import AppLayout from '../../components/AppLayout';
 import CustomSelect from '../../components/ui/CustomSelect';
 import Pagination from '../../components/ui/Pagination';
+import DetalleAuditoria from '../../components/plataforma/DetalleAuditoria';
 import { AlertIcon, FilterIcon, GlobeIcon, ShieldIcon } from '../../components/plataforma/IconosPlataforma';
 import {
   ACCIONES_AUDITORIA, ETIQUETA_ROL, TONOS_ACCION, etiquetaAccion, fechaISO, formatoFechaCorta, iniciales, mensajeError,
@@ -22,14 +23,7 @@ function filtrosIniciales() {
 const fechaDe = (iso) => new Intl.DateTimeFormat('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(iso));
 const horaDe = (iso) => new Intl.DateTimeFormat('es-CO', { hour: 'numeric', minute: '2-digit', second: '2-digit' }).format(new Date(iso));
 
-/** «Básico → Estándar. Motivo: …» → resalta el valor nuevo, como en el mockup RF71. */
-function Detalle({ texto }) {
-  const m = /^(.*?→\s)([^;]+?)((?:\.\s|;|\.$)[\s\S]*)?$/.exec(texto ?? '');
-  if (!m) return texto || '—';
-  return <>{m[1]}<strong className="font-semibold text-ink">{m[2]}</strong>{m[3]}</>;
-}
-
-/** Acepta ['ASIGNAR_PLAN', …] o [{ codigo, etiqueta }] del backend. */
+/** Acepta ['PLAN_ASIGNAR', …] o [{ codigo, etiqueta }] del backend. */
 const normalizarAccion = (a) => (typeof a === 'string'
   ? { value: a, label: etiquetaAccion(a) }
   : { value: a.codigo ?? a.accion ?? a.value, label: a.etiqueta ?? a.label ?? etiquetaAccion(a.codigo ?? a.accion) });
@@ -267,7 +261,7 @@ export default function Auditoria() {
                             {etiquetaAccion(a.accion)}
                           </span>
                         </td>
-                        <td className="px-4 py-4 text-[13px] text-faint leading-relaxed min-w-[220px]"><Detalle texto={a.detalle} /></td>
+                        <td className="px-4 py-4 text-[13px] text-faint leading-relaxed min-w-[220px]"><DetalleAuditoria detalle={a.detalle} /></td>
                         <td className="pl-4 pr-6 py-4 font-mono text-xs text-faint whitespace-nowrap">{a.ip ?? '—'}</td>
                       </tr>
                     );

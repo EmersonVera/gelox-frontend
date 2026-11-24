@@ -8,7 +8,7 @@
 // Uso:
 //   import { esCuotaAlcanzada, mensajeCuota, mensajeErrorApi } from '../../utils/errores';
 //   catch (err) {
-//     const msg = esCuotaAlcanzada(err) ? mensajeCuota('productos') : mensajeErrorApi(err, 'No se pudo guardar.');
+//     const msg = esCuotaAlcanzada(err) ? mensajeCuota('productos', err) : mensajeErrorApi(err, 'No se pudo guardar.');
 //   }
 
 export const MENSAJE_CUOTA = 'Cuota del plan alcanzada';
@@ -30,11 +30,28 @@ export function esCuotaAlcanzada(err) {
   return /cuota/i.test(textoError(err));
 }
 
+/** Nombre de cada TipoCuota del backend (FP-15 §2.16.2) en el mensaje. */
+const NOMBRE_CUOTA = {
+  USUARIOS: 'usuarios',
+  PRODUCTOS: 'productos',
+  COMERCIANTES: 'comerciantes',
+  ALMACENAMIENTO_MB: 'almacenamiento (MB)',
+  LLAMADAS_IA_MES: 'consultas de voz',
+};
+
 /**
  * Mensaje para mostrar al Gerente cuando se alcanza una cuota.
  * recurso: 'usuarios' | 'productos' | 'comerciantes' | 'almacenamiento' (opcional, para decir qué se llenó).
+ * err: el error del 409; si trae { cuota, limite, usado } (FP-15 §2.16.2) el mensaje dice cuánto se usa,
+ * por ejemplo «Cuota del plan alcanzada: usuarios (5 de 5).».
  */
-export function mensajeCuota(recurso) {
+export function mensajeCuota(recurso, err) {
+  const data = err?.response?.data;
+  if (data && typeof data === 'object' && data.cuota && data.limite != null && data.usado != null) {
+    const nombre = NOMBRE_CUOTA[data.cuota] ?? String(data.cuota).toLowerCase().replace(/_/g, ' ');
+    const n = (v) => Number(v).toLocaleString('es-CO');
+    return `${MENSAJE_CUOTA}: ${nombre} (${n(data.usado)} de ${n(data.limite)}). ${CONTACTO_CUOTA}`;
+  }
   const que = {
     usuarios: 'Tu plan ya no admite más usuarios habilitados.',
     productos: 'Tu plan ya no admite más productos en el catálogo.',
@@ -49,7 +66,7 @@ export function mensajeCuota(recurso) {
  * siempre «Cuota del plan alcanzada…», aunque el backend mande otro texto.
  */
 export function mensajeErrorApi(err, porDefecto, recurso) {
-  if (esCuotaAlcanzada(err)) return mensajeCuota(recurso);
+  if (esCuotaAlcanzada(err)) return mensajeCuota(recurso, err);
   if (!err?.response) return 'Sin conexión con el servidor. Intenta de nuevo.';
   return textoError(err) || porDefecto;
 }

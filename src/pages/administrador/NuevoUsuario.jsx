@@ -127,7 +127,7 @@ export default function NuevoUsuario() {
     } catch (err) {
       // 409 de cuota (RF70): el plan no admite más usuarios; no es un error de un campo.
       if (esCuotaAlcanzada(err)) {
-        setToast({ show: true, msg: mensajeCuota('usuarios'), type: 'error' });
+        setToast({ show: true, msg: mensajeCuota('usuarios', err), type: 'error' });
         return;
       }
       const msg = mensajeError(err, 'Error al crear el usuario. Intenta de nuevo.');

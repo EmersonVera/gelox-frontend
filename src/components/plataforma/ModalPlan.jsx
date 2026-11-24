@@ -15,8 +15,8 @@ const cuota = yup.number()
   .min(0, 'No puede ser negativo.');
 
 const schema = yup.object({
-  nombre: yup.string().trim().required('El nombre del plan es obligatorio.').max(40, 'Máximo 40 caracteres.'),
-  descripcion: yup.string().trim().max(120, 'Máximo 120 caracteres.'),
+  nombre: yup.string().trim().required('El nombre del plan es obligatorio.').max(30, 'Máximo 30 caracteres.'),
+  descripcion: yup.string().trim().max(255, 'Máximo 255 caracteres.'),
   precioMensual: yup.number()
     .typeError('Escribe el precio mensual.')
     .required('Escribe el precio mensual.')
@@ -237,7 +237,9 @@ function ContenidoModal({ plan, onGuardar, onCerrar }) {
             <div className="mb-4">
               <label htmlFor="plan-nombre" className={lbl}>Nombre del plan <span className="text-primary">*</span></label>
               <input id="plan-nombre" placeholder="Ej. Estándar" className={inputTexto(errors.nombre)} {...register('nombre')} />
-              {errors.nombre && <p className={errMsg}>{errors.nombre.message}</p>}
+              {errors.nombre
+                ? <p className={errMsg}>{errors.nombre.message}</p>
+                : <p className="text-xs text-muted mt-1.5">Máximo 30 caracteres.</p>}
             </div>
             <div className="mb-4">
               <label htmlFor="plan-precio" className={lbl}>Precio mensual <span className="text-primary">*</span></label>

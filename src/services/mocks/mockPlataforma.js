@@ -1,6 +1,7 @@
 // Datos simulados del panel del Superadministrador (RF58, RF59, RF69, RF70, RF71).
 // Respeta la forma del contrato de /api/plataforma/... (T117, T185, T191). El backend
 // toma de aquí los nombres de campo (plan de la Iteración 3, tareas 185 y 191).
+// Nombres alineados con FP-15 §2.14.1 y §2.16 (versión del 23/11/2026).
 // Guarda el estado en memoria mientras la pestaña siga abierta: crear una distribuidora,
 // cambiar su estado, crear o editar un plan o asignarlo se refleja en todas las pantallas
 // y deja su fila en el log de auditoría.
@@ -46,7 +47,15 @@
 //   Página de Spring: { content, totalElements, totalPages, number, size }, ordenada por fechaHora desc.
 //   Fila: { id, fechaHora, ip, tenantId, distribuidoraNombre (null = plataforma),
 //           usuarioId, usuarioNombre, usuarioCorreo, usuarioRol, accion, entidad, entidadId, detalle }
-// GET /api/plataforma/auditoria/acciones  → ['ASIGNAR_PLAN', 'CAMBIAR_ESTADO_DISTRIBUIDORA', ...]
+//   accion: códigos AccionAuditoria de FP-15 §2.16.3 (estilo ENTIDAD_VERBO: USUARIO_CREAR, PLAN_ASIGNAR…).
+//   detalle: JSON guardado como texto. Formas que usa este mock:
+//     DISTRIBUIDORA_CAMBIAR_ESTADO {estadoAnterior, estadoNuevo, motivo} · DISTRIBUIDORA_APROVISIONAR {plan, correoGerente}
+//     DISTRIBUIDORA_REENVIAR_ACCESO {correoGerente} · PLAN_ASIGNAR {planAnterior, planNuevo, motivo}
+//     PLAN_CREAR {plan, precioMensual, cuotas} · PLAN_EDITAR {plan, cambios: [{campo, antes, despues}]}
+//     USUARIO_* {nombre, correo, rol} (editar: cambios) · PRODUCTO_CREAR {nombre, sku, proveedor}
+//     PLANILLA_LIQUIDAR {totalCobrado, efectivoRecibido, esquema} · CREDITO_POLITICA_CAMBIAR {comerciante, antes, despues}
+//     ABONO_REGISTRAR {comerciante, valor} · SESION_* {rol} · CONTRASENA_CAMBIAR {} · ACCESO_BLOQUEADO {estado}
+// GET /api/plataforma/auditoria/acciones  → ['USUARIO_CREAR', 'PLAN_ASIGNAR', 'DISTRIBUIDORA_CAMBIAR_ESTADO', ...] (FP-15 §2.16.3)
 // GET /api/plataforma/auditoria/usuarios?distribuidoraId → [{ id, nombre, correo, rol, distribuidoraNombre }]
 //
 // ── Casos para probar a mano ─────────────────────────────────────────────────────────
@@ -69,10 +78,6 @@ const TRANSICIONES = {
   ACTIVO:     ['SUSPENDIDO', 'INACTIVO'],
   SUSPENDIDO: ['ACTIVO', 'INACTIVO'],
   INACTIVO:   [],
-};
-
-const ETIQUETA_ESTADO = {
-  ACTIVO: 'Activo', PRUEBA: 'En periodo de prueba', SUSPENDIDO: 'Suspendido por mora', INACTIVO: 'Inactivo / Archivado',
 };
 
 const haceDias = (dias, hora = 9, minuto = 12) => {
@@ -115,19 +120,10 @@ const normalizar = (texto) =>
 
 const soloDigitos = (nit) => String(nit ?? '').replace(/\D/g, '');
 
-const formatoPesos = (n) => `$${Math.round(n).toLocaleString('es-CO')}`;
-
 /* ══════════════════════════ Planes de suscripción (RF70) ══════════════════════════ */
 
 const CUOTAS = ['maxUsuarios', 'maxProductos', 'maxComerciantes', 'maxAlmacenamientoMb', 'maxLlamadasIaMes'];
-
-const ETIQUETA_CUOTA = {
-  maxUsuarios: 'máx. usuarios',
-  maxProductos: 'máx. productos',
-  maxComerciantes: 'máx. comerciantes',
-  maxAlmacenamientoMb: 'almacenamiento máx. (MB)',
-  maxLlamadasIaMes: 'llamadas IA por mes',
-};
+const cuotasDe = (p) => Object.fromEntries(CUOTAS.map((c) => [c, p[c] ?? null]));
 
 const planes = new Map();
 
@@ -369,18 +365,17 @@ const USUARIOS_DISTRIBUIDORA = {
 
 /** Acciones que audita el backend (FP-15, arquitectura de gobierno, tarea 173). */
 const ACCIONES = [
-  'APROVISIONAR_DISTRIBUIDORA', 'CAMBIAR_ESTADO_DISTRIBUIDORA', 'REENVIAR_ACCESO', 'ACTUALIZAR_IDENTIDAD',
-  'CREAR_PLAN', 'EDITAR_PLAN', 'ASIGNAR_PLAN',
-  'CREAR_USUARIO', 'EDITAR_USUARIO', 'DESHABILITAR_USUARIO', 'HABILITAR_USUARIO',
-  'CREAR_PRODUCTO', 'CREAR_PROVEEDOR', 'EDITAR_PROVEEDOR', 'ACTIVAR_PROVEEDOR', 'GUARDAR_PLANTILLA_EXPORTACION',
-  'CAMBIAR_POLITICA_CREDITO', 'CAMBIAR_ESQUEMA_LIQUIDACION', 'LIQUIDAR_PLANILLA', 'REGISTRAR_ABONO',
-  'INICIAR_SESION', 'CERRAR_SESION', 'CAMBIAR_CONTRASENA', 'ACCESO_BLOQUEADO',
+  'DISTRIBUIDORA_APROVISIONAR', 'DISTRIBUIDORA_CAMBIAR_ESTADO', 'DISTRIBUIDORA_REENVIAR_ACCESO', 'IDENTIDAD_ACTUALIZAR',
+  'PLAN_CREAR', 'PLAN_EDITAR', 'PLAN_ASIGNAR',
+  'USUARIO_CREAR', 'USUARIO_EDITAR', 'USUARIO_DESHABILITAR', 'USUARIO_HABILITAR',
+  'PRODUCTO_CREAR', 'PROVEEDOR_CREAR', 'PROVEEDOR_EDITAR', 'PROVEEDOR_ACTIVAR', 'PLANTILLA_EXPORTACION_CAMBIAR',
+  'CREDITO_POLITICA_CAMBIAR', 'ESQUEMA_LIQUIDACION_CAMBIAR', 'PLANILLA_LIQUIDAR', 'ABONO_REGISTRAR',
+  'SESION_INICIAR', 'SESION_CERRAR', 'CONTRASENA_CAMBIAR', 'ACCESO_BLOQUEADO', 'PLANILLA_CAMBIAR_FECHA_LIMITE',
 ];
 
 const COMERCIANTES_EJEMPLO = ['Tienda La Esquina', 'Supermercado El Ahorro', 'Tienda Don Pepe', 'Minimercado La 10', 'Heladería Sol', 'Tienda Mi Barrio'];
 const PRODUCTOS_EJEMPLO = [['Paleta de mango', 'PAL-031'], ['Cono doble chocolate', 'CON-114'], ['Familiar vainilla 2 L', 'FAM-207'], ['Vaso de mora', 'VAS-052'], ['Paleta de coco', 'PAL-044']];
 const NOMBRES_EJEMPLO = ['Marta Gómez', 'Jorge Ruiz', 'Sofía Duarte', 'Andrés Villamizar', 'Laura Jaimes', 'Kevin Ortega'];
-const ETIQUETA_ROL = { ENCARGADO_VENTAS: 'Ventas', ENCARGADO_INVENTARIO: 'Inventarios' };
 
 const auditoria = [];
 let secuenciaAuditoria = 0;
@@ -400,7 +395,8 @@ function registrarAuditoria({ fechaHora = new Date().toISOString(), distribuidor
     accion,
     entidad,
     entidadId,
-    detalle,
+    // FP-15 §2.14.1: auditoria.detalle es JSON guardado como texto.
+    detalle: typeof detalle === 'string' ? detalle : JSON.stringify(detalle ?? {}),
   });
 }
 
@@ -411,45 +407,45 @@ function eventoDeUsuario(u, d, semilla) {
   if (u.rol === 'ADMINISTRADOR') {
     if (r < 0.28) {
       const n = Math.round(10 + azar(`${semilla}|n`) * 14);
-      return { accion: 'LIQUIDAR_PLANILLA', entidad: 'PlanillaComerciante', detalle: `Planilla del día liquidada: ${n} comerciantes, ${formatoPesos(Math.round(n * (150000 + azar(`${semilla}|v`) * 60000) / 1000) * 1000)}.` };
+      return { accion: 'PLANILLA_LIQUIDAR', entidad: 'PlanillaComerciante', detalle: { comerciantes: n, totalCobrado: Math.round(n * (150000 + azar(`${semilla}|v`) * 60000) / 1000) * 1000, esquema: 'MARGEN' } };
     }
     if (r < 0.4) {
       const antes = 400000 + Math.round(azar(`${semilla}|c`) * 8) * 100000;
-      return { accion: 'CAMBIAR_POLITICA_CREDITO', entidad: 'PoliticaCredito', detalle: `Comerciante «${elegir(COMERCIANTES_EJEMPLO)}»: cupo ${formatoPesos(antes)} → ${formatoPesos(antes + 400000)}.` };
+      return { accion: 'CREDITO_POLITICA_CAMBIAR', entidad: 'PoliticaCredito', detalle: { comerciante: elegir(COMERCIANTES_EJEMPLO), antes: { cupo: antes, plazoDias: 0, politica: 'SOLO_ALERTA' }, despues: { cupo: antes + 400000, plazoDias: 0, politica: 'SOLO_ALERTA' } } };
     }
     if (r < 0.5) {
       const rol = elegir(['ENCARGADO_VENTAS', 'ENCARGADO_INVENTARIO'], 'r');
-      return { accion: 'CREAR_USUARIO', entidad: 'Usuario', detalle: `Usuario «${elegir(NOMBRES_EJEMPLO)}» con rol ${ETIQUETA_ROL[rol]}.` };
+      return { accion: 'USUARIO_CREAR', entidad: 'Usuario', detalle: { nombre: elegir(NOMBRES_EJEMPLO), correo: `${elegir(['marta', 'jorge', 'sofia', 'andres'], 'u')}@${d.subdominio}.co`, rol } };
     }
     if (r < 0.57) {
-      return { accion: 'EDITAR_USUARIO', entidad: 'Usuario', detalle: `Usuario «${elegir(NOMBRES_EJEMPLO)}»: rol Ventas → Inventarios.` };
+      return { accion: 'USUARIO_EDITAR', entidad: 'Usuario', detalle: { nombre: elegir(NOMBRES_EJEMPLO), cambios: [{ campo: 'rol', antes: 'ENCARGADO_VENTAS', despues: 'ENCARGADO_INVENTARIO' }] } };
     }
     if (r < 0.62) {
-      return { accion: 'DESHABILITAR_USUARIO', entidad: 'Usuario', detalle: `Usuario «${elegir(NOMBRES_EJEMPLO)}» deshabilitado.` };
+      return { accion: 'USUARIO_DESHABILITAR', entidad: 'Usuario', detalle: { nombre: elegir(NOMBRES_EJEMPLO), rol: 'ENCARGADO_VENTAS' } };
     }
     if (r < 0.66) {
-      return { accion: 'CAMBIAR_ESQUEMA_LIQUIDACION', entidad: 'EsquemaLiquidacion', detalle: 'Esquema de liquidación: Margen por producto → Comisión 12 %.' };
+      return { accion: 'ESQUEMA_LIQUIDACION_CAMBIAR', entidad: 'EsquemaLiquidacion', detalle: { antes: { tipo: 'MARGEN', valor: null }, despues: { tipo: 'COMISION', valor: 12 } } };
     }
     if (r < 0.7) {
-      return { accion: 'ACTUALIZAR_IDENTIDAD', entidad: 'IdentidadDistribuidora', detalle: 'Logotipo y color primario actualizados.' };
+      return { accion: 'IDENTIDAD_ACTUALIZAR', entidad: 'IdentidadDistribuidora', detalle: { campos: ['logo', 'colorPrimario'] } };
     }
-    if (r < 0.73) return { accion: 'CAMBIAR_CONTRASENA', entidad: 'Usuario', detalle: 'Cambio de contraseña propia.' };
-    return { accion: 'INICIAR_SESION', entidad: 'Usuario', detalle: 'Inicio de sesión.' };
+    if (r < 0.73) return { accion: 'CONTRASENA_CAMBIAR', entidad: 'Usuario', detalle: {} };
+    return { accion: 'SESION_INICIAR', entidad: 'Usuario', detalle: { rol: u.rol } };
   }
   if (u.rol === 'ENCARGADO_INVENTARIO') {
     if (r < 0.35) {
       const [nombre, sku] = elegir(PRODUCTOS_EJEMPLO);
-      return { accion: 'CREAR_PRODUCTO', entidad: 'Producto', detalle: `Producto «${nombre}» (SKU ${sku}).` };
+      return { accion: 'PRODUCTO_CREAR', entidad: 'Producto', detalle: { nombre, sku, proveedor: 'Nutresa' } };
     }
-    if (r < 0.45) return { accion: 'CREAR_PROVEEDOR', entidad: 'Proveedor', detalle: 'Proveedor «Lácteos del Oriente»: entrega en 3 días, pedido mínimo $500.000.' };
-    if (r < 0.55) return { accion: 'GUARDAR_PLANTILLA_EXPORTACION', entidad: 'PlantillaExportacion', detalle: 'Plantilla de Nutresa: 8 columnas.' };
-    return { accion: 'INICIAR_SESION', entidad: 'Usuario', detalle: 'Inicio de sesión.' };
+    if (r < 0.45) return { accion: 'PROVEEDOR_CREAR', entidad: 'Proveedor', detalle: { proveedor: 'Lácteos del Oriente', tiempoEntregaDias: 3, montoMinimoPedido: 500000 } };
+    if (r < 0.55) return { accion: 'PLANTILLA_EXPORTACION_CAMBIAR', entidad: 'PlantillaExportacion', detalle: { proveedor: 'Nutresa', modo: 'RELLENAR_CATALOGO' } };
+    return { accion: 'SESION_INICIAR', entidad: 'Usuario', detalle: { rol: u.rol } };
   }
   if (r < 0.4) {
-    return { accion: 'REGISTRAR_ABONO', entidad: 'AbonoCredito', detalle: `Abono de ${formatoPesos(100000 + Math.round(azar(`${semilla}|a`) * 6) * 50000)} de «${elegir(COMERCIANTES_EJEMPLO)}».` };
+    return { accion: 'ABONO_REGISTRAR', entidad: 'AbonoComerciante', detalle: { comerciante: elegir(COMERCIANTES_EJEMPLO), valor: 100000 + Math.round(azar(`${semilla}|a`) * 6) * 50000 } };
   }
-  if (r < 0.5) return { accion: 'CERRAR_SESION', entidad: 'Usuario', detalle: 'Cierre de sesión.' };
-  return { accion: 'INICIAR_SESION', entidad: 'Usuario', detalle: 'Inicio de sesión.' };
+  if (r < 0.5) return { accion: 'SESION_CERRAR', entidad: 'Usuario', detalle: { rol: u.rol } };
+  return { accion: 'SESION_INICIAR', entidad: 'Usuario', detalle: { rol: u.rol } };
 }
 
 /* Log inicial: últimos 45 días de operaciones de cada distribuidora y del Superadministrador. */
@@ -461,13 +457,13 @@ function eventoDeUsuario(u, d, semilla) {
     d.historialEstados.forEach((h) => {
       if (!h.estadoAnterior) {
         registrarAuditoria({
-          fechaHora: h.fecha, distribuidora: d, accion: 'APROVISIONAR_DISTRIBUIDORA', entidad: 'Distribuidora', entidadId: d.id,
-          detalle: `Distribuidora registrada con el plan ${d.planNombre}. Gerente titular: ${d.correoGerente}.`,
+          fechaHora: h.fecha, distribuidora: d, accion: 'DISTRIBUIDORA_APROVISIONAR', entidad: 'Distribuidora', entidadId: d.id,
+          detalle: { plan: d.planNombre, correoGerente: d.correoGerente },
         });
       } else {
         registrarAuditoria({
-          fechaHora: h.fecha, distribuidora: d, accion: 'CAMBIAR_ESTADO_DISTRIBUIDORA', entidad: 'Distribuidora', entidadId: d.id,
-          detalle: `${ETIQUETA_ESTADO[h.estadoAnterior]} → ${ETIQUETA_ESTADO[h.estadoNuevo]}. Motivo: ${h.motivo}`,
+          fechaHora: h.fecha, distribuidora: d, accion: 'DISTRIBUIDORA_CAMBIAR_ESTADO', entidad: 'Distribuidora', entidadId: d.id,
+          detalle: { estadoAnterior: h.estadoAnterior, estadoNuevo: h.estadoNuevo, motivo: h.motivo },
         });
       }
     });
@@ -500,24 +496,24 @@ function eventoDeUsuario(u, d, semilla) {
   [6, 3, 1].forEach((dias) => registrarAuditoria({
     fechaHora: haceDias(dias, 8, 4 + dias), distribuidora: frontera, usuario: USUARIOS_DISTRIBUIDORA[frontera.id].usuarios[0],
     ip: USUARIOS_DISTRIBUIDORA[frontera.id].ip, accion: 'ACCESO_BLOQUEADO', entidad: 'Distribuidora', entidadId: frontera.id,
-    detalle: 'Intento de acceso con la distribuidora suspendida por mora.',
+    detalle: { estado: 'SUSPENDIDO' },
   }));
 
   // Operaciones del Superadministrador.
   registrarAuditoria({
-    fechaHora: haceDias(6, 17, 12), accion: 'EDITAR_PLAN', entidad: 'PlanSuscripcion', entidadId: planPorNombre('Estándar').id,
-    detalle: 'Plan Estándar: máx. productos 500 → 600.',
+    fechaHora: haceDias(6, 17, 12), accion: 'PLAN_EDITAR', entidad: 'PlanSuscripcion', entidadId: planPorNombre('Estándar').id,
+    detalle: { plan: 'Estándar', cambios: [{ campo: 'maxProductos', antes: 500, despues: 600 }] },
   });
   registrarAuditoria({
-    fechaHora: haceDias(12, 10, 30), accion: 'CREAR_PLAN', entidad: 'PlanSuscripcion', entidadId: planPorNombre('Premium').id,
-    detalle: 'Plan Premium creado: $499.000 /mes, 40 usuarios, 2.000 productos.',
+    fechaHora: haceDias(12, 10, 30), accion: 'PLAN_CREAR', entidad: 'PlanSuscripcion', entidadId: planPorNombre('Premium').id,
+    detalle: { plan: 'Premium', precioMensual: 499000, cuotas: cuotasDe(planPorNombre('Premium')) },
   });
   registrarAuditoria({
-    fechaHora: haceDias(13, 11, 2), distribuidora: store.get('c4e8a2f1-3b5d-4c6e-8a9b-1d2e3f4a5b6c'), accion: 'REENVIAR_ACCESO',
-    entidad: 'Distribuidora', entidadId: 'c4e8a2f1-3b5d-4c6e-8a9b-1d2e3f4a5b6c', detalle: 'Acceso reenviado a gerencia@frioexpress.co.',
+    fechaHora: haceDias(13, 11, 2), distribuidora: store.get('c4e8a2f1-3b5d-4c6e-8a9b-1d2e3f4a5b6c'), accion: 'DISTRIBUIDORA_REENVIAR_ACCESO',
+    entidad: 'Distribuidora', entidadId: 'c4e8a2f1-3b5d-4c6e-8a9b-1d2e3f4a5b6c', detalle: { correoGerente: 'gerencia@frioexpress.co' },
   });
   for (let dias = 30; dias >= 0; dias -= 3) {
-    registrarAuditoria({ fechaHora: haceDias(dias, 8, 1 + (dias % 7)), usuario: SUPERADMIN, accion: 'INICIAR_SESION', entidad: 'Usuario', detalle: 'Inicio de sesión.' });
+    registrarAuditoria({ fechaHora: haceDias(dias, 8, 1 + (dias % 7)), usuario: SUPERADMIN, accion: 'SESION_INICIAR', entidad: 'Usuario', detalle: { rol: 'SUPERADMINISTRADOR' } });
   }
 }());
 
@@ -575,8 +571,8 @@ export function crear(datos) {
   };
   store.set(nueva.id, nueva);
   registrarAuditoria({
-    distribuidora: nueva, accion: 'APROVISIONAR_DISTRIBUIDORA', entidad: 'Distribuidora', entidadId: nueva.id,
-    detalle: `Distribuidora registrada con el plan ${plan.nombre}. Gerente titular: ${nueva.correoGerente}.`,
+    distribuidora: nueva, accion: 'DISTRIBUIDORA_APROVISIONAR', entidad: 'Distribuidora', entidadId: nueva.id,
+    detalle: { plan: plan.nombre, correoGerente: nueva.correoGerente },
   });
   return esperar({ ...publica(conUso(nueva)), correoEnviado: !normalizar(datos.correoGerente).includes('fallo') });
 }
@@ -591,8 +587,8 @@ export function cambiarEstado(id, { estado, motivo }) {
 
   const fecha = new Date().toISOString();
   registrarAuditoria({
-    fechaHora: fecha, distribuidora: d, accion: 'CAMBIAR_ESTADO_DISTRIBUIDORA', entidad: 'Distribuidora', entidadId: d.id,
-    detalle: `${ETIQUETA_ESTADO[d.estado]} → ${ETIQUETA_ESTADO[estado]}. Motivo: ${motivo.trim()}`,
+    fechaHora: fecha, distribuidora: d, accion: 'DISTRIBUIDORA_CAMBIAR_ESTADO', entidad: 'Distribuidora', entidadId: d.id,
+    detalle: { estadoAnterior: d.estado, estadoNuevo: estado, motivo: motivo.trim() },
   });
   d.historialEstados.push({ estadoAnterior: d.estado, estadoNuevo: estado, motivo: motivo.trim(), fecha });
   d.estado = estado;
@@ -609,8 +605,8 @@ export function reenviarAcceso(id) {
     return Promise.reject(errorHttp(409, 'La distribuidora está inactiva'));
   }
   registrarAuditoria({
-    distribuidora: d, accion: 'REENVIAR_ACCESO', entidad: 'Distribuidora', entidadId: d.id,
-    detalle: `Acceso reenviado a ${d.correoGerente}.`,
+    distribuidora: d, accion: 'DISTRIBUIDORA_REENVIAR_ACCESO', entidad: 'Distribuidora', entidadId: d.id,
+    detalle: { correoGerente: d.correoGerente },
   });
   return esperar({ correoEnviado: true, correoGerente: d.correoGerente });
 }
@@ -627,8 +623,8 @@ export function asignarPlan(id, { planId, motivo }) {
 
   const anterior = planes.get(d.planId);
   registrarAuditoria({
-    distribuidora: d, accion: 'ASIGNAR_PLAN', entidad: 'Distribuidora', entidadId: d.id,
-    detalle: `${anterior?.nombre ?? d.planNombre} → ${plan.nombre}. Motivo: ${motivo.trim()}`,
+    distribuidora: d, accion: 'PLAN_ASIGNAR', entidad: 'Distribuidora', entidadId: d.id,
+    detalle: { planAnterior: anterior?.nombre ?? d.planNombre, planNuevo: plan.nombre, motivo: motivo.trim() },
   });
   d.planId = plan.id;
   d.planNombre = plan.nombre;
@@ -680,7 +676,6 @@ const limpiarPlan = (datos) => ({
   ...Object.fromEntries(CUOTAS.map((c) => [c, datos[c] == null || datos[c] === '' ? null : Number(datos[c])])),
 });
 
-const textoCuota = (c, v) => (v == null ? 'sin límite' : Number(v).toLocaleString('es-CO'));
 
 export function crearPlan(datos) {
   const error = validarPlan(datos);
@@ -688,8 +683,8 @@ export function crearPlan(datos) {
   const plan = { id: crypto.randomUUID(), ...limpiarPlan(datos) };
   planes.set(plan.id, plan);
   registrarAuditoria({
-    accion: 'CREAR_PLAN', entidad: 'PlanSuscripcion', entidadId: plan.id,
-    detalle: `Plan ${plan.nombre} creado: ${formatoPesos(plan.precioMensual)} /mes, ${textoCuota('maxUsuarios', plan.maxUsuarios)} usuarios, ${textoCuota('maxProductos', plan.maxProductos)} productos.`,
+    accion: 'PLAN_CREAR', entidad: 'PlanSuscripcion', entidadId: plan.id,
+    detalle: { plan: plan.nombre, precioMensual: plan.precioMensual, cuotas: cuotasDe(plan) },
   });
   return esperar(planConDistribuidoras(plan));
 }
@@ -701,19 +696,16 @@ export function editarPlan(id, datos) {
   if (error) return Promise.reject(error);
   const nuevo = { ...actual, ...limpiarPlan(datos) };
 
-  const cambios = [];
-  if (nuevo.nombre !== actual.nombre) cambios.push(`nombre ${actual.nombre} → ${nuevo.nombre}`);
-  if (nuevo.precioMensual !== actual.precioMensual) cambios.push(`precio ${formatoPesos(actual.precioMensual)} → ${formatoPesos(nuevo.precioMensual)}`);
-  CUOTAS.forEach((c) => {
-    if (nuevo[c] !== actual[c]) cambios.push(`${ETIQUETA_CUOTA[c]} ${textoCuota(c, actual[c])} → ${textoCuota(c, nuevo[c])}`);
-  });
+  const cambios = ['nombre', 'descripcion', 'precioMensual', ...CUOTAS]
+    .filter((campo) => (nuevo[campo] ?? null) !== (actual[campo] ?? null))
+    .map((campo) => ({ campo, antes: actual[campo] ?? null, despues: nuevo[campo] ?? null }));
   planes.set(id, nuevo);
   // El nombre del plan se repite en cada distribuidora (DistribuidoraDTO.planNombre).
   store.forEach((d) => { if (d.planId === id) { d.planNombre = nuevo.nombre; d.plan = nuevo.nombre; } });
   if (cambios.length) {
     registrarAuditoria({
-      accion: 'EDITAR_PLAN', entidad: 'PlanSuscripcion', entidadId: id,
-      detalle: `Plan ${actual.nombre}: ${cambios.join('; ')}.`,
+      accion: 'PLAN_EDITAR', entidad: 'PlanSuscripcion', entidadId: id,
+      detalle: { plan: actual.nombre, cambios },
     });
   }
   return esperar(planConDistribuidoras(nuevo));

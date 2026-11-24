@@ -150,30 +150,31 @@ export const ETIQUETA_ROL = {
 
 /** Etiqueta y color de cada acción auditada (FP-15, arquitectura de gobierno). */
 export const ACCIONES_AUDITORIA = {
-  APROVISIONAR_DISTRIBUIDORA:    { label: 'Registro de distribuidora', tono: 'act' },
-  CAMBIAR_ESTADO_DISTRIBUIDORA:  { label: 'Cambio de estado',          tono: 'sus' },
-  REENVIAR_ACCESO:               { label: 'Reenvío de acceso',         tono: 'neu' },
-  ACTUALIZAR_IDENTIDAD:          { label: 'Identidad visual',          tono: 'neu' },
-  CREAR_PLAN:                    { label: 'Crear plan',                tono: 'pri' },
-  EDITAR_PLAN:                   { label: 'Editar plan',               tono: 'pri' },
-  ASIGNAR_PLAN:                  { label: 'Cambio de plan',            tono: 'pri' },
-  CREAR_USUARIO:                 { label: 'Crear usuario',             tono: 'act' },
-  EDITAR_USUARIO:                { label: 'Editar usuario',            tono: 'pru' },
-  DESHABILITAR_USUARIO:          { label: 'Deshabilitar usuario',      tono: 'ina' },
-  HABILITAR_USUARIO:             { label: 'Habilitar usuario',         tono: 'act' },
-  CREAR_PRODUCTO:                { label: 'Crear producto',            tono: 'act' },
-  CREAR_PROVEEDOR:               { label: 'Crear proveedor',           tono: 'act' },
-  EDITAR_PROVEEDOR:              { label: 'Editar proveedor',          tono: 'pru' },
-  ACTIVAR_PROVEEDOR:             { label: 'Activar proveedor',         tono: 'act' },
-  GUARDAR_PLANTILLA_EXPORTACION: { label: 'Plantilla de exportación',  tono: 'neu' },
-  CAMBIAR_POLITICA_CREDITO:      { label: 'Cambio de política de crédito', tono: 'neu' },
-  CAMBIAR_ESQUEMA_LIQUIDACION:   { label: 'Cambio de esquema de liquidación', tono: 'neu' },
-  LIQUIDAR_PLANILLA:             { label: 'Liquidación',               tono: 'neu' },
-  REGISTRAR_ABONO:               { label: 'Abono de crédito',          tono: 'neu' },
-  INICIAR_SESION:                { label: 'Inicio de sesión',          tono: 'neu' },
-  CERRAR_SESION:                 { label: 'Cierre de sesión',          tono: 'neu' },
-  CAMBIAR_CONTRASENA:            { label: 'Cambio de contraseña',      tono: 'neu' },
+  DISTRIBUIDORA_APROVISIONAR:    { label: 'Registro de distribuidora', tono: 'act' },
+  DISTRIBUIDORA_CAMBIAR_ESTADO:  { label: 'Cambio de estado',          tono: 'sus' },
+  DISTRIBUIDORA_REENVIAR_ACCESO:               { label: 'Reenvío de acceso',         tono: 'neu' },
+  IDENTIDAD_ACTUALIZAR:          { label: 'Identidad visual',          tono: 'neu' },
+  PLAN_CREAR:                    { label: 'Crear plan',                tono: 'pri' },
+  PLAN_EDITAR:                   { label: 'Editar plan',               tono: 'pri' },
+  PLAN_ASIGNAR:                  { label: 'Cambio de plan',            tono: 'pri' },
+  USUARIO_CREAR:                 { label: 'Crear usuario',             tono: 'act' },
+  USUARIO_EDITAR:                { label: 'Editar usuario',            tono: 'pru' },
+  USUARIO_DESHABILITAR:          { label: 'Deshabilitar usuario',      tono: 'ina' },
+  USUARIO_HABILITAR:             { label: 'Habilitar usuario',         tono: 'act' },
+  PRODUCTO_CREAR:                { label: 'Crear producto',            tono: 'act' },
+  PROVEEDOR_CREAR:               { label: 'Crear proveedor',           tono: 'act' },
+  PROVEEDOR_EDITAR:              { label: 'Editar proveedor',          tono: 'pru' },
+  PROVEEDOR_ACTIVAR:             { label: 'Activar proveedor',         tono: 'act' },
+  PLANTILLA_EXPORTACION_CAMBIAR: { label: 'Plantilla de exportación',  tono: 'neu' },
+  CREDITO_POLITICA_CAMBIAR:      { label: 'Cambio de política de crédito', tono: 'neu' },
+  ESQUEMA_LIQUIDACION_CAMBIAR:   { label: 'Cambio de esquema de liquidación', tono: 'neu' },
+  PLANILLA_LIQUIDAR:             { label: 'Liquidación',               tono: 'neu' },
+  ABONO_REGISTRAR:               { label: 'Abono de crédito',          tono: 'neu' },
+  SESION_INICIAR:                { label: 'Inicio de sesión',          tono: 'neu' },
+  SESION_CERRAR:                 { label: 'Cierre de sesión',          tono: 'neu' },
+  CONTRASENA_CAMBIAR:            { label: 'Cambio de contraseña',      tono: 'neu' },
   ACCESO_BLOQUEADO:              { label: 'Acceso bloqueado',          tono: 'sus' },
+  PLANILLA_CAMBIAR_FECHA_LIMITE: { label: 'Prórroga de fecha límite',  tono: 'neu' },
 };
 
 export const TONOS_ACCION = {
@@ -185,7 +186,7 @@ export const TONOS_ACCION = {
   pri: 'bg-primary-tint text-primary font-semibold',
 };
 
-/** «CAMBIAR_POLITICA_CREDITO» → «Cambiar politica credito» para una acción nueva que aún no tenga etiqueta. */
+/** «CREDITO_POLITICA_CAMBIAR» → «Cambiar politica credito» para una acción nueva que aún no tenga etiqueta. */
 export function etiquetaAccion(codigo) {
   if (ACCIONES_AUDITORIA[codigo]) return ACCIONES_AUDITORIA[codigo].label;
   const texto = String(codigo ?? '').toLowerCase().replace(/_/g, ' ');

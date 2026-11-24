@@ -416,7 +416,14 @@ export default function NuevaDistribuidora() {
                 })}
               </div>
             )}
-            {errors.planId && <p className={`${errMsg} mt-2`}>{errors.planId.message}</p>}
+            {errors.planId ? (
+              <p className={`${errMsg} mt-2`}>{errors.planId.message}</p>
+            ) : planes?.lista.length > 0 && (
+              <p className="text-xs text-muted mt-2">
+                Los planes y sus cuotas se configuran en{' '}
+                <Link to="/plataforma/planes" className="text-primary font-semibold hover:underline">Planes</Link>.
+              </p>
+            )}
           </fieldset>
 
           {/* Aviso */}

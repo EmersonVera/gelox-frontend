@@ -11,11 +11,11 @@ import { CUOTAS, formatoPesos, iniciales, mensajeError, textoCuota } from '../..
 import { USAR_MOCK, crearPlan, editarPlan, listarPlanes } from '../../services/plataformaService';
 
 const REGLAS = [
-  { icono: <UsersIcon />, titulo: 'Usuarios', texto: 'Cuenta las cuentas habilitadas. Al llegar al máximo, el Gerente no puede crear ni habilitar más usuarios.' },
+  { icono: <UsersIcon />, titulo: 'Usuarios', texto: 'Cuenta las cuentas habilitadas. Al llegar al máximo, el Gerente no puede crear más usuarios.' },
   { icono: <BoxIcon />, titulo: 'Productos', texto: 'Cuenta los productos del catálogo. Los que ya existen no se borran si se baja la cuota.' },
   { icono: <StoreIcon />, titulo: 'Comerciantes', texto: 'Cuenta los comerciantes activos. Al llegar al máximo no se pueden crear ni reactivar comerciantes.' },
-  { icono: <DatabaseIcon />, titulo: 'Almacenamiento', texto: 'Logotipos, imágenes de productos y archivos de la distribuidora. Al llenarse no se suben más archivos.' },
-  { icono: <SparklesIcon />, titulo: 'Llamadas IA', texto: 'Asistente de voz y recomendación de compras. Se reinicia el día 1; al llegar al límite la voz sigue con el modelo local.' },
+  { icono: <DatabaseIcon />, titulo: 'Almacenamiento', texto: 'Logotipos, imágenes de productos y archivos exportados de la distribuidora.' },
+  { icono: <SparklesIcon />, titulo: 'Llamadas IA', texto: 'Asistente de voz y recomendación de compras. Se reinicia el día 1; al llegar al límite la voz sigue con el modelo de respaldo.' },
 ];
 
 const card = 'bg-white rounded-2xl border border-border shadow-[0_1px_3px_rgba(0,0,0,0.07),0_1px_2px_rgba(0,0,0,0.04)]';
@@ -142,7 +142,7 @@ export default function Planes() {
                     {/* Los encabezados de cuotas pueden partirse en dos líneas para que la tabla quepa sin scroll. */}
                     {CUOTAS.map((c) => <th key={c.campo} className={`${th.replace('whitespace-nowrap', 'leading-tight')} text-right`}>{c.columna}</th>)}
                     <th className={th}>Distribuidoras</th>
-                    <th className={`${th} pr-6 text-right`}>Acciones</th>
+                    <th className={`${th} pr-6 text-right`}>Editar</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
@@ -173,10 +173,11 @@ export default function Planes() {
                         <button
                           type="button"
                           onClick={() => setModal({ abierto: true, plan: p })}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-ink bg-surface rounded-lg hover:bg-border transition duration-300 active:scale-95"
+                          aria-label={`Editar plan ${p.nombre}`}
+                          title="Editar"
+                          className="inline-flex items-center justify-center w-8 h-8 text-ink bg-surface rounded-lg hover:bg-border hover:text-primary transition duration-300 active:scale-95"
                         >
-                          <PencilIcon />
-                          Editar
+                          <PencilIcon size={14} />
                         </button>
                       </td>
                     </tr>
