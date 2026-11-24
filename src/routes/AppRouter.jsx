@@ -41,6 +41,7 @@ import DetallePedido      from '../pages/inventarios/DetallePedido';
 import CatalogoProductos  from '../pages/inventarios/CatalogoProductos';
 import RecomendacionCompras     from '../pages/inventarios/RecomendacionCompras';
 import HistorialRecomendaciones from '../pages/inventarios/HistorialRecomendaciones';
+import Proveedores              from '../pages/inventarios/Proveedores';
 
 /* ── Plataforma (Superadministrador) ── */
 import Distribuidoras       from '../pages/plataforma/Distribuidoras';
@@ -123,6 +124,7 @@ export default function AppRouter() {
           <Route path="/inventarios/pedidos/:id"     element={<DetallePedido />} />
           <Route path="/inventarios/recomendaciones"           element={<RecomendacionCompras />} />
           <Route path="/inventarios/recomendaciones/historial" element={<HistorialRecomendaciones />} />
+          <Route path="/inventarios/proveedores"     element={<Proveedores />} />
           {/* Ajustes del módulo inventarios — mantiene SidebarInventarios */}
           <Route path="/inventarios/ajustes"         element={<Ajustes />} />
         </Route>

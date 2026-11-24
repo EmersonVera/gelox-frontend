@@ -7,6 +7,13 @@ import CantidadControl from '../../components/inventarios/CantidadControl';
 import CustomSelect from '../../components/ui/CustomSelect';
 import SuccessToast from '../../components/SuccessToast';
 import Pagination from '../../components/ui/Pagination';
+import { presentacion } from '../../components/catalogo/unidadesUtils';
+
+/** Total recibido en la unidad de venta: presentaciones × factor + unidades sueltas. */
+const totalEnUnidades = (item) => {
+  const pr = presentacion(item.producto);
+  return (pr.agrupa ? item.cajas * pr.factor : 0) + item.unidades;
+};
 
 const CATEGORIAS = ['Todos', 'Paletas', 'Conos', 'Vasos', 'Familiares'];
 const PAGE_PRODUCTOS = 9;
@@ -113,10 +120,13 @@ export default function RegistroEntrada() {
           setCarrito(
             data.items.map(item => ({
               producto: {
-                id:              item.productoId,
-                nombre:          item.nombre,
-                codigoTecnico:   item.codigoTecnico,
-                unidadesPorCaja: item.unidadesPorCaja ?? null,
+                id:               item.productoId,
+                nombre:           item.nombre,
+                codigoTecnico:    item.codigoTecnico,
+                unidadesPorCaja:  item.unidadesPorCaja ?? null,
+                unidadCompra:     item.unidadCompra,
+                factorConversion: item.factorConversion,
+                unidadVenta:      item.unidadVenta,
               },
               cajas:    item.cantidadCajas    ?? 0,
               unidades: item.cantidadUnidades ?? 0,
@@ -135,10 +145,11 @@ export default function RegistroEntrada() {
     if (enCarrito) {
       setCarrito(prev => prev.filter(i => i.producto.id !== p.id));
     } else {
+      const { agrupa } = presentacion(p);
       setCarrito(prev => [...prev, {
         producto: p,
-        cajas:    p.unidadesPorCaja != null ? 1 : 0,
-        unidades: p.unidadesPorCaja != null ? 0 : 1,
+        cajas:    agrupa ? 1 : 0,
+        unidades: agrupa ? 0 : 1,
       }]);
     }
   };
@@ -162,11 +173,20 @@ export default function RegistroEntrada() {
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
         body:    JSON.stringify({
           pedidoId: pedidoSeleccionado || null,
-          items: carrito.map(i => ({
-            productoId:       i.producto.id,
-            cantidadCajas:    i.cajas,
-            cantidadUnidades: i.unidades,
-          })),
+          // cantidadCajas: presentaciones de compra (cajas, bolsas...); cantidadUnidades: sueltas
+          // en unidad de venta. Con caja (CJ) el backend convierte con unidades_por_caja; con otras
+          // presentaciones, con factorConversion. cantidadTotal ya viene convertido.
+          items: carrito.map(i => {
+            const pr = presentacion(i.producto);
+            return {
+              productoId:       i.producto.id,
+              cantidadCajas:    pr.agrupa ? i.cajas : 0,
+              cantidadUnidades: i.unidades,
+              unidadCompra:     pr.codigo,
+              factorConversion: pr.factor,
+              cantidadTotal:    totalEnUnidades(i),
+            };
+          }),
         }),
       });
       if (!res.ok) {
@@ -187,11 +207,14 @@ export default function RegistroEntrada() {
     }
   };
 
-  const totalCajas    = carrito.reduce((s, i) => s + i.cajas, 0);
+  const totalCajas    = carrito.reduce((s, i) => s + (presentacion(i.producto).agrupa ? i.cajas : 0), 0);
   const totalUnidades = carrito.reduce((s, i) => s + i.unidades, 0);
 
-  const erroresCarrito = {};
-  const hayErroresCarrito = false;
+  const erroresCarrito = carrito.reduce((acc, i) => {
+    if (totalEnUnidades(i) === 0) acc[i.producto.id] = 'Indica al menos una presentación o una unidad.';
+    return acc;
+  }, {});
+  const hayErroresCarrito = Object.keys(erroresCarrito).length > 0;
 
   // ── Vista resumen post-confirmación ──
   if (resumen) {
@@ -404,13 +427,19 @@ export default function RegistroEntrada() {
                                   {p.nombre}
                                 </span>
                                 <div className="flex items-center gap-1 shrink-0">
-                                  <span className={`font-['Inter'] font-bold text-[10px] uppercase px-2 py-0.5 rounded-full ${
-                                    p.unidadesPorCaja != null
-                                      ? 'bg-blue-100 text-blue-700'
-                                      : 'bg-zinc-100 text-zinc-600'
-                                  }`}>
-                                    {p.unidadesPorCaja != null ? 'CJ' : 'UN'}
-                                  </span>
+                                  {(() => {
+                                    const pr = presentacion(p);
+                                    return (
+                                      <span
+                                        title={pr.agrupa ? `1 ${pr.singular} = ${pr.factor} ${pr.venta.plural.toLowerCase()}` : undefined}
+                                        className={`font-['Inter'] font-bold text-[10px] uppercase px-2 py-0.5 rounded-full ${
+                                          pr.agrupa ? 'bg-blue-100 text-blue-700' : 'bg-zinc-100 text-zinc-600'
+                                        }`}
+                                      >
+                                        {pr.agrupa ? `${pr.codigo} ×${pr.factor}` : pr.venta.abrev}
+                                      </span>
+                                    );
+                                  })()}
                                   <span className="bg-[#f6f3f3] text-[#57534e] font-['Inter'] font-medium text-[11px] uppercase px-2 py-0.5 rounded-full">
                                     {p.categoria}
                                   </span>
@@ -487,6 +516,8 @@ export default function RegistroEntrada() {
                   <div className="flex flex-col gap-4 max-h-[360px] overflow-y-auto pr-1">
                     {carrito.map(item => {
                       const errItem = erroresCarrito[item.producto.id];
+                      const pr = presentacion(item.producto);
+                      const total = totalEnUnidades(item);
                       return (
                       <div
                         key={item.producto.id}
@@ -507,7 +538,9 @@ export default function RegistroEntrada() {
                               {item.producto.nombre}
                             </p>
                             <p className="font-['Inter'] font-normal text-[11px] text-[#a8a29e]">
-                              {item.producto.unidadMedida ?? item.producto.unidad_medida}
+                              {pr.agrupa
+                                ? `1 ${pr.singular} = ${pr.factor} ${(pr.factor === 1 ? pr.venta.label : pr.venta.plural).toLowerCase()}`
+                                : `Por ${pr.venta.label.toLowerCase()}`}
                             </p>
                             {errItem && (
                               <p className="font-['Inter'] font-semibold text-[10px] text-[#dc2626] mt-0.5">⚠ {errItem}</p>
@@ -520,9 +553,9 @@ export default function RegistroEntrada() {
                             ✕
                           </button>
                         </div>
-                        {item.producto.unidadesPorCaja != null && (
+                        {pr.agrupa && (
                           <CantidadControl
-                            label="Caja"
+                            label={`${pr.plural} (${pr.codigo})`}
                             value={item.cajas}
                             onMinus={() => actualizar(item.producto.id, 'cajas', item.cajas - 1)}
                             onPlus={() => actualizar(item.producto.id, 'cajas', item.cajas + 1)}
@@ -531,13 +564,20 @@ export default function RegistroEntrada() {
                           />
                         )}
                         <CantidadControl
-                          label="Unidad"
+                          label={pr.agrupa ? `${pr.venta.plural} sueltas` : pr.venta.plural}
                           value={item.unidades}
                           onMinus={() => actualizar(item.producto.id, 'unidades', item.unidades - 1)}
                           onPlus={() => actualizar(item.producto.id, 'unidades', item.unidades + 1)}
                           onChange={(v) => actualizar(item.producto.id, 'unidades', v)}
                           hasError={!!errItem}
                         />
+                        {pr.agrupa && total > 0 && (
+                          <p className="font-['Inter'] text-[11px] text-[#57534e] text-right">
+                            {item.cajas} {pr.codigo} × {pr.factor}
+                            {item.unidades > 0 ? ` + ${item.unidades}` : ''}
+                            {' = '}<strong className="text-[#1b1b1c]">{total.toLocaleString('es-CO')} {pr.venta.abrev}</strong>
+                          </p>
+                        )}
                       </div>
                       );
                     })}
@@ -550,7 +590,7 @@ export default function RegistroEntrada() {
                         {totalCajas}
                       </p>
                       <p className="font-['Inter'] font-semibold text-[10px] uppercase tracking-[0.5px] text-[#a8a29e] mt-1">
-                        Cajas
+                        Presentaciones
                       </p>
                     </div>
                     <div className="w-px h-9 bg-[#e7e5e4] shrink-0" />
@@ -559,7 +599,7 @@ export default function RegistroEntrada() {
                         {totalUnidades}
                       </p>
                       <p className="font-['Inter'] font-semibold text-[10px] uppercase tracking-[0.5px] text-[#a8a29e] mt-1">
-                        Unidades
+                        Sueltas
                       </p>
                     </div>
                   </div>

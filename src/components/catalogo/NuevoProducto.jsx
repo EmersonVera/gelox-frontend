@@ -1,28 +1,25 @@
 // src/components/catalogo/NuevoProducto.jsx — RF19
 import { createPortal } from 'react-dom';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../api/axiosConfig';
-import CustomSelect from '../ui/CustomSelect';
 import ContenidoCarga from '../ui/ContenidoCarga';
-
-const CATEGORIAS_OPT = ['Paletas', 'Conos', 'Familiares', 'Vasos'];
-const UNIDADES_OPT   = ['Unidades', 'Cajas', 'Litros'];
+import CamposMultimarca from './CamposMultimarca';
+import { esquemaMultimarca, valoresMultimarca, agregarMultimarca } from './multimarcaForm';
+import { interpretarConflicto } from './conflictosCatalogo';
+import { UNIDADES_COMPRA, UNIDADES_VENTA } from './unidadesUtils';
 
 const schema = yup.object({
   nombre:        yup.string().required('El nombre es requerido'),
-  codigoTecnico: yup.string().required('El código es requerido'),
-  categoria:     yup.string().required('Selecciona una categoría'),
+  ...esquemaMultimarca,
   precioVenta:   yup.number().typeError('Ingresa un número').positive('Debe ser mayor a 0').required('El precio es requerido'),
   precioCosto:   yup.number().typeError('Ingresa un número').positive('Debe ser mayor a 0').required('El costo es requerido'),
   descripcion:   yup.string().required('La descripción es requerida'),
   stockMedio:    yup.number().typeError('Ingresa un número').min(0).required('Requerido'),
   stockMinimo:   yup.number().typeError('Ingresa un número').min(0).required('Requerido'),
-  unidadMedida:  yup.string().required('Requerido'),
-  unidadesPorCaja: yup.number().typeError('Ingresa un número').min(1, 'Debe ser al menos 1').nullable().transform((val, orig) => (orig === '' || orig == null) ? null : val).optional(),
 });
 
 export default function NuevoProducto({ onClose, onSuccess }) {
@@ -32,6 +29,7 @@ export default function NuevoProducto({ onClose, onSuccess }) {
   const [preview, setPreview]     = useState(null);
   const [guardando, setGuardando] = useState(false);
   const [errorApi, setErrorApi]   = useState('');
+  const [cuotaAgotada, setCuotaAgotada] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
 
   const handleClose = () => {
@@ -40,10 +38,13 @@ export default function NuevoProducto({ onClose, onSuccess }) {
     setTimeout(() => { setIsClosing(false); onClose(); }, 200);
   };
 
-  const { register, handleSubmit, control, formState: { errors } } = useForm({
+  const { register, handleSubmit, control, watch, setValue, setError, formState: { errors } } = useForm({
     resolver: yupResolver(schema),
-    defaultValues: { stockMedio: 0, stockMinimo: 0, unidadMedida: 'Unidades', categoria: '', unidadesPorCaja: '' },
+    defaultValues: { stockMedio: 0, stockMinimo: 0, ...valoresMultimarca(null) },
   });
+
+  const compra = UNIDADES_COMPRA.find((u) => u.value === watch('unidadCompra')) ?? UNIDADES_COMPRA[0];
+  const venta  = UNIDADES_VENTA.find((u) => u.value === watch('unidadVenta')) ?? UNIDADES_VENTA[0];
 
   const handleImagen = (e) => {
     const file = e.target.files?.[0];
@@ -56,18 +57,16 @@ export default function NuevoProducto({ onClose, onSuccess }) {
   const onSubmit = async (data) => {
     setGuardando(true);
     setErrorApi('');
+    setCuotaAgotada(false);
     try {
       const fd = new FormData();
-      fd.append('codigoTecnico', data.codigoTecnico);
       fd.append('nombre',        data.nombre);
-      fd.append('categoria',     data.categoria.toUpperCase());
+      agregarMultimarca(fd, data);
       fd.append('precioVenta',   data.precioVenta);
-      fd.append('unidadMedida',  data.unidadMedida);
       fd.append('precioCosto', data.precioCosto ?? 0);
       if (data.descripcion)         fd.append('descripcion', data.descripcion);
       if (data.stockMinimo != null) fd.append('stockMinimo', data.stockMinimo);
       if (data.stockMedio  != null) fd.append('stockMedio',  data.stockMedio);
-      if (data.unidadesPorCaja    != null) fd.append('unidadesPorCaja', data.unidadesPorCaja);
       if (data.precioComerciente  != null && data.precioComerciente !== '') fd.append('precioComerciente', data.precioComerciente);
       if (imagen) fd.append('imagen', imagen); // ← campo "imagen", no "foto"
 
@@ -78,10 +77,16 @@ export default function NuevoProducto({ onClose, onSuccess }) {
       onSuccess('Producto registrado correctamente.');
       handleClose();
     } catch (err) {
-      const status = err?.response?.status;
-      const msg    = err?.response?.data?.mensaje ?? err?.response?.data?.message ?? '';
-      if (status === 409) {
-        setErrorApi(msg || 'Ya existe un producto con este código técnico.');
+      const msg       = err?.response?.data?.error ?? err?.response?.data?.mensaje ?? err?.response?.data?.message ?? '';
+      const conflicto = interpretarConflicto(err);
+      if (conflicto?.tipo === 'CUOTA') {
+        setCuotaAgotada(true);
+        setErrorApi(conflicto.mensaje);
+      } else if (conflicto?.tipo === 'SKU') {
+        setError('sku', { message: conflicto.mensaje });
+        setErrorApi(conflicto.mensaje);
+      } else if (conflicto) {
+        setErrorApi(conflicto.mensaje);
       } else {
         setErrorApi(msg || err.message || 'No se pudo registrar el producto. Intenta de nuevo.');
       }
@@ -100,7 +105,7 @@ export default function NuevoProducto({ onClose, onSuccess }) {
       onClick={handleClose}
     >
       <div
-        className={`w-full max-w-[520px] bg-white rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.18)] flex flex-col max-h-[calc(100vh-2rem)] ${isClosing ? 'animate-scale-out' : 'animate-scale-in'}`}
+        className={`w-full max-w-[600px] bg-white rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.18)] flex flex-col max-h-[calc(100vh-2rem)] ${isClosing ? 'animate-scale-out' : 'animate-scale-in'}`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="p-8 flex flex-col gap-6 overflow-y-auto">
@@ -124,55 +129,31 @@ export default function NuevoProducto({ onClose, onSuccess }) {
 
           <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5">
 
-            {/* Nombre + Código */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className={labelClass}>Nombre del Producto</label>
-                <input {...register('nombre')} placeholder="Ej. Paleta de Fresa" className={inputClass} />
-                {errors.nombre && <p className={errorClass}>{errors.nombre.message}</p>}
-              </div>
-              <div>
-                <label className={labelClass}>Código de Referencia</label>
-                <input {...register('codigoTecnico')} placeholder="GEL-001" className={inputClass} />
-                {errors.codigoTecnico && <p className={errorClass}>{errors.codigoTecnico.message}</p>}
-              </div>
+            {/* Nombre */}
+            <div>
+              <label className={labelClass}>Nombre del Producto *</label>
+              <input {...register('nombre')} placeholder="Ej. Casero Vainilla 1L" className={inputClass} />
+              {errors.nombre && <p className={errorClass}>{errors.nombre.message}</p>}
             </div>
 
-            {/* Categoría + Precio Venta */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className={labelClass}>Categoría</label>
-                <Controller
-                  control={control}
-                  name="categoria"
-                  render={({ field }) => (
-                    <CustomSelect
-                      value={field.value}
-                      onChange={field.onChange}
-                      options={[
-                        { value: '', label: 'Seleccionar...' },
-                        ...CATEGORIAS_OPT.map(c => ({ value: c, label: c })),
-                      ]}
-                    />
-                  )}
-                />
-                {errors.categoria && <p className={errorClass}>{errors.categoria.message}</p>}
+            {/* SKU, proveedor, marca, categoría y unidad con factor */}
+            <CamposMultimarca register={register} control={control} errors={errors} watch={watch} setValue={setValue} />
+
+            {/* Precio Venta */}
+            <div>
+              <label className={labelClass}>Precio de venta por {venta.label.toLowerCase()} COP *</label>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 font-['Inter'] text-[16px] text-[#a8a29e]">$</span>
+                <input {...register('precioVenta')} type="number" step="0.01" placeholder="0.00" className={`${inputClass} pl-8`} />
               </div>
-              <div>
-                <label className={labelClass}>Precio de Venta COP</label>
-                <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 font-['Inter'] text-[16px] text-[#a8a29e]">$</span>
-                  <input {...register('precioVenta')} type="number" step="0.01" placeholder="0.00" className={`${inputClass} pl-8`} />
-                </div>
-                {errors.precioVenta && <p className={errorClass}>{errors.precioVenta.message}</p>}
-              </div>
+              {errors.precioVenta && <p className={errorClass}>{errors.precioVenta.message}</p>}
             </div>
 
             {/* Precio Costo + Precio Comerciante — ADMINISTRADOR y ENCARGADO_INVENTARIO */}
             {puedeVerCosto && (
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className={labelClass}>Precio de Costo por caja COP</label>
+                  <label className={labelClass}>Costo por {compra.singular.toLowerCase()} COP *</label>
                   <div className="relative">
                     <span className="absolute left-4 top-1/2 -translate-y-1/2 font-['Inter'] text-[16px] text-[#a8a29e]">$</span>
                     <input {...register('precioCosto')} type="number" step="0.01" placeholder="0.00" className={`${inputClass} pl-8`} />
@@ -201,19 +182,6 @@ export default function NuevoProducto({ onClose, onSuccess }) {
               {errors.descripcion && <p className={errorClass}>{errors.descripcion.message}</p>}
             </div>
 
-            {/* Unidades por caja */}
-            <div>
-              <label className={labelClass}>
-                Unidades por Caja{' '}
-                <span className="font-normal text-[#a8a29e] normal-case tracking-normal">(opcional)</span>
-              </label>
-              <input {...register('unidadesPorCaja')} type="number" min="1" placeholder="Ej. 24" className={inputClass} />
-              <p className="font-['Inter'] text-[11px] text-[#a8a29e] mt-1">
-                Dejar vacío si el producto solo se vende por unidad.
-              </p>
-              {errors.unidadesPorCaja && <p className={errorClass}>{errors.unidadesPorCaja.message}</p>}
-            </div>
-
             {/* Configuración alertas */}
             <div className="bg-[#fef2f2] rounded-[12px] p-4 flex flex-col gap-4">
               <div className="flex items-center gap-2">
@@ -224,30 +192,16 @@ export default function NuevoProducto({ onClose, onSuccess }) {
                   Configuración de Alertas
                 </span>
               </div>
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className={labelClass}>Stock Medio</label>
+                  <label className={labelClass}>Stock Medio ({venta.plural.toLowerCase()})</label>
                   <input {...register('stockMedio')} type="number" min="0" className={inputClass} />
                   {errors.stockMedio && <p className={errorClass}>{errors.stockMedio.message}</p>}
                 </div>
                 <div>
-                  <label className={labelClass}>Stock Mínimo</label>
+                  <label className={labelClass}>Stock Mínimo ({venta.plural.toLowerCase()})</label>
                   <input {...register('stockMinimo')} type="number" min="0" className={inputClass} />
                   {errors.stockMinimo && <p className={errorClass}>{errors.stockMinimo.message}</p>}
-                </div>
-                <div>
-                  <label className={labelClass}>Unidad de Medida</label>
-                  <Controller
-                    control={control}
-                    name="unidadMedida"
-                    render={({ field }) => (
-                      <CustomSelect
-                        value={field.value}
-                        onChange={field.onChange}
-                        options={UNIDADES_OPT}
-                      />
-                    )}
-                  />
                 </div>
               </div>
             </div>
@@ -285,7 +239,13 @@ export default function NuevoProducto({ onClose, onSuccess }) {
               </label>
             </div>
 
-            {errorApi && (
+            {errorApi && cuotaAgotada && (
+              <div className="px-4 py-3 rounded-xl bg-[#fffbeb] border border-[#fcd34d] text-[#92400e] text-sm">
+                <p className="font-semibold">Llegaste al límite de productos de tu plan</p>
+                <p className="mt-0.5">{errorApi}</p>
+              </div>
+            )}
+            {errorApi && !cuotaAgotada && (
               <div className="px-4 py-3 rounded-xl bg-[#fef2f2] border border-[#fca5a5] text-[#dc2626] text-sm flex items-start gap-2">
                 <svg width="15" height="15" className="shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                 <span>{errorApi}</span>
