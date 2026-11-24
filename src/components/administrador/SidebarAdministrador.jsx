@@ -56,15 +56,6 @@ function BoxIcon() {
   );
 }
 
-function StoreIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M3 9l1-5h16l1 5" />
-      <path d="M3 9a2 2 0 0 0 2 2 2 2 0 0 0 2-2 2 2 0 0 0 2 2 2 2 0 0 0 2-2 2 2 0 0 0 2 2 2 2 0 0 0 2-2" />
-      <path d="M5 20h14a1 1 0 0 0 1-1v-7H4v7a1 1 0 0 0 1 1z" />
-    </svg>
-  );
-}
 
 function ReceiptIcon() {
   return (
@@ -82,6 +73,16 @@ function CartIcon() {
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="9" cy="21" r="1" /><circle cx="20" cy="21" r="1" />
       <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+    </svg>
+  );
+}
+
+function SheetIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <line x1="3" y1="9" x2="21" y2="9" /><line x1="3" y1="15" x2="21" y2="15" />
+      <line x1="9" y1="3" x2="9" y2="21" />
     </svg>
   );
 }
@@ -130,6 +131,7 @@ const LINKS = [
   { icon: <ReceiptIcon />, label: 'Cierres de Caja', to: '/cierres-caja' },
   { icon: <UsersIcon />,   label: 'Usuarios',        to: '/usuarios' },
   { icon: <BoxIcon />,     label: 'Inventarios',     to: '/inventarios/gestion' },
+  { icon: <SheetIcon />,   label: 'Plantillas de exportación', to: '/inventarios/plantillas' },
   { icon: <CartIcon />,    label: 'Ventas',          to: '/ventas/pedidos-ventanilla' },
   { icon: <HistoryIcon />, label: 'Historial de Recomendaciones', to: '/inventarios/recomendaciones/historial' },
 ];
@@ -138,7 +140,7 @@ const navItemBase =
   'flex items-center gap-3 px-4 py-3 rounded-xl text-sm transition duration-300 active:scale-[0.97] w-full text-left font-display';
 
 export default function SidebarAdministrador({ open, onClose }) {
-  const { perfil, logout } = useAuth();
+  const { logout } = useAuth();
   const { identidad } = useIdentidad();
   const nombreComercial = identidad?.nombreComercial || 'GELOX';
   const navigate = useNavigate();

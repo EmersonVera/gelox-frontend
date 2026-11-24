@@ -1,7 +1,9 @@
 // src/pages/administrador/Reportes.jsx
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import AppLayout from '../../components/AppLayout';
+import SuccessToast from '../../components/SuccessToast';
+import { useIdentidad } from '../../context/IdentidadContext';
 import TablaRentabilidadCanal from '../../components/reportes/tablarentabilidadcanal';
 import FiltroPeriodo from '../../components/FiltroPeriodo';
 import CierreCaja from '../../components/CierreCaja';
@@ -10,6 +12,12 @@ import {
     getGraficaInversionIngresos,
     getReportePorCanal,
 } from '../../services/reporteService';
+import {
+    SECCIONES_REPORTE,
+    exportarReporteFinanciero,
+    descargarArchivo,
+} from '../../services/exportacionService';
+import { mensajeError } from '../../components/inventarios/proveedoresUtils';
 
 /* ── Helpers ── */
 function fmt(n) {
@@ -99,6 +107,42 @@ function subtituloRango(desde, hasta) {
     return `Ingresos vs. inversión (${rango})`;
 }
 
+function IconoArchivo() {
+    return (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+            <line x1="9" y1="15" x2="15" y2="15" />
+        </svg>
+    );
+}
+
+function BotonExportar({ icono, activo, deshabilitado, onClick, children }) {
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            disabled={deshabilitado}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-border bg-white text-sm font-semibold text-ink shadow-sm hover:bg-surface transition active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+            <span className="text-primary">{icono}</span>
+            {activo ? 'Generando…' : children}
+        </button>
+    );
+}
+
+/** «1–19 nov 2026» del período elegido, como en el mockup. */
+function subtituloPeriodoExportar(filtro) {
+    const { fechaInicio, fechaFin } = rangoFromFiltro(filtro);
+    const [ay, am, ad] = fechaInicio.split('-').map(Number);
+    const [by, bm, bd] = fechaFin.split('-').map(Number);
+    const mA = MESES_CORTO[am - 1];
+    const mB = MESES_CORTO[bm - 1];
+    if (ay === by && am === bm) return ad === bd ? `${ad} ${mA} ${ay}` : `${ad}–${bd} ${mA} ${ay}`;
+    if (ay === by) return `${ad} ${mA}–${bd} ${mB} ${ay}`;
+    return `${ad} ${mA} ${ay}–${bd} ${mB} ${by}`;
+}
+
 export default function Reportes() {
     const [filtro, setFiltro] = useState({ tipo: 'mes' });
     const [filtroActivo, setFiltroActivo] = useState({ tipo: 'mes' });
@@ -107,36 +151,77 @@ export default function Reportes() {
     const [canales, setCanales] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+    const [secciones, setSecciones] = useState(SECCIONES_REPORTE.map((s) => s.value));
+    const [exportando, setExportando] = useState(null); // 'excel' | 'pdf' | null
+    const [errorExportar, setErrorExportar] = useState('');
+    const [descargado, setDescargado] = useState(''); // nombre del último archivo descargado
+    const { identidad } = useIdentidad();
 
-    const cargarDatos = useCallback(async () => {
-        setError(null);
-        const { fechaInicio, fechaFin } = rangoFromFiltro(filtro);
-        const mensajeValidacion = validarRangoFechas(fechaInicio, fechaFin);
-        if (mensajeValidacion) { setError(mensajeValidacion); return; }
-        setLoading(true);
-        try {
-            const [rep, graf, can] = await Promise.all([
-                getReporteFinanciero(fechaInicio, fechaFin),
-                getGraficaInversionIngresos(fechaInicio, fechaFin, filtro.tipo.toUpperCase()),
-                getReportePorCanal(fechaInicio, fechaFin),
-            ]);
-            setReporte(rep);
-            setGrafica(graf);
-            setCanales(can?.canales ?? can ?? []);
-            setFiltroActivo(filtro);
-        } catch (e) {
-            const mensajeBackend = e?.response?.data?.message;
-            setError(mensajeBackend ?? e.message ?? 'Error inesperado al cargar los datos.');
-        } finally {
-            setLoading(false);
-        }
+    useEffect(() => {
+        let cancelado = false;
+        Promise.resolve().then(async () => {
+            if (cancelado) return;
+            const { fechaInicio, fechaFin } = rangoFromFiltro(filtro);
+            const mensajeValidacion = validarRangoFechas(fechaInicio, fechaFin);
+            if (mensajeValidacion) {
+                setError(mensajeValidacion);
+                return;
+            }
+            setLoading(true);
+            try {
+                const [rep, graf, can] = await Promise.all([
+                    getReporteFinanciero(fechaInicio, fechaFin),
+                    getGraficaInversionIngresos(fechaInicio, fechaFin, filtro.tipo.toUpperCase()),
+                    getReportePorCanal(fechaInicio, fechaFin),
+                ]);
+                if (cancelado) return;
+                setError(null);
+                setReporte(rep);
+                setGrafica(graf);
+                setCanales(can?.canales ?? can ?? []);
+                setFiltroActivo(filtro);
+            } catch (e) {
+                if (cancelado) return;
+                const mensajeBackend = e?.response?.data?.message;
+                setError(mensajeBackend ?? e.message ?? 'Error inesperado al cargar los datos.');
+            } finally {
+                if (!cancelado) setLoading(false);
+            }
+        });
+        return () => { cancelado = true; };
     }, [filtro]);
 
-    useEffect(() => { cargarDatos(); }, [cargarDatos]);
+    const alternarSeccion = (valor) =>
+        setSecciones((actuales) =>
+            actuales.includes(valor) ? actuales.filter((s) => s !== valor) : [...actuales, valor]);
+
+    // Usa el período elegido en FiltroPeriodo (tipo y fechas), igual que la pantalla.
+    const exportar = async (formato) => {
+        setErrorExportar('');
+        const { fechaInicio, fechaFin } = rangoFromFiltro(filtro);
+        const mensajeValidacion = validarRangoFechas(fechaInicio, fechaFin);
+        if (mensajeValidacion) { setErrorExportar(mensajeValidacion); return; }
+        if (secciones.length === 0) { setErrorExportar('Marca al menos una sección para exportar.'); return; }
+        setExportando(formato);
+        try {
+            const { blob, nombre } = await exportarReporteFinanciero(formato, {
+                tipo: filtro.tipo.toUpperCase(),
+                fechaInicio,
+                fechaFin,
+                secciones,
+            });
+            descargarArchivo(blob, nombre);
+            setDescargado(nombre);
+        } catch (e) {
+            setErrorExportar(mensajeError(e, 'No se pudo generar el archivo. Intenta de nuevo.'));
+        } finally {
+            setExportando(null);
+        }
+    };
 
     return (
         <AppLayout>
-            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-8">
+            <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-4 mb-4">
                 <div>
                     <h1 className="font-display text-3xl font-extrabold text-ink tracking-tight">
                         Análisis de Rentabilidad
@@ -145,8 +230,55 @@ export default function Reportes() {
                         Monitoreo de flujo de caja y desempeño de distribución Gelox.
                     </p>
                 </div>
-                <FiltroPeriodo defaultTipo="mes" onChange={setFiltro} />
+                <div className="flex items-center gap-3 flex-wrap xl:justify-end">
+                    <FiltroPeriodo defaultTipo="mes" onChange={setFiltro} />
+                    <span className="hidden xl:block w-px h-8 bg-divider" aria-hidden="true" />
+                    <BotonExportar
+                        icono={<IconoArchivo />}
+                        activo={exportando === 'excel'}
+                        deshabilitado={exportando !== null}
+                        onClick={() => exportar('excel')}
+                    >
+                        Exportar Excel
+                    </BotonExportar>
+                    <BotonExportar
+                        icono={<IconoArchivo />}
+                        activo={exportando === 'pdf'}
+                        deshabilitado={exportando !== null}
+                        onClick={() => exportar('pdf')}
+                    >
+                        Exportar PDF
+                    </BotonExportar>
+                </div>
             </div>
+
+            <div className="mb-8 flex flex-col items-start xl:items-end gap-1.5">
+                <fieldset className="flex items-center gap-x-5 gap-y-2 flex-wrap xl:justify-end">
+                    <legend className="sr-only">Secciones a exportar</legend>
+                    <span className="text-sm font-semibold text-ink" aria-hidden="true">Secciones:</span>
+                    {SECCIONES_REPORTE.map((s) => (
+                        <label key={s.value} className="inline-flex items-center gap-2 text-sm text-ink cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={secciones.includes(s.value)}
+                                onChange={() => alternarSeccion(s.value)}
+                                className="w-4 h-4 accent-primary"
+                            />
+                            {s.label}
+                        </label>
+                    ))}
+                </fieldset>
+                <p className="text-xs text-muted xl:text-right">
+                    Se exporta el período seleccionado ({subtituloPeriodoExportar(filtro)}).
+                    {' '}El encabezado con el logo, el nombre y el color de {identidad?.nombreComercial || 'tu distribuidora'} siempre se incluye.
+                </p>
+            </div>
+
+            {errorExportar && (
+                <div role="alert" className="mb-6 rounded-xl bg-error-bg border border-danger/20 text-error-fg px-4 py-3 text-sm">
+                    {errorExportar}
+                </div>
+            )}
 
             {error && (
                 <div className="mb-6 rounded-xl bg-error-bg border border-danger/20 text-error-fg px-4 py-3 text-sm">
@@ -213,6 +345,12 @@ export default function Reportes() {
             })()}
 
             <TablaRentabilidadCanal data={canales} />
+            <SuccessToast
+                message={descargado ? `Reporte descargado: ${descargado}` : ''}
+                show={!!descargado}
+                onClose={() => setDescargado('')}
+                type="success"
+            />
         </AppLayout>
     );
 }
