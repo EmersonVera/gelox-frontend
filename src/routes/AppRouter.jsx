@@ -46,6 +46,9 @@ import HistorialRecomendaciones from '../pages/inventarios/HistorialRecomendacio
 import Distribuidoras       from '../pages/plataforma/Distribuidoras';
 import NuevaDistribuidora   from '../pages/plataforma/NuevaDistribuidora';
 import DetalleDistribuidora from '../pages/plataforma/DetalleDistribuidora';
+import PanelPlataforma      from '../pages/plataforma/PanelPlataforma';
+import Planes               from '../pages/plataforma/Planes';
+import Auditoria            from '../pages/plataforma/Auditoria';
 
 /* ── Protección de rutas ── */
 import ProtectedRoute from './ProtectedRoute';
@@ -80,12 +83,15 @@ export default function AppRouter() {
         <Route path="/tienda/:subdominio"     element={<LandingPage />} />
         <Route path="/"                       element={<Navigate to="/login" replace />} />
 
-        {/* ══ Plataforma — solo Superadministrador (RF58, RF59) ══ */}
+        {/* ══ Plataforma — solo Superadministrador (RF58, RF59, RF69–RF71) ══ */}
         <Route element={<ProtectedRoute rolesPermitidos={['SUPERADMINISTRADOR']} />}>
-          <Route path="/plataforma"                      element={<Navigate to="/plataforma/distribuidoras" replace />} />
+          <Route path="/plataforma"                      element={<Navigate to="/plataforma/panel" replace />} />
+          <Route path="/plataforma/panel"                element={<PanelPlataforma />} />
           <Route path="/plataforma/distribuidoras"       element={<Distribuidoras />} />
           <Route path="/plataforma/distribuidoras/nueva" element={<NuevaDistribuidora />} />
           <Route path="/plataforma/distribuidoras/:id"   element={<DetalleDistribuidora />} />
+          <Route path="/plataforma/planes"               element={<Planes />} />
+          <Route path="/plataforma/auditoria"            element={<Auditoria />} />
           {/* Ajustes del superadministrador — mantiene SidebarPlataforma */}
           <Route path="/plataforma/ajustes"              element={<Ajustes />} />
         </Route>
