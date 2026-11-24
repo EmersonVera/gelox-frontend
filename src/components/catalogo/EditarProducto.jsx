@@ -1,30 +1,28 @@
 // src/components/catalogo/EditarProducto.jsx — RF20
 import { createPortal } from 'react-dom';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import { useState, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../api/axiosConfig';
 import ModalConfirmarEliminar from './ModalConfirmarEliminar';
-import CustomSelect from '../ui/CustomSelect';
 import ContenidoCarga from '../ui/ContenidoCarga';
+import CamposMultimarca from './CamposMultimarca';
+import { esquemaMultimarca, valoresMultimarca, agregarMultimarca } from './multimarcaForm';
+import { interpretarConflicto } from './conflictosCatalogo';
+import { UNIDADES_COMPRA, UNIDADES_VENTA } from './unidadesUtils';
 
-const CATEGORIAS_OPT = ['Paletas', 'Conos', 'Familiares', 'Vasos'];
-const UNIDADES_OPT   = ['Unidades', 'Cajas', 'Litros'];
 const CAT_LABEL      = { PALETAS: 'Paletas', CONOS: 'Conos', FAMILIARES: 'Familiares', VASOS: 'Vasos' };
 
 const schema = yup.object({
   nombre:        yup.string().required('Requerido'),
-  codigoTecnico: yup.string().required('Requerido'),
-  categoria:     yup.string().required('Requerido'),
+  ...esquemaMultimarca,
   precioVenta:   yup.number().typeError('Número').positive('Debe ser mayor a 0').required('Requerido'),
   precioCosto:   yup.number().typeError('Número').positive('Debe ser mayor a 0').required('Requerido'),
   descripcion:   yup.string().required('Requerido'),
   stockMedio:    yup.number().typeError('Número').min(0).required(),
   stockMinimo:   yup.number().typeError('Número').min(0).required(),
-  unidadMedida:  yup.string().required(),
-  unidadesPorCaja: yup.number().typeError('Ingresa un número').min(1, 'Debe ser al menos 1').nullable().transform((val, orig) => (orig === '' || orig == null) ? null : val).optional(),
 });
 
 export default function EditarProducto({ producto, onClose, onSuccess }) {
@@ -34,6 +32,7 @@ export default function EditarProducto({ producto, onClose, onSuccess }) {
   const [imagenNueva, setImagenNueva]             = useState(null);
   const [guardando, setGuardando]                 = useState(false);
   const [errorApi, setErrorApi]                   = useState('');
+  const [cuotaAgotada, setCuotaAgotada]           = useState(false);
   const [confirmarEliminar, setConfirmarEliminar] = useState(false);
   const [isClosing, setIsClosing]                 = useState(false);
   const inputFileRef = useRef();
@@ -44,24 +43,22 @@ export default function EditarProducto({ producto, onClose, onSuccess }) {
     setTimeout(() => { setIsClosing(false); onClose(); }, 200);
   };
 
-  const categoriaDisplay = CAT_LABEL[producto.categoria] ?? producto.categoria ?? '';
-
-  const { register, handleSubmit, control, formState: { errors } } = useForm({
+  const { register, handleSubmit, control, watch, setValue, setError, formState: { errors } } = useForm({
     resolver: yupResolver(schema),
     defaultValues: {
       nombre:        producto.nombre,
-      codigoTecnico: producto.codigoTecnico,
-      categoria:     categoriaDisplay,
+      ...valoresMultimarca(producto),
       precioVenta:   producto.precioVenta,
       precioCosto:   producto.precioCosto ?? 0,
       descripcion:   producto.descripcion,
       stockMedio:    producto.stockMedio ?? 0,
       stockMinimo:   producto.stockMinimo ?? 0,
-      unidadMedida:     producto.unidadMedida ?? 'Unidades',
-      unidadesPorCaja:  producto.unidadesPorCaja ?? '',
       precioComerciente: producto.precioComerciente ?? '',
     },
   });
+
+  const compra = UNIDADES_COMPRA.find((u) => u.value === watch('unidadCompra')) ?? UNIDADES_COMPRA[0];
+  const venta  = UNIDADES_VENTA.find((u) => u.value === watch('unidadVenta')) ?? UNIDADES_VENTA[0];
 
   const handleImagen = (e) => {
     const file = e.target.files?.[0];
@@ -74,17 +71,16 @@ export default function EditarProducto({ producto, onClose, onSuccess }) {
   const onSubmit = async (data) => {
     setGuardando(true);
     setErrorApi('');
+    setCuotaAgotada(false);
     try {
       const fd = new FormData();
-      fd.append('codigoTecnico', data.codigoTecnico);
       fd.append('nombre',        data.nombre);
-      fd.append('categoria',     data.categoria.toUpperCase());
+      agregarMultimarca(fd, data);
       fd.append('precioVenta',   data.precioVenta);
       fd.append('precioCosto', data.precioCosto ?? 0);
       if (data.descripcion)         fd.append('descripcion', data.descripcion);
       if (data.stockMinimo != null) fd.append('stockMinimo', data.stockMinimo);
       if (data.stockMedio  != null) fd.append('stockMedio',  data.stockMedio);
-      if (data.unidadesPorCaja    != null) fd.append('unidadesPorCaja', data.unidadesPorCaja);
       if (data.precioComerciente  != null && data.precioComerciente !== '') fd.append('precioComerciente', data.precioComerciente);
       if (imagenNueva) fd.append('imagen', imagenNueva); // ← campo "imagen", no "foto"
 
@@ -95,10 +91,16 @@ export default function EditarProducto({ producto, onClose, onSuccess }) {
       onSuccess('Producto actualizado correctamente.');
       handleClose();
     } catch (err) {
-      const status = err?.response?.status;
-      const msg    = err?.response?.data?.mensaje ?? err?.response?.data?.message ?? '';
-      if (status === 409) {
-        setErrorApi(msg || 'Ya existe un producto con este código técnico.');
+      const msg       = err?.response?.data?.error ?? err?.response?.data?.mensaje ?? err?.response?.data?.message ?? '';
+      const conflicto = interpretarConflicto(err);
+      if (conflicto?.tipo === 'CUOTA') {
+        setCuotaAgotada(true);
+        setErrorApi(conflicto.mensaje);
+      } else if (conflicto?.tipo === 'SKU') {
+        setError('sku', { message: conflicto.mensaje });
+        setErrorApi(conflicto.mensaje);
+      } else if (conflicto) {
+        setErrorApi(conflicto.mensaje);
       } else {
         setErrorApi(msg || err.message || 'No se pudo actualizar el producto. Intenta de nuevo.');
       }
@@ -129,7 +131,7 @@ export default function EditarProducto({ producto, onClose, onSuccess }) {
       onClick={handleClose}
     >
       <div
-        className={`w-full max-w-[520px] bg-white rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.18)] flex flex-col max-h-[calc(100vh-2rem)] ${isClosing ? 'animate-scale-out' : 'animate-scale-in'}`}
+        className={`w-full max-w-[600px] bg-white rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.18)] flex flex-col max-h-[calc(100vh-2rem)] ${isClosing ? 'animate-scale-out' : 'animate-scale-in'}`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="p-8 flex flex-col gap-6 overflow-y-auto">
@@ -168,7 +170,8 @@ export default function EditarProducto({ producto, onClose, onSuccess }) {
             <div className="flex-1">
               <p className="font-['Manrope'] font-semibold text-[18px] text-[#9e2016]">{producto.nombre}</p>
               <p className="font-['Inter'] font-normal text-[13px] text-[#a8a29e] mt-0.5">
-                {producto.codigoTecnico} • {CAT_LABEL[producto.categoria] ?? producto.categoria}
+                {producto.sku ?? producto.codigoTecnico} • {CAT_LABEL[producto.categoria] ?? producto.categoria}
+                {producto.marca ? ` • ${producto.marca}` : ''}
               </p>
               <button
                 type="button"
@@ -189,52 +192,31 @@ export default function EditarProducto({ producto, onClose, onSuccess }) {
 
           <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5">
 
-            {/* Nombre + Código */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className={labelClass}>Nombre del Producto</label>
-                <input {...register('nombre')} className={inputClass} />
-                {errors.nombre && <p className={errorClass}>{errors.nombre.message}</p>}
-              </div>
-              <div>
-                <label className={labelClass}>Código (SKU)</label>
-                <input {...register('codigoTecnico')} className={inputClass} />
-                {errors.codigoTecnico && <p className={errorClass}>{errors.codigoTecnico.message}</p>}
-              </div>
+            {/* Nombre */}
+            <div>
+              <label className={labelClass}>Nombre del Producto *</label>
+              <input {...register('nombre')} className={inputClass} />
+              {errors.nombre && <p className={errorClass}>{errors.nombre.message}</p>}
             </div>
 
-            {/* Categoría + Precio Venta */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className={labelClass}>Categoría</label>
-                <Controller
-                  control={control}
-                  name="categoria"
-                  render={({ field }) => (
-                    <CustomSelect
-                      value={field.value}
-                      onChange={field.onChange}
-                      options={CATEGORIAS_OPT}
-                    />
-                  )}
-                />
-                {errors.categoria && <p className={errorClass}>{errors.categoria.message}</p>}
+            {/* SKU, proveedor, marca, categoría y unidad con factor */}
+            <CamposMultimarca register={register} control={control} errors={errors} watch={watch} setValue={setValue} />
+
+            {/* Precio Venta */}
+            <div>
+              <label className={labelClass}>Precio de venta por {venta.label.toLowerCase()} COP *</label>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 font-['Inter'] text-[16px] text-[#a8a29e]">$</span>
+                <input {...register('precioVenta')} type="number" step="0.01" className={`${inputClass} pl-8`} />
               </div>
-              <div>
-                <label className={labelClass}>Precio de Venta</label>
-                <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 font-['Inter'] text-[16px] text-[#a8a29e]">$</span>
-                  <input {...register('precioVenta')} type="number" step="0.01" className={`${inputClass} pl-8`} />
-                </div>
-                {errors.precioVenta && <p className={errorClass}>{errors.precioVenta.message}</p>}
-              </div>
+              {errors.precioVenta && <p className={errorClass}>{errors.precioVenta.message}</p>}
             </div>
 
             {/* Precio Costo + Precio Comerciante — ADMINISTRADOR y ENCARGADO_INVENTARIO */}
             {puedeVerCosto && (
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className={labelClass}>Precio de Costo por caja COP</label>
+                  <label className={labelClass}>Costo por {compra.singular.toLowerCase()} COP *</label>
                   <div className="relative">
                     <span className="absolute left-4 top-1/2 -translate-y-1/2 font-['Inter'] text-[16px] text-[#a8a29e]">$</span>
                     <input {...register('precioCosto')} type="number" step="0.01" className={`${inputClass} pl-8`} />
@@ -259,19 +241,6 @@ export default function EditarProducto({ producto, onClose, onSuccess }) {
               {errors.descripcion && <p className={errorClass}>{errors.descripcion.message}</p>}
             </div>
 
-            {/* Unidades por caja */}
-            <div>
-              <label className={labelClass}>
-                Unidades por Caja{' '}
-                <span className="font-normal text-[#a8a29e] normal-case tracking-normal">(opcional)</span>
-              </label>
-              <input {...register('unidadesPorCaja')} type="number" min="1" placeholder="Ej. 24" className={inputClass} />
-              <p className="font-['Inter'] text-[11px] text-[#a8a29e] mt-1">
-                Dejar vacío si el producto solo se vende por unidad.
-              </p>
-              {errors.unidadesPorCaja && <p className={errorClass}>{errors.unidadesPorCaja.message}</p>}
-            </div>
-
             {/* Configuración alertas — mismo estilo que NuevoProducto */}
             <div className="bg-[#fef2f2] rounded-[12px] p-4 flex flex-col gap-4">
               <div className="flex items-center gap-2">
@@ -282,35 +251,27 @@ export default function EditarProducto({ producto, onClose, onSuccess }) {
                   Configuración de Alertas
                 </span>
               </div>
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className={labelClass}>Stock Medio</label>
+                  <label className={labelClass}>Stock Medio ({venta.plural.toLowerCase()})</label>
                   <input {...register('stockMedio')} type="number" min="0" className={inputClass} />
                   {errors.stockMedio && <p className={errorClass}>{errors.stockMedio.message}</p>}
                 </div>
                 <div>
-                  <label className={labelClass}>Stock Mínimo</label>
+                  <label className={labelClass}>Stock Mínimo ({venta.plural.toLowerCase()})</label>
                   <input {...register('stockMinimo')} type="number" min="0" className={inputClass} />
                   {errors.stockMinimo && <p className={errorClass}>{errors.stockMinimo.message}</p>}
-                </div>
-                <div>
-                  <label className={labelClass}>Unidad de Medida</label>
-                  <Controller
-                    control={control}
-                    name="unidadMedida"
-                    render={({ field }) => (
-                      <CustomSelect
-                        value={field.value}
-                        onChange={field.onChange}
-                        options={UNIDADES_OPT}
-                      />
-                    )}
-                  />
                 </div>
               </div>
             </div>
 
-            {errorApi && (
+            {errorApi && cuotaAgotada && (
+              <div className="px-4 py-3 rounded-xl bg-[#fffbeb] border border-[#fcd34d] text-[#92400e] text-sm">
+                <p className="font-semibold">Llegaste al límite de productos de tu plan</p>
+                <p className="mt-0.5">{errorApi}</p>
+              </div>
+            )}
+            {errorApi && !cuotaAgotada && (
               <div className="px-4 py-3 rounded-xl bg-[#fef2f2] border border-[#fca5a5] text-[#dc2626] text-sm flex items-start gap-2">
                 <svg width="15" height="15" className="shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                 <span>{errorApi}</span>

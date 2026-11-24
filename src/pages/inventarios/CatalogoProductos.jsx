@@ -7,11 +7,23 @@ import EditarProducto from '../../components/catalogo/EditarProducto';
 import ModalConfirmarEliminar from '../../components/catalogo/ModalConfirmarEliminar';
 import SuccessToast from '../../components/SuccessToast';
 import Pagination from '../../components/ui/Pagination';
+import CustomSelect from '../../components/ui/CustomSelect';
+import { listarProveedores, listarCategorias } from '../../services/proveedoresService';
+import { productosDeProveedor } from '../../components/inventarios/proveedoresUtils';
+import { etiquetaPresentacion } from '../../components/catalogo/unidadesUtils';
 
 const SAVED_STOCK_MS = 700;
 
-const CATEGORIAS = ['Todos', 'Paletas', 'Conos', 'Familiares', 'Vasos'];
+// Categorías que el backend actual sabe filtrar (?categoria=); las demás se filtran en pantalla.
+const CATEGORIAS_BACKEND = ['PALETAS', 'CONOS', 'FAMILIARES', 'VASOS'];
 const PAGE_SIZE = 9;
+
+const normalizar = (t) => String(t ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+const claveCategoria = (nombre) => normalizar(nombre).toUpperCase();
+
+/** El producto pertenece a la categoría propia por id o, en productos anteriores, por nombre. */
+const esDeCategoria = (p, cat) =>
+  (p.categoriaId != null && p.categoriaId === cat.id) || normalizar(p.categoriaNombre ?? p.categoria) === normalizar(cat.nombre);
 
 const formatCOP = (n) => '$' + Number(n).toLocaleString('es-CO');
 
@@ -32,7 +44,11 @@ export default function CatalogoProductos() {
   const [total, setTotal]                     = useState(0);
   const [totalPages, setTotalPages]           = useState(1);
   const [page, setPage]                       = useState(1);          // 1-indexed para UI
-  const [categoriaActiva, setCategoriaActiva] = useState('Todos');
+  const [categoriaActiva, setCategoriaActiva] = useState('');          // id de categoría propia, '' = todas
+  const [proveedorFiltro, setProveedorFiltro] = useState('');          // id de proveedor, '' = todos
+  const [proveedores, setProveedores]         = useState([]);
+  const [categorias, setCategorias]           = useState([]);
+  const [sinProveedorAsignado, setSinProveedorAsignado] = useState(false);
   const [busqueda, setBusqueda]               = useState('');
   const [filtroStock, setFiltroStock]         = useState('');        // '' | 'bajo' | 'sin'
   const [filtroOpen,    setFiltroOpen]    = useState(false);
@@ -76,18 +92,39 @@ export default function CatalogoProductos() {
     }, 120);
   }, []);
 
+  // Proveedores (todos, para mostrar el nombre en cada producto) y categorías propias.
+  useEffect(() => {
+    let vivo = true;
+    Promise.all([listarProveedores(), listarCategorias()])
+      .then(([provs, cats]) => {
+        if (!vivo) return;
+        setProveedores(provs);
+        setCategorias(cats);
+      })
+      .catch(() => { /* los filtros quedan vacíos; el catálogo se sigue mostrando */ });
+    return () => { vivo = false; };
+  }, []);
+
+  const categoriaSel = categorias.find((c) => c.id === categoriaActiva) ?? null;
+
   const fetchProductos = useCallback(async () => {
     setCargando(true);
     setErrorProductos('');
     try {
-      // Cuando hay búsqueda activa: traer todos (size grande) y filtrar client-side
-      // El backend no soporta parámetro q para búsqueda por nombre
+      // Búsqueda, proveedor o una categoría que el backend aún no conoce: se traen todos
+      // (size grande) y se filtra y pagina en pantalla. El backend no soporta ?q= ni ?proveedorId=.
       const hayBusqueda = busqueda.trim().length > 0;
+      const categoriaEnBackend = categoriaSel && CATEGORIAS_BACKEND.includes(claveCategoria(categoriaSel.nombre));
+      const filtroLocal = hayBusqueda || !!proveedorFiltro || (categoriaSel && !categoriaEnBackend);
       const params = new URLSearchParams({
-        page: hayBusqueda ? 0 : page - 1,
-        size: hayBusqueda ? 500 : PAGE_SIZE,
+        page: filtroLocal ? 0 : page - 1,
+        size: filtroLocal ? 500 : PAGE_SIZE,
       });
-      if (categoriaActiva !== 'Todos') params.set('categoria', categoriaActiva.toUpperCase());
+      if (categoriaSel) {
+        params.set('categoriaId', categoriaSel.id);
+        if (categoriaEnBackend) params.set('categoria', claveCategoria(categoriaSel.nombre));
+      }
+      if (proveedorFiltro) params.set('proveedorId', proveedorFiltro);
       if (filtroStock === 'medio') params.set('stockMedio', 'true');
       if (filtroStock === 'bajo')  params.set('stockBajo',  'true');
       if (filtroStock === 'sin')   params.set('sinStock',   'true');
@@ -117,13 +154,27 @@ export default function CatalogoProductos() {
         return (a.nombre ?? '').localeCompare(b.nombre ?? '', 'es');
       });
 
-      // Filtrado client-side por nombre o código técnico (búsqueda)
-      if (hayBusqueda) {
+      // Filtrado client-side por categoría propia y proveedor
+      if (categoriaSel && !categoriaEnBackend) lista = lista.filter(p => esDeCategoria(p, categoriaSel));
+      let sinAsignar = false;
+      if (proveedorFiltro) {
+        const r = productosDeProveedor(lista, proveedorFiltro);
+        lista = r.lista;
+        sinAsignar = r.sinAsignar;
+      }
+      setSinProveedorAsignado(sinAsignar);
+
+      // Filtrado client-side por nombre, SKU, código técnico o marca (búsqueda)
+      if (filtroLocal) {
         const q = busqueda.trim().toLowerCase();
-        lista = lista.filter(p =>
-          p.nombre?.toLowerCase().includes(q) ||
-          p.codigoTecnico?.toLowerCase().includes(q)
-        );
+        if (q) {
+          lista = lista.filter(p =>
+            p.nombre?.toLowerCase().includes(q) ||
+            p.sku?.toLowerCase().includes(q) ||
+            p.codigoTecnico?.toLowerCase().includes(q) ||
+            p.marca?.toLowerCase().includes(q)
+          );
+        }
         // Paginación local sobre resultados filtrados
         setTotal(lista.length);
         setTotalPages(Math.max(1, Math.ceil(lista.length / PAGE_SIZE)));
@@ -153,7 +204,7 @@ export default function CatalogoProductos() {
     } finally {
       setCargando(false);
     }
-  }, [token, page, categoriaActiva, filtroStock, busqueda]);
+  }, [token, page, categoriaSel, proveedorFiltro, filtroStock, busqueda]);
 
   useEffect(() => { fetchProductos(); }, [fetchProductos]);
 
@@ -167,10 +218,17 @@ export default function CatalogoProductos() {
     return () => document.removeEventListener('mousedown', handler);
   }, [filtroOpen, closeFiltro]);
 
-  const handleCategoriaChange = (cat) => {
-    setCategoriaActiva(cat);
+  const handleCategoriaChange = (id) => {
+    setCategoriaActiva(id);
     setPage(1);
   };
+
+  const handleProveedorChange = (id) => {
+    setProveedorFiltro(id);
+    setPage(1);
+  };
+
+  const nombreProveedor = (id) => proveedores.find((p) => p.id === id)?.nombreComercial;
 
   const handleBusqueda = (e) => {
     setBusqueda(e.target.value);
@@ -320,19 +378,32 @@ export default function CatalogoProductos() {
           )}
         </div>
 
-        {/* Pills categoría + badge filtro activo */}
+        {/* Proveedor + pills categoría propia + badge filtro activo */}
         <div className="flex items-center gap-2 flex-wrap">
-          {CATEGORIAS.map((cat) => (
+          <div className="flex items-center gap-2 mr-2">
+            <span className="font-['Inter'] font-medium text-[13px] text-[#57534e]">Proveedor:</span>
+            <CustomSelect
+              className="w-[190px]"
+              size="sm"
+              value={proveedorFiltro}
+              onChange={handleProveedorChange}
+              options={[
+                { value: '', label: 'Todos' },
+                ...proveedores.map((p) => ({ value: p.id, label: p.activo ? p.nombreComercial : `${p.nombreComercial} (inactivo)` })),
+              ]}
+            />
+          </div>
+          {[{ id: '', nombre: 'Todas' }, ...categorias].map((cat) => (
             <button
-              key={cat}
-              onClick={() => handleCategoriaChange(cat)}
+              key={cat.id || 'todas'}
+              onClick={() => handleCategoriaChange(cat.id)}
               className={`px-4 py-1.5 rounded-full font-['Inter'] font-medium text-[14px] cursor-pointer transition-colors ${
-                categoriaActiva === cat
+                categoriaActiva === cat.id
                   ? 'bg-[#9e2016] text-white'
                   : 'bg-white border border-[#e7e5e4] text-[#1b1b1c] hover:border-[#9e2016]'
               }`}
             >
-              {cat}
+              {cat.nombre}
             </button>
           ))}
           {filtroStock && (
@@ -349,6 +420,13 @@ export default function CatalogoProductos() {
           )}
         </div>
 
+        {sinProveedorAsignado && !cargando && (
+          <div className="px-4 py-3 rounded-xl bg-[#fffbeb] border border-[#fcd34d] text-[#92400e] text-sm">
+            El catálogo todavía no trae el proveedor de cada producto, así que se muestran todos.
+            Asigna el proveedor al editar cada producto.
+          </div>
+        )}
+
         {/* Grid */}
         {cargando ? (
           <div className="grid grid-cols-3 gap-6">
@@ -356,11 +434,15 @@ export default function CatalogoProductos() {
               <div key={i} className="bg-white rounded-[12px] h-[380px] animate-pulse border border-[#f5f5f4]" />
             ))}
           </div>
-        ) : productos.length === 0 && busqueda ? (
+        ) : productos.length === 0 && (busqueda || proveedorFiltro || categoriaActiva) ? (
           <div className="flex flex-col items-center gap-2 py-16 text-center">
             <span className="text-[32px]">🔍</span>
             <p className="font-['Manrope'] font-semibold text-[16px] text-[#1b1b1c]">Sin resultados</p>
-            <p className="font-['Inter'] text-[14px] text-[#a8a29e]">No se encontraron productos para <strong>"{busqueda}"</strong></p>
+            <p className="font-['Inter'] text-[14px] text-[#a8a29e]">
+              {busqueda
+                ? <>No se encontraron productos para <strong>"{busqueda}"</strong></>
+                : 'Ningún producto coincide con el proveedor y la categoría elegidos.'}
+            </p>
           </div>
         ) : (
           <div className="grid grid-cols-3 gap-6">
@@ -368,6 +450,7 @@ export default function CatalogoProductos() {
               <ProductoCard
                 key={p.id}
                 producto={p}
+                proveedor={nombreProveedor(p.proveedorId)}
                 onEditar={() => setProductoEditar(p)}
                 onEliminar={() => setProductoEliminar(p)}
               />
@@ -426,9 +509,11 @@ export default function CatalogoProductos() {
   );
 }
 
-function ProductoCard({ producto, onEditar, onEliminar }) {
+function ProductoCard({ producto, proveedor, onEditar, onEliminar }) {
   // Backend devuelve camelCase: codigoTecnico, precioVenta, stockMinimo, stockActual, imagenUrl
-  const { nombre, codigoTecnico, categoria, precioVenta, descripcion, stockMinimo, stockMedio, stockActual, unidadMedida, imagenUrl } = producto;
+  const { nombre, categoria, precioVenta, descripcion, stockMinimo, stockMedio, stockActual, imagenUrl, marca } = producto;
+  const codigoTecnico = producto.sku ?? producto.codigoTecnico;
+  const unidadMedida = etiquetaPresentacion(producto);
   const stockBajo  = stockActual != null && stockActual <= stockMinimo;
   const stockMed   = !stockBajo && stockMedio != null && stockActual != null && stockActual <= stockMedio;
 
@@ -455,6 +540,11 @@ function ProductoCard({ producto, onEditar, onEliminar }) {
             <span className="font-['Manrope'] font-semibold text-[16px] text-[#1b1b1c] leading-[22px]">{nombre}</span>
             {codigoTecnico && (
               <span className="font-['Inter'] font-normal text-[11px] text-[#a8a29e] tracking-wide">{codigoTecnico}</span>
+            )}
+            {(marca || proveedor) && (
+              <span className="font-['Inter'] font-medium text-[12px] text-[#57534e]">
+                {[marca, proveedor].filter(Boolean).join(' · ')}
+              </span>
             )}
           </div>
           <span className="font-['Manrope'] font-bold text-[18px] text-[#9e2016] shrink-0">{formatCOP(precioVenta)}</span>
