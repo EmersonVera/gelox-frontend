@@ -1,0 +1,29 @@
+{
+  "_nota": "Datos provisionales. Reemplazar por el JSON que publique Juan, respetando las claves. Las fechas van en días relativos a hoy (haceDias / venceEnDias) para que las planillas vencidas sigan vencidas al probar otro día.",
+  "politicaDefecto": {
+    "cupo": 50000,
+    "plazoDias": 0,
+    "politica": "SOLO_ALERTA"
+  },
+  "esquema": {
+    "tipo": "MARGEN",
+    "valor": null,
+    "vigenteDesde": "2026-03-01T00:00:00"
+  },
+  "ejemploComerciante": {
+    "excepcion": {
+      "cupo": 800000,
+      "plazoDias": 15,
+      "politica": "SOLO_ALERTA"
+    },
+    "planillas": [
+      { "codigo": "PL-2088", "haceDias": 27, "venceEnDias": -12, "valor": 96000,  "saldo": 50000 },
+      { "codigo": "PL-2104", "haceDias": 22, "venceEnDias": -7,  "valor": 120000, "saldo": 120000 },
+      { "codigo": "PL-2190", "haceDias": 12, "venceEnDias": 3,   "valor": 214000, "saldo": 214000 },
+      { "codigo": "PL-2231", "haceDias": 6,  "venceEnDias": 9,   "valor": 96000,  "saldo": 96000 }
+    ],
+    "abonos": [
+      { "haceDias": 14, "valor": 46000, "observacion": "Abono parcial al cierre de la jornada", "usuarioNombre": "Ayde Arévalo" }
+    ]
+  }
+}

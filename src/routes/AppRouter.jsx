@@ -25,6 +25,7 @@ import Reportes         from '../pages/administrador/Reportes';
 import HistorialCierres from '../pages/administrador/HistorialCierres';
 import DetalleCierre    from '../pages/administrador/DetalleCierre';
 import IdentidadVisual  from '../pages/administrador/IdentidadVisual';
+import EsquemaLiquidacion from '../pages/administrador/EsquemaLiquidacion';
 
 /* ── Módulo Ventas ── */
 import PedidoVentanilla from '../pages/ventas/PedidoVentanilla';
@@ -110,6 +111,7 @@ export default function AppRouter() {
           {/* Ajustes del admin — mantiene SidebarAdministrador */}
           <Route path="/ajustes"                 element={<Ajustes />} />
           <Route path="/ajustes/identidad"       element={<IdentidadVisual />} />
+          <Route path="/ajustes/liquidacion"     element={<EsquemaLiquidacion />} />
         </Route>
 
         {/* ══ Módulo Inventarios (Administrador + Encargado de Inventario) ══ */}

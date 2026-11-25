@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
@@ -328,6 +329,29 @@ export default function Ajustes() {
             </button>
           </div>
         </div>
+
+        {/* Parámetros de la distribuidora — solo el Gerente */}
+        {perfil?.rol === 'ADMINISTRADOR' && (
+          <div className={`${card} animate-fade-in-up [animation-delay:240ms]`}>
+            <div className="flex items-center gap-2.5 text-sm font-semibold text-ink mb-5 pb-4 border-b border-border">
+              Parámetros de la distribuidora
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="flex-1">
+                <div className="text-sm font-medium text-ink">Liquidación y crédito</div>
+                <div className="text-xs text-muted mt-0.5">
+                  Política de crédito por defecto y esquema con que se liquidan las planillas de los comerciantes.
+                </div>
+              </div>
+              <Link
+                to="/ajustes/liquidacion"
+                className="px-4 py-2 bg-border text-ink text-sm font-medium rounded-xl hover:bg-divider transition duration-300 active:scale-[0.97] shrink-0"
+              >
+                Configurar
+              </Link>
+            </div>
+          </div>
+        )}
       </div>
 
       <CambiarContrasena
