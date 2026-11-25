@@ -5,6 +5,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { BarChart, Bar, XAxis, Cell, ResponsiveContainer } from 'recharts';
 import AppLayout from '../../components/AppLayout';
 import CustomSelect from '../../components/ui/CustomSelect';
+import SeccionCredito from '../../components/ventas/SeccionCredito';
 import { getPlanillasComerciante, actualizarComerciante, cambiarEstadoComerciante } from '../../services/ventasService';
 
 const MUNICIPIOS      = ['Ocaña', 'Cúcuta', 'Villa del Rosario', 'Los Patios', 'El Zulia', 'Tibú', 'Otro'];
@@ -621,6 +622,9 @@ export default function InformacionComerciante() {
             </div>
           </div>
         </div>
+
+        {/* ══ CRÉDITO (RF65) — editable solo para el Gerente ══════════════════ */}
+        <SeccionCredito comercianteId={id} nombre={comercianteLocal.nombre} />
 
       </div>
 
