@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import ContenidoCarga from '../ui/ContenidoCarga';
 import { ROL_LABEL, esActivo, iniciales, mensajeError } from './usuariosUtils';
+import { esCuotaAlcanzada, mensajeCuota } from '../../utils/errores';
 
 function BanIcon() {
   return (
@@ -58,7 +59,10 @@ export default function ModalEstadoUsuario({ usuario, onConfirmar, onCerrar }) {
       setTimeout(() => { setCerrando(false); onCerrar(); }, 200);
     } catch (err) {
       setEnviando(false);
-      setError(mensajeError(err, 'No se pudo cambiar el estado del usuario. Intenta de nuevo.'));
+      // RF70 — habilitar ocupa un cupo del plan: el 409 de cuota dice cuántos hay y cuál es el límite.
+      setError(esCuotaAlcanzada(err)
+        ? mensajeCuota('usuarios', err)
+        : mensajeError(err, 'No se pudo cambiar el estado del usuario. Intenta de nuevo.'));
     }
   };
 

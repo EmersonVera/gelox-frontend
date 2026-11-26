@@ -13,12 +13,13 @@ export async function getAlertasStock() {
 
 /**
  * RF27 — Busca/filtra productos en el inventario por estado (y opcionalmente nombre/código).
- * GET /api/inventario/buscar?estado=NORMAL&nombre=corneto
+ * El backend no tiene /api/inventario/buscar: el filtro va en GET /api/inventario/productos?q=&estado=
+ * (InventarioController.listarInventario).
  */
 export async function buscarProductosInventario({ nombre, estado } = {}) {
   const params = {};
-  if (nombre) params.nombre = nombre;
+  if (nombre) params.q = nombre;
   if (estado) params.estado = estado;
-  const { data } = await api.get('/api/inventario/buscar', { params });
+  const { data } = await api.get('/api/inventario/productos', { params });
   return data;
 }

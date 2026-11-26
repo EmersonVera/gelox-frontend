@@ -105,6 +105,22 @@ export default function DetalleAuditoria({ detalle }) {
     usar('planAnterior', 'planNuevo');
   }
 
+  // Pares «xAnterior» / «xNuevo» (ESQUEMA_LIQUIDACION_CAMBIAR: tipoAnterior, valorAnterior, tipoNuevo, valorNuevo).
+  const pares = Object.keys(d)
+    .filter((k) => k.endsWith('Anterior') && !usadas.has(k) && `${k.slice(0, -'Anterior'.length)}Nuevo` in d)
+    .map((k) => k.slice(0, -'Anterior'.length));
+  if (pares.length) {
+    const cambios = pares.filter((c) => d[`${c}Anterior`] !== d[`${c}Nuevo`]);
+    partes.push(
+      <span key="pares">
+        {cambios.length
+          ? cambiosDe(cambios.map((campo) => ({ campo, antes: d[`${campo}Anterior`], despues: d[`${campo}Nuevo`] })))
+          : 'sin cambios'}.{' '}
+      </span>,
+    );
+    pares.forEach((c) => usar(`${c}Anterior`, `${c}Nuevo`));
+  }
+
   // Antes / después de un objeto (política de crédito o esquema de liquidación).
   if (d.antes && d.despues && typeof d.antes === 'object') {
     if ('tipo' in d.despues) {

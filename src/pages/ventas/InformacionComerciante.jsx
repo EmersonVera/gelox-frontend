@@ -6,6 +6,7 @@ import { BarChart, Bar, XAxis, Cell, ResponsiveContainer } from 'recharts';
 import AppLayout from '../../components/AppLayout';
 import CustomSelect from '../../components/ui/CustomSelect';
 import SeccionCredito from '../../components/ventas/SeccionCredito';
+import { mensajeErrorApi } from '../../utils/errores';
 import { getPlanillasComerciante, actualizarComerciante, cambiarEstadoComerciante } from '../../services/ventasService';
 
 const MUNICIPIOS      = ['Ocaña', 'Cúcuta', 'Villa del Rosario', 'Los Patios', 'El Zulia', 'Tibú', 'Otro'];
@@ -185,8 +186,9 @@ export default function InformacionComerciante() {
 
       setComerianteLocal(prev => ({ ...prev, ...actualizado }));
       handleCloseModal();
-    } catch {
-      setErrorEditar('No se pudo guardar los cambios. Intenta de nuevo.');
+    } catch (err) {
+      // RF70 — activar un comerciante inactivo ocupa un cupo del plan (409 de cuota)
+      setErrorEditar(mensajeErrorApi(err, 'No se pudo guardar los cambios. Intenta de nuevo.', 'comerciantes'));
     } finally {
       setGuardando(false);
     }

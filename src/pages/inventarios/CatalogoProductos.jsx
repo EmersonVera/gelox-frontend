@@ -11,19 +11,12 @@ import CustomSelect from '../../components/ui/CustomSelect';
 import { listarProveedores, listarCategorias } from '../../services/proveedoresService';
 import { productosDeProveedor } from '../../components/inventarios/proveedoresUtils';
 import { etiquetaPresentacion } from '../../components/catalogo/unidadesUtils';
+import ModalCuotaAlcanzada from '../../components/ui/ModalCuotaAlcanzada';
+import { errorDeRespuesta, esCuotaAlcanzada, mensajeErrorApi } from '../../utils/errores';
 
 const SAVED_STOCK_MS = 700;
 
-// Categorías que el backend actual sabe filtrar (?categoria=); las demás se filtran en pantalla.
-const CATEGORIAS_BACKEND = ['PALETAS', 'CONOS', 'FAMILIARES', 'VASOS'];
 const PAGE_SIZE = 9;
-
-const normalizar = (t) => String(t ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
-const claveCategoria = (nombre) => normalizar(nombre).toUpperCase();
-
-/** El producto pertenece a la categoría propia por id o, en productos anteriores, por nombre. */
-const esDeCategoria = (p, cat) =>
-  (p.categoriaId != null && p.categoriaId === cat.id) || normalizar(p.categoriaNombre ?? p.categoria) === normalizar(cat.nombre);
 
 const formatCOP = (n) => '$' + Number(n).toLocaleString('es-CO');
 
@@ -61,6 +54,7 @@ export default function CatalogoProductos() {
   const [productoEditar, setProductoEditar]   = useState(null);
   const [productoEliminar, setProductoEliminar] = useState(null);
   const [productosInactivos, setProductosInactivos] = useState([]);
+  const [cuotaActivar, setCuotaActivar]       = useState(null); // { error, nombre } — 409 de cuota al activar
   const filtroRef       = useRef(null);
   const savedStockTimer = useRef(null);
   const filtroCloseTimer = useRef(null);
@@ -74,12 +68,14 @@ export default function CatalogoProductos() {
         method: 'PATCH',
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) throw new Error('No se pudo activar el producto.');
+      if (!res.ok) throw await errorDeRespuesta(res, 'No se pudo activar el producto.');
       setProductosInactivos(prev => prev.filter(p => p.id !== producto.id));
       fetchProductos();
       showToast(`"${producto.nombre}" activado correctamente.`);
     } catch (e) {
-      showToast(e.message, 'error');
+      // RF70 — reactivar ocupa un cupo del plan: 409 de cuota con { cuota, limite, usado }
+      if (esCuotaAlcanzada(e)) setCuotaActivar({ error: e, nombre: producto.nombre });
+      else showToast(e?.response ? mensajeErrorApi(e, 'No se pudo activar el producto.', 'productos') : e.message, 'error');
     }
   };
 
@@ -111,23 +107,15 @@ export default function CatalogoProductos() {
     setCargando(true);
     setErrorProductos('');
     try {
-      // Búsqueda, proveedor o una categoría que el backend aún no conoce: se traen todos
-      // (size grande) y se filtra y pagina en pantalla. El backend no soporta ?q= ni ?proveedorId=.
+      // GET /api/catalogo/productos solo filtra por categoría (categoriaId) y pagina.
+      // Búsqueda, proveedor o stock: se traen todos (size grande) y se filtra y pagina en pantalla.
       const hayBusqueda = busqueda.trim().length > 0;
-      const categoriaEnBackend = categoriaSel && CATEGORIAS_BACKEND.includes(claveCategoria(categoriaSel.nombre));
-      const filtroLocal = hayBusqueda || !!proveedorFiltro || (categoriaSel && !categoriaEnBackend);
+      const filtroLocal = hayBusqueda || !!proveedorFiltro || !!filtroStock;
       const params = new URLSearchParams({
         page: filtroLocal ? 0 : page - 1,
         size: filtroLocal ? 500 : PAGE_SIZE,
       });
-      if (categoriaSel) {
-        params.set('categoriaId', categoriaSel.id);
-        if (categoriaEnBackend) params.set('categoria', claveCategoria(categoriaSel.nombre));
-      }
-      if (proveedorFiltro) params.set('proveedorId', proveedorFiltro);
-      if (filtroStock === 'medio') params.set('stockMedio', 'true');
-      if (filtroStock === 'bajo')  params.set('stockBajo',  'true');
-      if (filtroStock === 'sin')   params.set('sinStock',   'true');
+      if (categoriaSel) params.set('categoriaId', categoriaSel.id);
       const base = import.meta.env.VITE_API_BASE_URL ?? '';
       const res = await fetch(`${base}/api/catalogo/productos?${params}`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -154,8 +142,7 @@ export default function CatalogoProductos() {
         return (a.nombre ?? '').localeCompare(b.nombre ?? '', 'es');
       });
 
-      // Filtrado client-side por categoría propia y proveedor
-      if (categoriaSel && !categoriaEnBackend) lista = lista.filter(p => esDeCategoria(p, categoriaSel));
+      // Filtrado client-side por proveedor (el backend no lo soporta)
       let sinAsignar = false;
       if (proveedorFiltro) {
         const r = productosDeProveedor(lista, proveedorFiltro);
@@ -450,7 +437,7 @@ export default function CatalogoProductos() {
               <ProductoCard
                 key={p.id}
                 producto={p}
-                proveedor={nombreProveedor(p.proveedorId)}
+                proveedor={p.proveedorNombre ?? nombreProveedor(p.proveedorId)}
                 onEditar={() => setProductoEditar(p)}
                 onEliminar={() => setProductoEliminar(p)}
               />
@@ -478,6 +465,14 @@ export default function CatalogoProductos() {
         )}
 
         {/* Modales */}
+        {cuotaActivar && (
+          <ModalCuotaAlcanzada
+            error={cuotaActivar.error}
+            recurso="productos"
+            nombre={cuotaActivar.nombre}
+            onClose={() => setCuotaActivar(null)}
+          />
+        )}
         {modalNuevo && (
           <NuevoProducto
             onClose={() => setModalNuevo(false)}

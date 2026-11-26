@@ -13,7 +13,8 @@ import ContenidoCarga from '../../components/ui/ContenidoCarga';
 import ConsumoPlan from '../../components/plataforma/ConsumoPlan';
 import AsignarPlan from '../../components/plataforma/AsignarPlan';
 import {
-  ESTADOS_DISTRIBUIDORA, TRANSICIONES, formatoFecha, formatoFechaHora, iniciales, mensajeError, nombrePlan,
+  CLAVE_CUOTA, CUOTAS, ESTADOS_DISTRIBUIDORA, TRANSICIONES, formatoFecha, formatoFechaHora, iniciales, mensajeError,
+  nombrePlan, textoUso,
 } from '../../components/plataforma/plataformaUtils';
 import { cambiarEstado, listarPlanes, obtenerDistribuidora, reenviarAcceso } from '../../services/plataformaService';
 
@@ -402,7 +403,16 @@ function ContenidoDetalle({ id }) {
                     uso: actualizada.uso ?? prev.uso,
                     planNombre: actualizada.planNombre ?? plan.nombre,
                   }));
-                  setToast({ show: true, msg: `Plan cambiado a «${plan.nombre}». Las cuotas nuevas aplican de inmediato.`, type: 'success' });
+                  // RF70 — el backend asigna igual y lista en advertencias las cuotas que el uso ya supera.
+                  const excedidas = (actualizada.advertencias ?? [])
+                    .map((a) => {
+                      const c = CUOTAS.find((x) => x.uso === CLAVE_CUOTA[a.cuota]);
+                      return c ? `${c.label.toLowerCase()} (${textoUso({ usado: a.usado, limite: a.limite }, c.mb)})` : null;
+                    })
+                    .filter(Boolean);
+                  setToast(excedidas.length
+                    ? { show: true, type: 'info', msg: `Plan cambiado a «${plan.nombre}». Ya supera la cuota de ${excedidas.join(', ')}: no podrá crear más registros de ese tipo.` }
+                    : { show: true, type: 'success', msg: `Plan cambiado a «${plan.nombre}». Las cuotas nuevas aplican de inmediato.` });
                 }}
               />
             </section>

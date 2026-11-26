@@ -8,9 +8,10 @@ import { useAuth } from '../../context/AuthContext';
 import api from '../../api/axiosConfig';
 import ContenidoCarga from '../ui/ContenidoCarga';
 import CamposMultimarca from './CamposMultimarca';
-import { esquemaMultimarca, valoresMultimarca, agregarMultimarca } from './multimarcaForm';
-import { interpretarConflicto } from './conflictosCatalogo';
-import { UNIDADES_COMPRA, UNIDADES_VENTA } from './unidadesUtils';
+import { esquemaMultimarca, valoresMultimarca, agregarMultimarca, guardarCodigoProveedor } from './multimarcaForm';
+import { esCuotaAlcanzada, mensajeErrorApi, textoError } from '../../utils/errores';
+import ModalCuotaAlcanzada from '../ui/ModalCuotaAlcanzada';
+import { infoCompra, infoVenta } from './unidadesUtils';
 
 const schema = yup.object({
   nombre:        yup.string().required('El nombre es requerido'),
@@ -29,7 +30,7 @@ export default function NuevoProducto({ onClose, onSuccess }) {
   const [preview, setPreview]     = useState(null);
   const [guardando, setGuardando] = useState(false);
   const [errorApi, setErrorApi]   = useState('');
-  const [cuotaAgotada, setCuotaAgotada] = useState(false);
+  const [cuotaAgotada, setCuotaAgotada] = useState(null); // { error, nombre } — 409 de cuota
   const [isClosing, setIsClosing] = useState(false);
 
   const handleClose = () => {
@@ -43,8 +44,8 @@ export default function NuevoProducto({ onClose, onSuccess }) {
     defaultValues: { stockMedio: 0, stockMinimo: 0, ...valoresMultimarca(null) },
   });
 
-  const compra = UNIDADES_COMPRA.find((u) => u.value === watch('unidadCompra')) ?? UNIDADES_COMPRA[0];
-  const venta  = UNIDADES_VENTA.find((u) => u.value === watch('unidadVenta')) ?? UNIDADES_VENTA[0];
+  const compra = infoCompra(watch('unidadCompra'));
+  const venta  = infoVenta(watch('unidadVenta'));
 
   const handleImagen = (e) => {
     const file = e.target.files?.[0];
@@ -57,7 +58,7 @@ export default function NuevoProducto({ onClose, onSuccess }) {
   const onSubmit = async (data) => {
     setGuardando(true);
     setErrorApi('');
-    setCuotaAgotada(false);
+    setCuotaAgotada(null);
     try {
       const fd = new FormData();
       fd.append('nombre',        data.nombre);
@@ -74,21 +75,28 @@ export default function NuevoProducto({ onClose, onSuccess }) {
       if (res.status < 200 || res.status >= 300) {
         throw new Error(res.data?.message || `Error ${res.status}`);
       }
-      onSuccess('Producto registrado correctamente.');
+      // El código del proveedor se guarda como homologación (RF67); si falla, el producto ya quedó creado.
+      let aviso = '';
+      if (data.codigoProveedor?.trim() && res.data?.id) {
+        try {
+          await guardarCodigoProveedor(data.proveedorId, res.data.id, data.codigoProveedor);
+        } catch (e) {
+          aviso = ` No se guardó el código del proveedor: ${mensajeErrorApi(e, 'intenta de nuevo al editar el producto.')}`;
+        }
+      }
+      onSuccess(`Producto registrado correctamente.${aviso}`);
       handleClose();
     } catch (err) {
-      const msg       = err?.response?.data?.error ?? err?.response?.data?.mensaje ?? err?.response?.data?.message ?? '';
-      const conflicto = interpretarConflicto(err);
-      if (conflicto?.tipo === 'CUOTA') {
-        setCuotaAgotada(true);
-        setErrorApi(conflicto.mensaje);
-      } else if (conflicto?.tipo === 'SKU') {
-        setError('sku', { message: conflicto.mensaje });
-        setErrorApi(conflicto.mensaje);
-      } else if (conflicto) {
-        setErrorApi(conflicto.mensaje);
+      if (esCuotaAlcanzada(err)) {
+        // RF70 — 409 { codigo: CUOTA_PLAN_ALCANZADA, cuota, limite, usado }: el formulario se conserva
+        setCuotaAgotada({ error: err, nombre: data.nombre });
+      } else if (err?.response?.status === 409) {
+        // 409 por SKU repetido («El SKU ya está registrado en el catálogo»)
+        const msg = textoError(err) || 'Ya existe un producto con este SKU en tu distribuidora.';
+        if (/sku|c[oó]digo/i.test(msg)) setError('sku', { message: msg });
+        setErrorApi(msg);
       } else {
-        setErrorApi(msg || err.message || 'No se pudo registrar el producto. Intenta de nuevo.');
+        setErrorApi(mensajeErrorApi(err, err?.message || 'No se pudo registrar el producto. Intenta de nuevo.', 'productos'));
       }
     } finally {
       setGuardando(false);
@@ -239,13 +247,15 @@ export default function NuevoProducto({ onClose, onSuccess }) {
               </label>
             </div>
 
-            {errorApi && cuotaAgotada && (
-              <div className="px-4 py-3 rounded-xl bg-[#fffbeb] border border-[#fcd34d] text-[#92400e] text-sm">
-                <p className="font-semibold">Llegaste al límite de productos de tu plan</p>
-                <p className="mt-0.5">{errorApi}</p>
-              </div>
+            {cuotaAgotada && (
+              <ModalCuotaAlcanzada
+                error={cuotaAgotada.error}
+                recurso="productos"
+                nombre={cuotaAgotada.nombre}
+                onClose={() => setCuotaAgotada(null)}
+              />
             )}
-            {errorApi && !cuotaAgotada && (
+            {errorApi && (
               <div className="px-4 py-3 rounded-xl bg-[#fef2f2] border border-[#fca5a5] text-[#dc2626] text-sm flex items-start gap-2">
                 <svg width="15" height="15" className="shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                 <span>{errorApi}</span>
