@@ -324,8 +324,8 @@ export default function ReportePedido() {
         {/* Tabla */}
         <div className="bg-white rounded-[12px] border border-[#f5f5f4] overflow-hidden">
           {/* Encabezados */}
-          <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr] gap-4 px-6 py-3 bg-[#fafaf9] border-b border-[#f5f5f4]">
-            {['Registro / Pedido ID', 'Fecha', 'Total Pedido', 'Total Recibido', 'Estado'].map(h => (
+          <div className="grid grid-cols-[2fr_1.3fr_1fr_1fr_1fr_1fr] gap-4 px-6 py-3 bg-[#fafaf9] border-b border-[#f5f5f4]">
+            {['Registro / Pedido ID', 'Proveedor', 'Fecha', 'Total Pedido', 'Total Recibido', 'Estado'].map(h => (
               <span
                 key={h}
                 className="font-['Inter'] font-semibold text-[11px] uppercase tracking-[0.55px] text-[#a8a29e]"
@@ -340,9 +340,9 @@ export default function ReportePedido() {
             [1, 2, 3, 4].map(i => (
               <div
                 key={i}
-                className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr] gap-4 px-6 py-4 border-b border-[#fafaf9] animate-pulse"
+                className="grid grid-cols-[2fr_1.3fr_1fr_1fr_1fr_1fr] gap-4 px-6 py-4 border-b border-[#fafaf9] animate-pulse"
               >
-                {[1, 2, 3, 4, 5].map(j => (
+                {[1, 2, 3, 4, 5, 6].map(j => (
                   <div key={j} className="h-4 bg-[#f6f3f3] rounded" />
                 ))}
               </div>
@@ -374,7 +374,7 @@ export default function ReportePedido() {
               <div
                 key={p.id}
                 onClick={() => navigate(`/inventarios/pedidos/${p.id}`)}
-                className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr] gap-4 px-6 py-4 border-b border-[#fafaf9] hover:bg-[#fafaf9] cursor-pointer transition-colors items-center"
+                className="grid grid-cols-[2fr_1.3fr_1fr_1fr_1fr_1fr] gap-4 px-6 py-4 border-b border-[#fafaf9] hover:bg-[#fafaf9] cursor-pointer transition-colors items-center"
               >
                 {/* Nombre + ID corto */}
                 <div className="flex items-center gap-3">
@@ -390,6 +390,10 @@ export default function ReportePedido() {
                     </p>
                   </div>
                 </div>
+                {/* Proveedor */}
+                <span className="font-['Inter'] font-medium text-[14px] text-[#1b1b1c] truncate" title={p.proveedorNombre ?? undefined}>
+                  {p.proveedorNombre ?? '—'}
+                </span>
                 {/* Fecha */}
                 <span className="font-['Inter'] font-medium text-[14px] text-[#1b1b1c]">
                   {formatFecha(p.fecha)}

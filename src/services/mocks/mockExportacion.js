@@ -1,12 +1,13 @@
 // Datos simulados de plantillas de exportación y reportes exportables (FP-15 §2.18).
-// Se usa mientras USAR_MOCK sea true en exportacionService.js. El estado vive en memoria.
+// Solo se usa con VITE_USAR_MOCK_EXPORTACION=true (ver exportacionService.js). El estado vive en memoria.
+// Imita las respuestas del backend (paquete exportacion).
 //
 // Casos para probar a mano:
 //   - Guardar una plantilla GENERAR_FILAS sin columnas → 400.
 //   - Guardar una columna con un campo que no existe → 400.
 //   - Guardar dos homologaciones con el mismo código → 409.
-//   - Un proveedor sin plantilla devuelve la de Nutresa (RELLENAR_CATALOGO) sin versión ni estado.
-//   - Activar una plantilla con productos sin código de homologación → 409 (solo se puede guardar borrador).
+//   - Un proveedor sin plantilla devuelve la estándar de Nutresa (RELLENAR_CATALOGO) con personalizada = false.
+//   - Un producto sin código no bloquea nada: la plantilla se guarda y el pedido se exporta igual (FP-15 §2.18.1).
 //   - Exportar un reporte sin ninguna sección → 400; fecha inicial posterior a la final → 400.
 
 const DEMORA_MS = 300;
@@ -17,6 +18,7 @@ const esperar = (valor) =>
 const errorHttp = (status, mensaje, extra = {}) =>
   Object.assign(new Error(mensaje), { response: { status, data: { error: mensaje, ...extra } } });
 
+// CampoPlantilla del FP-15 §2.18.1
 export const CAMPOS_PLANTILLA = [
   'CODIGO_PROVEEDOR', 'SKU', 'NOMBRE_PRODUCTO', 'UNIDAD', 'CANTIDAD', 'CANTIDAD_CAJAS',
   'CANTIDAD_UNIDADES', 'PRECIO_UNITARIO', 'SUBTOTAL', 'FECHA_PEDIDO', 'TEXTO_FIJO',
@@ -33,43 +35,39 @@ const PRODUCTOS = [
 // proveedorId → { plantilla, codigos: { productoId → código } }
 const almacen = new Map();
 
-function plantillaPorDefecto() {
+/** Estándar de Nutresa (FP-15 §2.18.2): catalogo.xlsx, encabezados en la fila 4. */
+function plantillaEstandar() {
   return {
-    estado: null, // null = nunca se guardó; 'BORRADOR' | 'ACTIVA'
-    version: 0,
-    actualizadoEn: null,
-    actualizadoPor: null,
+    personalizada: false,
     modo: 'RELLENAR_CATALOGO',
-    formato: 'XLSX',
-    nombreArchivo: 'Pedido_{nombreComercial}_{fecha}',
-    nombreHoja: 'Pedido',
-    titulo: 'Formato de pedido masivo — {nombreComercial}',
     archivoBaseUrl: null,
     filaEncabezado: 4,
     encabezadoCodigo: 'Producto/SKU',
     encabezadoCantidad: 'Cantidad',
     encabezadoUnidad: 'Unidad de Medida',
     columnas: [],
+    actualizadoEn: null,
   };
 }
 
-// Plantilla de ejemplo de Crem Helado (primer proveedor de proveedores.json), como en el mockup.
+// Plantilla de ejemplo de Crem Helado (primer proveedor de proveedores.json), con las columnas del mockup.
+// Marca, categoría y proveedor van como TEXTO_FIJO: son los campos que el FP-15 permite.
 const col = (campo, encabezado, valorFijo = null) => ({ campo, encabezado, valorFijo });
 function plantillaCremHelado() {
   return {
-    ...plantillaPorDefecto(),
-    estado: 'ACTIVA',
-    version: 3,
-    actualizadoEn: '2026-11-12T10:00:00',
-    actualizadoPor: 'Carlos Pérez',
+    personalizada: true,
     modo: 'GENERAR_FILAS',
-    filaEncabezado: 4,
+    archivoBaseUrl: null,
+    filaEncabezado: 1,
+    encabezadoCodigo: null,
+    encabezadoCantidad: null,
+    encabezadoUnidad: null,
+    actualizadoEn: '2026-11-12T10:00:00',
     columnas: [
       col('CODIGO_PROVEEDOR', 'Producto/SKU'), col('NOMBRE_PRODUCTO', 'Descripción'),
       col('UNIDAD', 'Unidad'), col('CANTIDAD', 'Cantidad'),
       col('TEXTO_FIJO', 'Proveedor', 'Meals de Colombia'), col('TEXTO_FIJO', 'Marca', 'Aloha'),
-      col('TEXTO_FIJO', 'Categoría', 'Helados'), col('TEXTO_FIJO', 'Subcat.', 'Helados'),
-      col('PRECIO_UNITARIO', 'Precio'),
+      col('TEXTO_FIJO', 'Categoría', 'Helados'), col('PRECIO_UNITARIO', 'Precio'),
     ].map((c, i) => ({ ...c, orden: i + 1 })),
   };
 }
@@ -77,7 +75,7 @@ function plantillaCremHelado() {
 function estado(proveedorId) {
   if (!almacen.has(proveedorId)) {
     almacen.set(proveedorId, {
-      plantilla: proveedorId.endsWith('4c01') ? plantillaCremHelado() : plantillaPorDefecto(),
+      plantilla: proveedorId.endsWith('4c01') ? plantillaCremHelado() : plantillaEstandar(),
       codigos: { 'p-0001': 'CONO-VAN-24', 'p-0002': 'PAL-FRE-30', 'p-0003': 'FAM-CHO-06' },
     });
   }
@@ -99,24 +97,22 @@ function respuesta(proveedorId) {
 }
 
 function validar(plantilla) {
-  if (!['XLSX', 'CSV'].includes(plantilla.formato ?? 'XLSX')) throw errorHttp(400, 'Formato de archivo desconocido.');
-  if (!String(plantilla.nombreArchivo ?? '').trim()) throw errorHttp(400, 'Indica el nombre del archivo.');
   if (plantilla.modo === 'GENERAR_FILAS') {
-    if (!plantilla.columnas?.length) throw errorHttp(400, 'Agrega al menos una columna a la plantilla.');
+    if (!plantilla.columnas?.length) throw errorHttp(400, 'Agrega al menos una columna a la plantilla');
     for (const c of plantilla.columnas) {
       if (!CAMPOS_PLANTILLA.includes(c.campo)) throw errorHttp(400, `Campo desconocido: ${c.campo}`);
-      if (!String(c.encabezado ?? '').trim()) throw errorHttp(400, 'Cada columna necesita un encabezado.');
+      if (!String(c.encabezado ?? '').trim()) throw errorHttp(400, 'Cada columna necesita un encabezado');
       if (c.campo === 'TEXTO_FIJO' && !String(c.valorFijo ?? '').trim()) {
-        throw errorHttp(400, 'Una columna de texto fijo necesita su valor.');
+        throw errorHttp(400, 'Una columna de texto fijo necesita su valor');
       }
     }
   } else if (plantilla.modo === 'RELLENAR_CATALOGO') {
-    if (!(Number(plantilla.filaEncabezado) >= 1)) throw errorHttp(400, 'La fila de encabezados debe ser 1 o mayor.');
+    if (!(Number(plantilla.filaEncabezado) >= 1)) throw errorHttp(400, 'La fila de encabezados debe ser 1 o mayor');
     if (!String(plantilla.encabezadoCodigo ?? '').trim() || !String(plantilla.encabezadoCantidad ?? '').trim()) {
-      throw errorHttp(400, 'Indica los encabezados de código y de cantidad.');
+      throw errorHttp(400, 'Indica los encabezados de código y de cantidad del archivo base');
     }
   } else {
-    throw errorHttp(400, 'Modo de plantilla desconocido.');
+    throw errorHttp(400, 'Indica el modo de la plantilla');
   }
 }
 
@@ -125,7 +121,9 @@ function validarCodigos(homologaciones) {
   for (const h of homologaciones) {
     const codigo = String(h.codigo ?? '').trim().toLowerCase();
     if (!codigo) continue;
-    if (vistos.has(codigo)) throw errorHttp(409, `El código «${h.codigo}» está repetido para este proveedor.`);
+    if (vistos.has(codigo)) {
+      throw errorHttp(409, `El código «${h.codigo}» ya está asignado a otro producto de este proveedor`);
+    }
     vistos.add(codigo);
   }
 }
@@ -150,17 +148,22 @@ export function guardarPlantilla(proveedorId, cuerpo) {
   } catch (e) {
     return Promise.reject(e);
   }
-  const plantilla = { ...cuerpo };
-  delete plantilla.homologaciones;
-  const previa = estado(proveedorId).plantilla;
-  // Según FP-15 §2.18.1 y Plan de trabajo (F12), los productos sin código no bloquean; se reportan al exportar.
+  const catalogo = cuerpo.modo === 'RELLENAR_CATALOGO';
   estado(proveedorId).plantilla = {
-    ...plantilla,
-    estado: plantilla.estado === 'ACTIVA' ? 'ACTIVA' : 'BORRADOR',
-    version: (previa.version ?? 0) + 1,
+    personalizada: true,
+    modo: cuerpo.modo,
+    archivoBaseUrl: catalogo ? (cuerpo.archivoBaseUrl || null) : null,
+    filaEncabezado: catalogo ? Number(cuerpo.filaEncabezado) : 1,
+    encabezadoCodigo: catalogo ? cuerpo.encabezadoCodigo : null,
+    encabezadoCantidad: catalogo ? cuerpo.encabezadoCantidad : null,
+    encabezadoUnidad: catalogo ? (cuerpo.encabezadoUnidad || null) : null,
     actualizadoEn: new Date().toISOString(),
-    actualizadoPor: 'Tú',
-    columnas: (plantilla.columnas ?? []).map((c, i) => ({ ...c, orden: i + 1 })),
+    columnas: catalogo ? [] : cuerpo.columnas.map((c, i) => ({
+      orden: i + 1,
+      campo: c.campo,
+      encabezado: c.encabezado,
+      valorFijo: c.campo === 'TEXTO_FIJO' ? c.valorFijo : null,
+    })),
   };
   return esperar(respuesta(proveedorId));
 }
@@ -172,15 +175,16 @@ export function guardarHomologaciones(proveedorId, homologaciones) {
 
 const hoy = () => new Date().toISOString().slice(0, 10);
 
-function valorCelda(columna, producto, cantidadCajas, codigo) {
-  const unidades = cantidadCajas * producto.unidadesPorCaja;
+// Misma regla del backend: la fila va en cajas si el producto tiene caja y las sueltas la completan.
+function valorCelda(columna, producto, cajas, codigo) {
+  const unidades = cajas * producto.unidadesPorCaja;
   switch (columna.campo) {
-    case 'CODIGO_PROVEEDOR': return codigo || '(sin código)';
+    case 'CODIGO_PROVEEDOR': return codigo || '';
     case 'SKU': return producto.sku;
     case 'NOMBRE_PRODUCTO': return producto.nombreProducto;
     case 'UNIDAD': return 'CJ';
-    case 'CANTIDAD': return cantidadCajas;
-    case 'CANTIDAD_CAJAS': return cantidadCajas;
+    case 'CANTIDAD': return cajas;
+    case 'CANTIDAD_CAJAS': return cajas;
     case 'CANTIDAD_UNIDADES': return unidades;
     case 'PRECIO_UNITARIO': return producto.precioUnitario;
     case 'SUBTOTAL': return unidades * producto.precioUnitario;
@@ -191,30 +195,28 @@ function valorCelda(columna, producto, cantidadCajas, codigo) {
 }
 
 /**
- * Vista previa tipo hoja de cálculo: { titulo, filaEncabezado, encabezados, filas, productosSinCodigo }.
- * Se arma con la plantilla que se está editando (sin guardarla) y 2 productos de ejemplo.
+ * Vista previa: { encabezados, filas, productosSinCodigo }. Se arma con la plantilla que se está
+ * editando (sin guardarla) y 3 productos de ejemplo con 1, 2 y 3 cajas.
  */
 export function vistaPrevia(proveedorId, cuerpo) {
   try { validar(cuerpo); } catch (e) { return Promise.reject(e); }
   const { codigos } = estado(proveedorId);
   const homologaciones = cuerpo.homologaciones ?? [];
   const codigoDe = (p) => homologaciones.find((h) => h.productoId === p.productoId)?.codigo || codigos[p.productoId] || '';
-  const ejemplo = PRODUCTOS.slice(0, 2).map((p, i) => ({ producto: p, cajas: i + 1, codigo: codigoDe(p) }));
+  const ejemplo = PRODUCTOS.slice(0, 3).map((p, i) => ({ producto: p, cajas: i + 1, codigo: codigoDe(p) }));
   const productosSinCodigo = ejemplo.filter((e) => !e.codigo).map((e) => e.producto.nombreProducto);
-  const titulo = String(cuerpo.titulo ?? '');
 
   if (cuerpo.modo === 'RELLENAR_CATALOGO') {
+    const conUnidad = !!cuerpo.encabezadoUnidad;
     return esperar({
-      titulo,
-      filaEncabezado: cuerpo.filaEncabezado,
-      encabezados: [cuerpo.encabezadoCodigo, 'Descripción', cuerpo.encabezadoUnidad || 'Unidad de Medida', cuerpo.encabezadoCantidad],
-      filas: ejemplo.map(({ producto, cajas, codigo }) => [codigo || '(sin código)', producto.nombreProducto, 'CJ', cajas]),
+      encabezados: [cuerpo.encabezadoCodigo, 'Descripción', ...(conUnidad ? [cuerpo.encabezadoUnidad] : []), cuerpo.encabezadoCantidad],
+      filas: ejemplo.map(({ producto, cajas, codigo }) => [
+        codigo, producto.nombreProducto, ...(conUnidad ? ['CJ'] : []), cajas,
+      ]),
       productosSinCodigo,
     });
   }
   return esperar({
-    titulo,
-    filaEncabezado: cuerpo.filaEncabezado,
     encabezados: cuerpo.columnas.map((c) => c.encabezado),
     filas: ejemplo.map(({ producto, cajas, codigo }) => cuerpo.columnas.map((c) => valorCelda(c, producto, cajas, codigo))),
     productosSinCodigo,

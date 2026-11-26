@@ -4,6 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import AppLayout from '../../components/AppLayout';
 import { descargarExportacionPedido } from '../../services/vozService';
+import AvisosPedido from '../../components/inventarios/AvisosPedido';
 import ContenidoCarga from '../../components/ui/ContenidoCarga';
 
 const base = import.meta.env.VITE_API_BASE_URL ?? '';
@@ -39,13 +40,15 @@ export default function DetallePedido() {
   const [cargando, setCargando] = useState(true);
   const [descargando, setDescargando] = useState(false);
   const [errorDescarga, setErrorDescarga] = useState('');
+  const [avisos, setAvisos] = useState(null);
 
-  // El mismo Excel para el proveedor que se descarga al confirmar un pedido por voz.
+  // El archivo sale con la plantilla del proveedor del pedido (RF67).
   const handleDescargar = async () => {
     setDescargando(true);
     setErrorDescarga('');
     try {
-      await descargarExportacionPedido(`/api/inventario/pedidos/${id}/exportar`);
+      const descarga = await descargarExportacionPedido(`/api/inventario/pedidos/${id}/exportar`);
+      setAvisos(descarga.avisos);
     } catch {
       setErrorDescarga('No se pudo descargar el Excel. Intenta de nuevo.');
     } finally {
@@ -103,7 +106,7 @@ export default function DetallePedido() {
         </button>
 
         {/* Info pedido */}
-        <div className="bg-white rounded-[12px] border border-[#f5f5f4] p-5 flex items-center gap-4">
+        <div className="bg-white rounded-[12px] border border-[#f5f5f4] p-5 flex items-center gap-4 flex-wrap">
           <span className="font-['Manrope'] font-bold text-[18px] text-[#1b1b1c]">
             Pedido · {formatFecha(pedido.fecha)}
           </span>
@@ -118,6 +121,11 @@ export default function DetallePedido() {
           >
             {pedido.estado}
           </span>
+          {pedido.proveedorNombre && (
+            <span className="font-['Inter'] text-[13px] text-[#78716c]">
+              Proveedor: <strong className="text-[#1b1b1c]">{pedido.proveedorNombre}</strong>
+            </span>
+          )}
           <div className="flex items-center gap-1 text-[#78716c] ml-2">
             <span>📅</span>
             <span className="font-['Inter'] font-normal text-[14px]">{formatFecha(pedido.fecha)}</span>
@@ -137,6 +145,7 @@ export default function DetallePedido() {
           </button>
         </div>
         {errorDescarga && <p className="font-['Inter'] text-[13px] text-[#dc2626] -mt-4">{errorDescarga}</p>}
+        <AvisosPedido avisos={avisos} className="-mt-2" />
 
         {/* Tabla comparación */}
         <div className="bg-white rounded-[12px] border border-[#f5f5f4] overflow-hidden">

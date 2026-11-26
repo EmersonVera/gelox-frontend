@@ -2,28 +2,29 @@ import api from '../api/axiosConfig';
 import * as mock from './mocks/mockExportacion';
 
 // Plantillas de exportación de pedidos por proveedor y reportes financieros exportables
-// (FP-15 §2.18, RF67 y RF68). Mientras el backend de exportación (tarea 190) no esté
-// desplegado, las funciones responden con datos simulados (mocks/mockExportacion.js).
-// Pasar al backend real es poner VITE_USAR_MOCK_IT3=false en el .env, sin tocar código.
-export const USAR_MOCK = import.meta.env.VITE_USAR_MOCK_IT3 !== 'false';
+// (FP-15 §2.18, RF67 y RF68). Por defecto se usa el backend real (tarea 197). Los datos
+// simulados (mocks/mockExportacion.js) se activan con VITE_USAR_MOCK_EXPORTACION=true en el .env.
+export const USAR_MOCK = import.meta.env.VITE_USAR_MOCK_EXPORTACION === 'true';
 
 export { CAMPOS_PLANTILLA } from './mocks/mockExportacion';
 
 /*
- * Plantilla de un proveedor (GET/PUT /api/proveedores/{id}/plantilla):
- *   { proveedorId, modo: 'RELLENAR_CATALOGO' | 'GENERAR_FILAS',
- *     estado: null | 'BORRADOR' | 'ACTIVA', version, actualizadoEn, actualizadoPor,
- *     formato: 'XLSX' | 'CSV', nombreArchivo, nombreHoja, titulo   (admiten {nombreComercial} y {fecha}),
+ * Plantilla de un proveedor (GET/PUT /api/proveedores/{id}/plantilla), FP-15 §2.18.1:
+ *   { proveedorId, personalizada (false = aún usa la estándar de Nutresa),
+ *     modo: 'RELLENAR_CATALOGO' | 'GENERAR_FILAS',
  *     archivoBaseUrl (null = catálogo de Nutresa), filaEncabezado,
- *     encabezadoCodigo, encabezadoCantidad, encabezadoUnidad,
- *     columnas: [{ orden, campo, encabezado, valorFijo }],
- *     homologaciones: [{ productoId, sku, nombreProducto, codigo }] }
+ *     encabezadoCodigo, encabezadoCantidad, encabezadoUnidad,        (solo RELLENAR_CATALOGO)
+ *     columnas: [{ orden, campo, encabezado, valorFijo }],           (solo GENERAR_FILAS)
+ *     homologaciones: [{ productoId, sku, nombreProducto, codigo }], actualizadoEn }
+ * El PUT recibe lo mismo sin proveedorId/personalizada/actualizadoEn, y `homologaciones` como
+ * [{ productoId, codigo }] (opcional: se guardan junto con la plantilla).
  *
- * Vista previa (POST .../plantilla/vista-previa, mismo cuerpo, sin guardar):
- *   { titulo, filaEncabezado, encabezados: [texto], filas: [[valor]], productosSinCodigo: [nombre] }
+ * Vista previa (POST .../plantilla/vista-previa, mismo cuerpo que el PUT, no guarda):
+ *   { encabezados: [texto], filas: [[valor]], productosSinCodigo: [nombre] }
  *
- * Errores: 400 columnas vacías o campo desconocido · 404 proveedor de otra distribuidora ·
- * 409 código de homologación repetido, o activar con productos sin código (estado ACTIVA).
+ * Errores: 400 columnas vacías, campo desconocido o texto fijo sin valor · 404 proveedor de otra
+ * distribuidora · 409 código de homologación repetido en el proveedor.
+ * Un producto sin código no bloquea nada: el pedido se exporta igual y se avisa (§2.18.1).
  */
 
 export async function obtenerPlantilla(proveedorId) {
