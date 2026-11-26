@@ -2,10 +2,9 @@ import api from '../api/axiosConfig';
 import * as mock from './mocks/mockCredito';
 
 // Crédito de comerciantes (RF65) y esquema de liquidación (RF66).
-// Mientras el backend no esté desplegado, las funciones responden con datos simulados
-// (ver mocks/mockCredito.js y mocks/credito.json). Pasar al backend real es poner
-// VITE_USAR_MOCK_IT3=false en el .env, sin tocar código.
-export const USAR_MOCK = import.meta.env.VITE_USAR_MOCK_IT3 !== 'false';
+// Usa la API real. Los datos simulados (mocks/mockCredito.js y mocks/credito.json) solo
+// se activan con VITE_USAR_MOCK_CREDITO=true en el .env.
+export const USAR_MOCK = import.meta.env.VITE_USAR_MOCK_CREDITO === 'true';
 
 /*
  * Crédito de un comerciante (GET /api/comerciantes/{id}/credito):

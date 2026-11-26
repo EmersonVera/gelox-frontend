@@ -14,7 +14,7 @@ import {
 } from '../../services/ventasService';
 import { obtenerCreditoComerciante, obtenerEsquemaLiquidacion } from '../../services/creditoService';
 import {
-  calcularLiquidacion, resumenCredito, etiquetaEsquema, formatoFecha, sumarDias,
+  calcularLiquidacion, resumenCredito, etiquetaEsquema, formatoFecha, sumarDias, parseISO,
 } from '../../components/ventas/creditoUtils';
 
 /* RF65 — advertencias que el backend puede devolver al despachar */
@@ -47,8 +47,8 @@ const hoyISO = () => {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 };
 
-const fechaBadge = () => {
-  const d = new Date();
+const fechaBadge = (iso) => {
+  const d = iso ? parseISO(iso) : new Date();
   return `${d.getDate()} ${MESES[d.getMonth()]}, ${d.getFullYear()}`;
 };
 
@@ -89,7 +89,10 @@ export default function PlanillaDiaria() {
     } catch { return null; }
   }, [location.state?.comerciante, comercianteIdUrl]);
 
+  const planillaSolicitada = location.state?.planillaId ?? null;
+
   /* ── State ── */
+  const [fechaPlanilla, setFechaPlanilla]     = useState(null); // null mientras sea una planilla nueva de hoy
   const [filas, setFilas]                     = useState([]);
   const [filasInicial, setFilasInicial]       = useState([]); // Bug 1: lista completa para restaurar en edición
   const [estadoPlanilla, setEstadoPlanilla]   = useState('NUEVA'); // NUEVA | DESPACHADO | CERRADO
@@ -103,7 +106,8 @@ export default function PlanillaDiaria() {
   /* ── RF65 / RF66: crédito, esquema y liquidación ── */
   const [credito, setCredito]                 = useState(null);
   const [esquema, setEsquema]                 = useState(null);
-  const [preciosPublicos, setPreciosPublicos] = useState({});   // productoId → PVP
+  const [errorEsquema, setErrorEsquema]       = useState(false);
+  const [intentoEsquema, setIntentoEsquema]   = useState(0);    // "Reintentar" vuelve a pedir el esquema
   // { tipo: 'BLOQUEADO' | 'ADVERTENCIA', titulo, mensajes: [] } — respuesta del despacho
   const [avisoDespacho, setAvisoDespacho]     = useState(null);
   const [efectivo, setEfectivo]               = useState('');
@@ -113,18 +117,27 @@ export default function PlanillaDiaria() {
     if (!comerciante?.id) return undefined;
     let vivo = true;
     obtenerCreditoComerciante(comerciante.id).then((c) => { if (vivo) setCredito(c); }).catch(() => {});
-    obtenerEsquemaLiquidacion().then((e) => { if (vivo) setEsquema(e); }).catch(() => {});
-    getProductosEnStock()
-      .then((prods) => {
-        if (!vivo) return;
-        setPreciosPublicos(Object.fromEntries(prods
-          .map((p) => [p.id, p.precioPublico ?? p.precioVenta])
-          .filter(([, pvp]) => pvp != null)
-          .map(([id, pvp]) => [id, Number(pvp)])));
-      })
-      .catch(() => {});
     return () => { vivo = false; };
   }, [comerciante?.id]);
+
+  // Sin el esquema vigente no se puede liquidar: nunca se asume MARGEN.
+  useEffect(() => {
+    if (!comerciante?.id) return undefined;
+    let vivo = true;
+    obtenerEsquemaLiquidacion()
+      .then((e) => {
+        if (!vivo) return;
+        if (e?.tipo) setEsquema(e);
+        else setErrorEsquema(true);
+      })
+      .catch(() => { if (vivo) setErrorEsquema(true); });
+    return () => { vivo = false; };
+  }, [comerciante?.id, intentoEsquema]);
+
+  const reintentarEsquema = () => {
+    setErrorEsquema(false);
+    setIntentoEsquema((n) => n + 1);
+  };
 
   /* ── Carga inicial ── */
   useEffect(() => {
@@ -141,9 +154,16 @@ export default function PlanillaDiaria() {
         const lista = await getPlanillasComerciante(comerciante.id);
         if (!vivo) return;
 
+        // Desde el detalle se puede pedir una planilla concreta (p. ej. una abierta de otro día)
         const planillaHoy = Array.isArray(lista)
-          ? lista.find(p => p.fecha === hoyISO())
+          ? lista.find(p => (planillaSolicitada ? p.planillaId === planillaSolicitada : p.fecha === hoyISO()))
           : null;
+
+        if (planillaSolicitada && !planillaHoy) {
+          setErrorMsg('No se encontró la planilla solicitada.');
+          return;
+        }
+        if (planillaHoy) setFechaPlanilla(planillaHoy.fecha);
 
         if (!planillaHoy) {
           // Obtener saldos del día anterior (unidades_devueltas de la última planilla cerrada)
@@ -192,7 +212,6 @@ export default function PlanillaDiaria() {
               productoId:     p.id,
               nombre:         p.nombre,
               precio:         Number(p.precioComerciente ?? p.precioUnitario ?? p.precio ?? 0),
-              precioPublico:  p.precioPublico ?? p.precioVenta ?? null,
               disponible:     Number(p.cantidadDisponible ?? 0),
               saldoAnterior:  saldo,
               salida:         saldo > 0 ? saldo : 0, // pre-fill con saldo anterior, 0 si no hay
@@ -246,7 +265,7 @@ export default function PlanillaDiaria() {
 
     cargar();
     return () => { vivo = false; };
-  }, [comerciante?.id]);
+  }, [comerciante?.id, planillaSolicitada]);
 
   /* ── Handlers de inputs ── */
   const updateSalida = (productoId, value) => {
@@ -281,17 +300,17 @@ export default function PlanillaDiaria() {
     f => Number(f.entrada) > Number(f.salida)
   );
 
-  /* RF66 — liquidación con el esquema vigente */
+  /* RF66 — liquidación con el esquema vigente (solo el precio público guardado en la planilla) */
   const liquidacion = useMemo(
     () => calcularLiquidacion(
       filas.map(f => ({
         vendidas:          Math.max(0, (Number(f.salida) || 0) - (Number(f.entrada) || 0)),
         precioComerciante: f.precio,
-        precioPublico:     f.precioPublico ?? preciosPublicos[f.productoId] ?? null,
+        precioPublico:     f.precioPublico,
       })),
       esquema,
     ),
-    [filas, esquema, preciosPublicos],
+    [filas, esquema],
   );
 
   // Por defecto el efectivo recibido es el monto cobrado, hasta que el usuario lo cambie.
@@ -300,10 +319,16 @@ export default function PlanillaDiaria() {
     ? 'Escribe el efectivo recibido (0 o más).'
     : efectivoNum > liquidacion.montoCobrado
       ? 'No puede superar el monto a cobrar. Registra el excedente como abono en el crédito del comerciante.'
-      : '';
-  const saldoPendiente = Number.isFinite(efectivoNum) ? Math.max(0, liquidacion.montoCobrado - efectivoNum) : 0;
+      : Math.abs(efectivoNum * 100 - Math.round(efectivoNum * 100)) > 1e-6
+        ? 'Usa máximo 2 decimales.'
+        : '';
+  const saldoPendiente = Number.isFinite(efectivoNum)
+    ? Math.max(0, Math.round((liquidacion.montoCobrado - efectivoNum) * 100) / 100)
+    : 0;
   const creditoResumen = credito ? resumenCredito(credito) : null;
-  const fechaLimiteSaldo = credito ? sumarDias(hoyISO(), credito.plazoDias ?? 0) : null;
+  // El plazo se cuenta desde la fecha de la planilla
+  const fechaLimiteSaldo = credito ? sumarDias(fechaPlanilla ?? hoyISO(), credito.plazoDias ?? 0) : null;
+  const esDeOtroDia = fechaPlanilla != null && fechaPlanilla !== hoyISO();
 
   /* ── Filtro de búsqueda ── */
   const filasFiltradas = busquedaFila.trim()
@@ -322,6 +347,7 @@ export default function PlanillaDiaria() {
     filas.length > 0 &&
     filas.every(f => f.entrada !== '' && Number(f.entrada) >= 0) &&
     !hayErrorEntrada &&
+    !!esquema &&
     !errorEfectivo;
 
   /* ── Entrar a modo edición: muestra planilla completa con cantidades reales ── */
@@ -538,25 +564,14 @@ export default function PlanillaDiaria() {
           unidadesDevueltas: i === 0 ? devueltas : 0,
         }));
       });
-      const efectivoRecibido = Math.round(efectivoNum);
-      const respuesta = await liquidarPlanilla(planillaId, items, { efectivoRecibido });
-      // Comprobante: valores del backend si los devuelve; si no, los calculados aquí.
+      // Si el usuario no cambió el efectivo no se envía: el backend toma el total que él calcule.
+      const respuesta = await liquidarPlanilla(planillaId, items, {
+        efectivoRecibido: efectivoTocado ? efectivoNum : undefined,
+      });
+      // Comprobante: solo valores del backend (un null significa "no aplica", no se rellena aquí).
       navigate(`/ventas/planilla/${planillaId}`, {
         replace: true,
-        state: {
-          comercianteId: comerciante.id,
-          planillaId,
-          liquidacion: {
-            esquemaAplicado:     respuesta?.esquemaAplicado ?? liquidacion.tipo,
-            valorEsquema:        respuesta?.valorEsquema ?? liquidacion.valor,
-            totalVendido:        respuesta?.totalVendido ?? liquidacion.totalPublico,
-            gananciaComerciante: respuesta?.gananciaComerciante ?? liquidacion.ganancia,
-            montoCobrado:        respuesta?.montoCobrado ?? liquidacion.montoCobrado,
-            efectivoRecibido:    respuesta?.efectivoRecibido ?? efectivoRecibido,
-            saldo:               respuesta?.saldo ?? saldoPendiente,
-            fechaLimitePago:     respuesta?.fechaLimitePago ?? (saldoPendiente > 0 ? fechaLimiteSaldo : null),
-          },
-        },
+        state: { comercianteId: comerciante.id, planillaId, liquidacion: respuesta },
       });
     } catch (e) {
       const msg = e?.response?.data?.error ?? e?.response?.data?.mensaje ?? e?.response?.data?.message ?? '';
@@ -674,7 +689,7 @@ export default function PlanillaDiaria() {
           {/* Badge fecha */}
           <div className="shrink-0">
             <span className="inline-flex items-center bg-[#9e2016] text-white font-['Manrope'] font-bold text-[11px] sm:text-[12px] px-4 py-2 rounded-full uppercase tracking-[0.5px]">
-              FECHA: {fechaBadge()}
+              FECHA: {fechaBadge(fechaPlanilla)}
             </span>
           </div>
         </div>
@@ -904,12 +919,26 @@ export default function PlanillaDiaria() {
                   <div>
                     <h2 className="font-['Manrope'] font-bold text-[16px] text-[#1b1b1c]">Liquidación</h2>
                     <p className="font-['Inter'] text-[12px] text-[#a8a29e]">
-                      Esquema: {esquema ? etiquetaEsquema(esquema.tipo, esquema.valor) : 'cargando…'}
+                      Esquema: {esquema ? etiquetaEsquema(esquema.tipo, esquema.valor) : errorEsquema ? 'no disponible' : 'cargando…'}
                     </p>
                   </div>
-                  <span className="font-['Inter'] font-semibold text-[11px] px-2.5 py-1 rounded-full bg-[#eff6ff] text-[#1d4ed8]">Calculado</span>
+                  {esquema && (
+                    <span className="font-['Inter'] font-semibold text-[11px] px-2.5 py-1 rounded-full bg-[#eff6ff] text-[#1d4ed8]">Calculado</span>
+                  )}
                 </div>
 
+                {!esquema ? (
+                  errorEsquema ? (
+                    <div role="alert" className="flex items-center justify-between gap-3 flex-wrap px-5 py-4 font-['Inter'] text-[13px] text-[#dc2626]">
+                      <p>No se pudo cargar el esquema de liquidación. Sin él no se puede hacer el cierre diario.</p>
+                      <button type="button" onClick={reintentarEsquema} className="font-semibold text-[#9e2016] hover:underline cursor-pointer">
+                        Reintentar
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="px-5 py-4 font-['Inter'] text-[13px] text-[#a8a29e]">Cargando el esquema de liquidación…</p>
+                  )
+                ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 px-5 py-4">
                   <dl className="flex flex-col gap-2 font-['Inter'] text-[14px]">
                     <div className="flex justify-between gap-3">
@@ -918,7 +947,7 @@ export default function PlanillaDiaria() {
                     </div>
                     <div className="flex justify-between gap-3">
                       <dt className="text-[#78716c]">Ganancia del comerciante</dt>
-                      <dd className="text-[#16a34a]">− {formatCOP(liquidacion.ganancia)}</dd>
+                      <dd className="text-[#16a34a]">{liquidacion.ganancia == null ? '—' : `− ${formatCOP(liquidacion.ganancia)}`}</dd>
                     </div>
                     <div className="flex justify-between gap-3 pt-2 border-t border-dashed border-[#e7e5e4]">
                       <dt className="font-['Manrope'] font-bold text-[#1b1b1c]">Monto a cobrar</dt>
@@ -942,8 +971,8 @@ export default function PlanillaDiaria() {
                           id="efectivo-recibido"
                           type="number"
                           min="0"
-                          step="50"
-                          value={efectivoTocado ? efectivo : Math.round(liquidacion.montoCobrado)}
+                          step="any"
+                          value={efectivoTocado ? efectivo : liquidacion.montoCobrado}
                           onChange={e => { setEfectivoTocado(true); setEfectivo(e.target.value); }}
                           className={`w-full rounded-[10px] pl-7 pr-3.5 py-2.5 font-['Manrope'] font-bold text-[16px] text-[#1b1b1c] outline-none border transition-all ${
                             errorEfectivo
@@ -995,6 +1024,7 @@ export default function PlanillaDiaria() {
                     </p>
                   </div>
                 </div>
+                )}
               </div>
             )}
 
@@ -1016,14 +1046,17 @@ export default function PlanillaDiaria() {
                   {estadoPlanilla === 'DESPACHADO' && !editandoMatutino ? 'MONTO A COBRAR' : 'TOTAL LIQUIDACIÓN'}
                 </p>
                 <p className="font-['Manrope'] font-extrabold text-[22px] sm:text-[26px] text-emerald-600 leading-tight">
-                  {formatCOP(estadoPlanilla === 'DESPACHADO' && !editandoMatutino ? liquidacion.montoCobrado : totalLiquidacion)}
+                  {estadoPlanilla === 'DESPACHADO' && !editandoMatutino
+                    ? (esquema ? formatCOP(liquidacion.montoCobrado) : '—')
+                    : formatCOP(totalLiquidacion)}
                 </p>
               </div>
 
               {/* Botones — un solo botón que cambia según el estado */}
               <div className="flex items-center gap-3 shrink-0 flex-wrap">
 
-                {/* Cierre Matutino / Editar Cierre / Guardar Cambios */}
+                {/* Cierre Matutino / Editar Cierre / Guardar Cambios (una planilla de otro día solo se liquida) */}
+                {!esDeOtroDia && (
                 <button
                   onClick={
                     estadoPlanilla === 'DESPACHADO' && !editandoMatutino
@@ -1053,6 +1086,7 @@ export default function PlanillaDiaria() {
                       ? 'Guardar Cambios'
                       : 'Cierre Matutino'}
                 </button>
+                )}
 
                 {/* Cierre Diario */}
                 <button

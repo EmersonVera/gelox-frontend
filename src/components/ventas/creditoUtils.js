@@ -39,7 +39,7 @@ export const ESQUEMAS = {
 /** Máximo de días que el Gerente puede correr la fecha límite de una planilla. */
 export const MAX_DIAS_PRORROGA = 15;
 
-export const formatoCOP = (n) => '$' + Math.round(Number(n) || 0).toLocaleString('es-CO');
+export const formatoCOP = (n) => '$' + (Number(n) || 0).toLocaleString('es-CO', { maximumFractionDigits: 2 });
 
 const pad = (n) => String(n).padStart(2, '0');
 
@@ -133,42 +133,58 @@ export function distribuirAbono(planillas, monto) {
   return { aplicado, sobrante: restante };
 }
 
+/** Pesos → centavos enteros, para sumar sin errores de coma flotante. */
+const aCentavos = (n) => Math.round((Number(n) || 0) * 100);
+
 /**
- * Liquidación de una planilla con el esquema vigente.
+ * Liquidación de una planilla con el esquema vigente. Mismas reglas que el backend.
  * lineas: [{ vendidas, precioComerciante, precioPublico? }]
- *   totalPublico  = Σ vendidas × PVP (lo que vendió el comerciante)
- *   ganancia      = según el esquema
- *   montoCobrado  = totalPublico − ganancia (lo que el comerciante entrega a la distribuidora)
- * Con MARGEN el monto cobrado es Σ vendidas × precio comerciante, igual que en la Iteración 2.
+ *   Un precio público nulo o 0 significa "sin precio al público": se usa el precio comerciante.
+ *   totalPublico  = Σ vendidas × precio público (lo que vendió el comerciante)
+ *   MARGEN        montoCobrado = Σ vendidas × precio comerciante, siempre
+ *                 ganancia = max(totalPublico − montoCobrado, 0); null si ninguna línea tiene precio público
+ *   COMISION      ganancia = totalPublico × valor %, a 2 decimales (HALF_UP), entre 0 y totalPublico
+ *   TARIFA_FIJA   ganancia = min(valor, totalPublico) si se vendió al menos 1 unidad; si no, 0
+ *   En COMISION y TARIFA_FIJA, montoCobrado = totalPublico − ganancia.
  */
 export function calcularLiquidacion(lineas, esquema) {
   const tipo = esquema?.tipo ?? 'MARGEN';
-  const valor = Number(esquema?.valor) || 0;
-  let totalPublico = 0;
-  let totalComerciante = 0;
+  let publico = 0;      // centavos
+  let comerciante = 0;  // centavos
   let unidades = 0;
+  let hayPrecioPublico = false;
   let sinPrecioPublico = false;
   for (const l of lineas) {
     const vendidas = Math.max(0, Number(l.vendidas) || 0);
-    const pc = Number(l.precioComerciante) || 0;
-    const pvp = l.precioPublico != null ? Number(l.precioPublico) : null;
-    if (vendidas > 0 && pvp == null) sinPrecioPublico = true;
+    const pc = aCentavos(l.precioComerciante);
+    const pvp = aCentavos(l.precioPublico);
+    if (pvp > 0) hayPrecioPublico = true;
+    else if (vendidas > 0) sinPrecioPublico = true;
     unidades += vendidas;
-    totalComerciante += vendidas * pc;
-    totalPublico += vendidas * (pvp ?? pc);
+    comerciante += vendidas * pc;
+    publico += vendidas * (pvp > 0 ? pvp : pc);
   }
+  const entreCeroYTotal = (g) => Math.max(0, Math.min(g, publico));
   let ganancia;
-  if (tipo === 'COMISION') ganancia = totalPublico * (valor / 100);
-  else if (tipo === 'TARIFA_FIJA') ganancia = unidades > 0 ? valor : 0;
-  else ganancia = totalPublico - totalComerciante;
-  ganancia = Math.max(0, Math.min(ganancia, totalPublico));
+  let cobrado;
+  if (tipo === 'COMISION') {
+    // El porcentaje también trae máximo 2 decimales: el producto es entero y el redondeo, exacto.
+    ganancia = entreCeroYTotal(Math.round((publico * aCentavos(esquema?.valor)) / 10000));
+    cobrado = publico - ganancia;
+  } else if (tipo === 'TARIFA_FIJA') {
+    ganancia = unidades > 0 ? entreCeroYTotal(aCentavos(esquema?.valor)) : 0;
+    cobrado = publico - ganancia;
+  } else {
+    ganancia = hayPrecioPublico ? Math.max(0, publico - comerciante) : null;
+    cobrado = comerciante;
+  }
   return {
     tipo,
     valor: esquema?.valor ?? null,
     unidades,
-    totalPublico,
-    ganancia,
-    montoCobrado: Math.max(0, totalPublico - ganancia),
+    totalPublico: publico / 100,
+    ganancia: ganancia == null ? null : ganancia / 100,
+    montoCobrado: cobrado / 100,
     sinPrecioPublico,
   };
 }

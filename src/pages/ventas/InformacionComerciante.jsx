@@ -420,7 +420,7 @@ export default function InformacionComerciante() {
                   const encontrada = planillas.find(pl => pl.fecha === fechaElegida);
                   if (encontrada) {
                     navigate(`/ventas/planilla/${encontrada.planillaId}`, {
-                      state: { comercianteId: id, planillaId: encontrada.planillaId },
+                      state: { comercianteId: id, comerciante: comercianteLocal, planillaId: encontrada.planillaId },
                     });
                   } else {
                     setErrorFecha('No existe una planilla en esa fecha');
@@ -509,7 +509,7 @@ export default function InformacionComerciante() {
                     return (
                       <div
                         key={pl.planillaId}
-                        onClick={() => navigate(`/ventas/planilla/${pl.planillaId}`, { state: { comercianteId: id, planillaId: pl.planillaId } })}
+                        onClick={() => navigate(`/ventas/planilla/${pl.planillaId}`, { state: { comercianteId: id, comerciante: comercianteLocal, planillaId: pl.planillaId } })}
                         className={`flex items-center gap-4 py-4 px-2 hover:bg-[#fafafa] transition-colors cursor-pointer rounded-[8px] ${
                           !completada ? 'border-l-[3px] border-[#9e2016]' : ''
                         }`}
