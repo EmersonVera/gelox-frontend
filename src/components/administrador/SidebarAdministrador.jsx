@@ -56,15 +56,6 @@ function BoxIcon() {
   );
 }
 
-function StoreIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M3 9l1-5h16l1 5" />
-      <path d="M3 9a2 2 0 0 0 2 2 2 2 0 0 0 2-2 2 2 0 0 0 2 2 2 2 0 0 0 2-2 2 2 0 0 0 2 2 2 2 0 0 0 2-2" />
-      <path d="M5 20h14a1 1 0 0 0 1-1v-7H4v7a1 1 0 0 0 1 1z" />
-    </svg>
-  );
-}
 
 function ReceiptIcon() {
   return (
@@ -86,6 +77,16 @@ function CartIcon() {
   );
 }
 
+function SheetIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <line x1="3" y1="9" x2="21" y2="9" /><line x1="3" y1="15" x2="21" y2="15" />
+      <line x1="9" y1="3" x2="9" y2="21" />
+    </svg>
+  );
+}
+
 function SettingsIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -101,6 +102,18 @@ function PaletteIcon() {
       <path d="M12 22a10 10 0 1 1 10-10c0 2.5-2 4-4.5 4H15a2 2 0 0 0-1.5 3.3A1.6 1.6 0 0 1 12 22z" />
       <circle cx="7.5" cy="11.5" r="1" /><circle cx="10.5" cy="7.5" r="1" />
       <circle cx="15.5" cy="7.5" r="1" />
+    </svg>
+  );
+}
+
+function CalculatorIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="4" y="2" width="16" height="20" rx="2" />
+      <line x1="8" y1="6" x2="16" y2="6" />
+      <line x1="8" y1="11" x2="8" y2="11.01" /><line x1="12" y1="11" x2="12" y2="11.01" /><line x1="16" y1="11" x2="16" y2="11.01" />
+      <line x1="8" y1="15" x2="8" y2="15.01" /><line x1="12" y1="15" x2="12" y2="15.01" /><line x1="16" y1="15" x2="16" y2="18" />
+      <line x1="8" y1="18" x2="12" y2="18" />
     </svg>
   );
 }
@@ -130,15 +143,20 @@ const LINKS = [
   { icon: <ReceiptIcon />, label: 'Cierres de Caja', to: '/cierres-caja' },
   { icon: <UsersIcon />,   label: 'Usuarios',        to: '/usuarios' },
   { icon: <BoxIcon />,     label: 'Inventarios',     to: '/inventarios/gestion' },
+  { icon: <SheetIcon />,   label: 'Plantillas de exportación', to: '/inventarios/plantillas' },
   { icon: <CartIcon />,    label: 'Ventas',          to: '/ventas/pedidos-ventanilla' },
   { icon: <HistoryIcon />, label: 'Historial de Recomendaciones', to: '/inventarios/recomendaciones/historial' },
+];
+
+const LINKS_PARAMETROS = [
+  { icon: <CalculatorIcon />, label: 'Liquidación y crédito', to: '/ajustes/liquidacion' },
 ];
 
 const navItemBase =
   'flex items-center gap-3 px-4 py-3 rounded-xl text-sm transition duration-300 active:scale-[0.97] w-full text-left font-display';
 
 export default function SidebarAdministrador({ open, onClose }) {
-  const { perfil, logout } = useAuth();
+  const { logout } = useAuth();
   const { identidad } = useIdentidad();
   const nombreComercial = identidad?.nombreComercial || 'GELOX';
   const navigate = useNavigate();
@@ -214,6 +232,16 @@ export default function SidebarAdministrador({ open, onClose }) {
             end={to.startsWith('/dashboard')}
             onClick={handleNavClick}
           >
+            <span className="shrink-0">{icon}</span>
+            {label}
+          </NavLink>
+        ))}
+
+        <span className="px-2 pt-4 pb-1 text-[10px] uppercase tracking-widest font-bold text-primary/60 font-inter">
+          Parámetros
+        </span>
+        {LINKS_PARAMETROS.map(({ icon, label, to }) => (
+          <NavLink key={to} to={to} className={linkClass} onClick={handleNavClick}>
             <span className="shrink-0">{icon}</span>
             {label}
           </NavLink>

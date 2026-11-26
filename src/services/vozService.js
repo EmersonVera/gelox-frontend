@@ -1,4 +1,5 @@
 import api from '../api/axiosConfig';
+import { avisosDePedido } from './avisosPedido';
 import { interpretar as interpretarVozMock, confirmar as confirmarVozMock } from './vozMock';
 
 // Por defecto se usa el backend real. Los datos simulados (ver vozMock.js),
@@ -34,9 +35,9 @@ function nombreDesdeContentDisposition(headerValue, fallback) {
 }
 
 /**
- * Descarga el Excel de un pedido a proveedor generado por voz (RF52/RF53).
- * GET /api/inventario/pedidos/{id}/exportar (T47-BE4). Mismo patrón de blob
- * que pages/inventarios/GenerarPedido.jsx (líneas ~125-126), sin tocar ese archivo.
+ * Descarga el Excel de un pedido a proveedor con la plantilla de su proveedor (RF52/RF53, RF67).
+ * GET /api/inventario/pedidos/{id}/exportar (T47-BE4). Devuelve { nombre, avisos }
+ * (productos sin código o sin fila en el archivo, ver avisosPedido.js).
  */
 export async function descargarExportacionPedido(exportUrl) {
   const respuesta = await api.get(exportUrl, { responseType: 'blob' });
@@ -50,4 +51,5 @@ export async function descargarExportacionPedido(exportUrl) {
   a.download = nombre;
   a.click();
   URL.revokeObjectURL(url);
+  return { nombre, avisos: avisosDePedido((encabezado) => respuesta.headers[encabezado]) };
 }

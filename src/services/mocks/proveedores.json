@@ -1,0 +1,89 @@
+{
+  "_nota": "Datos provisionales. Reemplazar este archivo por el JSON que publique Daniela, respetando las claves de cada objeto.",
+  "proveedores": [
+    {
+      "id": "b1f0c6a2-1d4e-4c1a-9a01-0c1e2a3b4c01",
+      "nombreComercial": "Crem Helado",
+      "razonSocial": "Meals de Colombia S.A.S.",
+      "nit": "890900120",
+      "contactoNombre": "Paula Restrepo",
+      "contactoTelefono": "3104227810",
+      "contactoCorreo": "pedidos@cremhelado.com.co",
+      "tiempoEntregaDias": 3,
+      "montoMinimo": 1500000,
+      "plantilla": "Plantilla v3",
+      "activo": true,
+      "productosAsociados": 64,
+      "createdAt": "2026-10-02T09:15:00"
+    },
+    {
+      "id": "b1f0c6a2-1d4e-4c1a-9a01-0c1e2a3b4c02",
+      "nombreComercial": "Colombina",
+      "razonSocial": "Colombina S.A.",
+      "nit": "890301884",
+      "contactoNombre": "Andrés Ruiz",
+      "contactoTelefono": "3154821190",
+      "contactoCorreo": "pedidos@colombina.com",
+      "tiempoEntregaDias": 5,
+      "montoMinimo": 800000,
+      "plantilla": "Borrador",
+      "activo": true,
+      "productosAsociados": 22,
+      "createdAt": "2026-11-14T10:40:00"
+    },
+    {
+      "id": "b1f0c6a2-1d4e-4c1a-9a01-0c1e2a3b4c03",
+      "nombreComercial": "Alpina",
+      "razonSocial": "Alpina Productos Alimenticios S.A. BIC",
+      "nit": "860025900",
+      "contactoNombre": "Marcela Gómez",
+      "contactoTelefono": "3185547702",
+      "contactoCorreo": "ventas.norte@alpina.com",
+      "tiempoEntregaDias": 4,
+      "montoMinimo": 1000000,
+      "plantilla": "Formato estándar",
+      "activo": true,
+      "productosAsociados": 15,
+      "createdAt": "2026-10-20T14:05:00"
+    },
+    {
+      "id": "b1f0c6a2-1d4e-4c1a-9a01-0c1e2a3b4c04",
+      "nombreComercial": "Postobón",
+      "razonSocial": "Postobón S.A.",
+      "nit": "890903939",
+      "contactoNombre": "Julián Ortega",
+      "contactoTelefono": "3007719045",
+      "contactoCorreo": "cucuta@postobon.com.co",
+      "tiempoEntregaDias": 2,
+      "montoMinimo": 600000,
+      "plantilla": "Plantilla v1",
+      "activo": true,
+      "productosAsociados": 9,
+      "createdAt": "2026-10-28T08:30:00"
+    },
+    {
+      "id": "b1f0c6a2-1d4e-4c1a-9a01-0c1e2a3b4c05",
+      "nombreComercial": "La Fuente",
+      "razonSocial": "Lácteos La Fuente Ltda.",
+      "nit": "807004512",
+      "contactoNombre": "Rosa Villamizar",
+      "contactoTelefono": "3123309981",
+      "contactoCorreo": "lafuente.pedidos@gmail.com",
+      "tiempoEntregaDias": 7,
+      "montoMinimo": 400000,
+      "plantilla": "",
+      "activo": false,
+      "productosAsociados": 0,
+      "createdAt": "2026-09-11T16:20:00"
+    }
+  ],
+  "categorias": [
+    { "id": "c0a1b2c3-0000-4000-8000-000000000001", "nombre": "Paletas" },
+    { "id": "c0a1b2c3-0000-4000-8000-000000000002", "nombre": "Conos" },
+    { "id": "c0a1b2c3-0000-4000-8000-000000000003", "nombre": "Familiares" },
+    { "id": "c0a1b2c3-0000-4000-8000-000000000004", "nombre": "Vasos" },
+    { "id": "c0a1b2c3-0000-4000-8000-000000000005", "nombre": "Confitería" },
+    { "id": "c0a1b2c3-0000-4000-8000-000000000006", "nombre": "Lácteos" },
+    { "id": "c0a1b2c3-0000-4000-8000-000000000007", "nombre": "Bebidas" }
+  ]
+}

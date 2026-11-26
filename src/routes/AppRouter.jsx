@@ -25,6 +25,7 @@ import Reportes         from '../pages/administrador/Reportes';
 import HistorialCierres from '../pages/administrador/HistorialCierres';
 import DetalleCierre    from '../pages/administrador/DetalleCierre';
 import IdentidadVisual  from '../pages/administrador/IdentidadVisual';
+import EsquemaLiquidacion from '../pages/administrador/EsquemaLiquidacion';
 
 /* ── Módulo Ventas ── */
 import PedidoVentanilla from '../pages/ventas/PedidoVentanilla';
@@ -41,30 +42,19 @@ import DetallePedido      from '../pages/inventarios/DetallePedido';
 import CatalogoProductos  from '../pages/inventarios/CatalogoProductos';
 import RecomendacionCompras     from '../pages/inventarios/RecomendacionCompras';
 import HistorialRecomendaciones from '../pages/inventarios/HistorialRecomendaciones';
+import Proveedores              from '../pages/inventarios/Proveedores';
+import PlantillasExportacion    from '../pages/inventarios/PlantillasExportacion';
 
 /* ── Plataforma (Superadministrador) ── */
 import Distribuidoras       from '../pages/plataforma/Distribuidoras';
 import NuevaDistribuidora   from '../pages/plataforma/NuevaDistribuidora';
 import DetalleDistribuidora from '../pages/plataforma/DetalleDistribuidora';
+import PanelPlataforma      from '../pages/plataforma/PanelPlataforma';
+import Planes               from '../pages/plataforma/Planes';
+import Auditoria            from '../pages/plataforma/Auditoria';
 
 /* ── Protección de rutas ── */
 import ProtectedRoute from './ProtectedRoute';
-
-/* ── Placeholder genérico para módulos en construcción ── */
-import AppLayout from '../components/AppLayout';
-function EnConstruccion({ modulo }) {
-  return (
-    <AppLayout>
-      <div className="max-w-lg mx-auto mt-16 text-center space-y-4">
-        <div className="text-4xl">🚧</div>
-        <h1 className="font-display text-xl font-bold text-zinc-900">{modulo}</h1>
-        <p className="text-sm text-zinc-500 font-inter">
-          Este módulo está en desarrollo y estará disponible próximamente.
-        </p>
-      </div>
-    </AppLayout>
-  );
-}
 
 export default function AppRouter() {
   return (
@@ -80,12 +70,15 @@ export default function AppRouter() {
         <Route path="/tienda/:subdominio"     element={<LandingPage />} />
         <Route path="/"                       element={<Navigate to="/login" replace />} />
 
-        {/* ══ Plataforma — solo Superadministrador (RF58, RF59) ══ */}
+        {/* ══ Plataforma — solo Superadministrador (RF58, RF59, RF69–RF71) ══ */}
         <Route element={<ProtectedRoute rolesPermitidos={['SUPERADMINISTRADOR']} />}>
-          <Route path="/plataforma"                      element={<Navigate to="/plataforma/distribuidoras" replace />} />
+          <Route path="/plataforma"                      element={<Navigate to="/plataforma/panel" replace />} />
+          <Route path="/plataforma/panel"                element={<PanelPlataforma />} />
           <Route path="/plataforma/distribuidoras"       element={<Distribuidoras />} />
           <Route path="/plataforma/distribuidoras/nueva" element={<NuevaDistribuidora />} />
           <Route path="/plataforma/distribuidoras/:id"   element={<DetalleDistribuidora />} />
+          <Route path="/plataforma/planes"               element={<Planes />} />
+          <Route path="/plataforma/auditoria"            element={<Auditoria />} />
           {/* Ajustes del superadministrador — mantiene SidebarPlataforma */}
           <Route path="/plataforma/ajustes"              element={<Ajustes />} />
         </Route>
@@ -103,6 +96,7 @@ export default function AppRouter() {
           {/* Ajustes del admin — mantiene SidebarAdministrador */}
           <Route path="/ajustes"                 element={<Ajustes />} />
           <Route path="/ajustes/identidad"       element={<IdentidadVisual />} />
+          <Route path="/ajustes/liquidacion"     element={<EsquemaLiquidacion />} />
         </Route>
 
         {/* ══ Módulo Inventarios (Administrador + Encargado de Inventario) ══ */}
@@ -117,6 +111,8 @@ export default function AppRouter() {
           <Route path="/inventarios/pedidos/:id"     element={<DetallePedido />} />
           <Route path="/inventarios/recomendaciones"           element={<RecomendacionCompras />} />
           <Route path="/inventarios/recomendaciones/historial" element={<HistorialRecomendaciones />} />
+          <Route path="/inventarios/proveedores"     element={<Proveedores />} />
+          <Route path="/inventarios/plantillas"      element={<PlantillasExportacion />} />
           {/* Ajustes del módulo inventarios — mantiene SidebarInventarios */}
           <Route path="/inventarios/ajustes"         element={<Ajustes />} />
         </Route>

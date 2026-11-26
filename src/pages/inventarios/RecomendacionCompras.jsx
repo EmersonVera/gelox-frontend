@@ -14,8 +14,9 @@ import {
   ESTADOS_RECOMENDACION, esExcluido, formatoFechaHora, mensajeError, resumenRecomendacion,
 } from '../../components/inventarios/recomendaciones/recomendacionUtils';
 import {
-  decidirItem, generarPedido, generarRecomendacion, obtenerRecomendacion,
+  decidirItem, generarPedido, generarRecomendacion, listarPedidosDeRecomendacion, obtenerRecomendacion,
 } from '../../services/recomendacionService';
+import AvisosPedido from '../../components/inventarios/AvisosPedido';
 import { descargarExportacionPedido } from '../../services/vozService';
 import ContenidoCarga from '../../components/ui/ContenidoCarga';
 
@@ -28,6 +29,9 @@ const schema = yup.object({
 });
 
 const urlExportacion = (pedidoId) => `/api/inventario/pedidos/${pedidoId}/exportar`;
+
+/** Pedidos de la respuesta de generar (uno por proveedor); sin la lista, solo el primero. */
+const pedidosDeRespuesta = (r) => (r.pedidos?.length ? r.pedidos : [{ pedidoId: r.pedidoId, exportUrl: r.exportUrl }]);
 
 const formatoMiles = (n) => (n === '' || n == null ? '' : new Intl.NumberFormat('es-CO').format(n));
 
@@ -95,7 +99,8 @@ export default function RecomendacionCompras() {
   const [guardandoItem, setGuardandoItem] = useState(null);
   const [modalAbierto, setModalAbierto] = useState(false);
   const [enviandoPedido, setEnviandoPedido] = useState(false);
-  const [pedido, setPedido] = useState(null);
+  const [pedidos, setPedidos] = useState([]);              // pedidos generados, uno por proveedor
+  const [avisosPorPedido, setAvisosPorPedido] = useState({}); // pedidoId → avisos de su archivo
   const [toast, setToast] = useState({ show: false, msg: '', type: 'success' });
 
   const { control, handleSubmit, formState: { errors, isSubmitting } } = useForm({
@@ -105,9 +110,21 @@ export default function RecomendacionCompras() {
 
   const mostrarRecomendacion = useCallback((data) => {
     setRec(data);
-    setPedido(data.pedidoProveedorId
+    const principal = data.pedidoProveedorId
       ? { pedidoId: data.pedidoProveedorId, exportUrl: urlExportacion(data.pedidoProveedorId) }
-      : null);
+      : null;
+    setPedidos(principal ? [principal] : []);
+    // La recomendación solo guarda el primer pedido: los de los demás proveedores se buscan aparte.
+    if (principal) {
+      listarPedidosDeRecomendacion(data.id)
+        .then((lista) => {
+          if (lista.length === 0) return;
+          setPedidos((actuales) => (actuales.some((p) => p.pedidoId === principal.pedidoId)
+            ? lista.map((p) => ({ pedidoId: p.id, proveedorNombre: p.proveedorNombre, exportUrl: urlExportacion(p.id) }))
+            : actuales));
+        })
+        .catch(() => { /* se muestra al menos el pedido principal */ });
+    }
     const primero = data.items?.find((i) => i.urgencia === 'CRITICO') ?? data.items?.[0];
     setAbiertos(new Set(primero ? [primero.id] : []));
   }, []);
@@ -165,7 +182,8 @@ export default function RecomendacionCompras() {
   const descargarExcel = async (datosPedido) => {
     if (!datosPedido?.exportUrl) return;
     try {
-      await descargarExportacionPedido(datosPedido.exportUrl);
+      const { avisos } = await descargarExportacionPedido(datosPedido.exportUrl);
+      setAvisosPorPedido((actuales) => ({ ...actuales, [datosPedido.pedidoId]: avisos }));
     } catch (err) {
       setToast({ show: true, msg: mensajeError(err, 'No se pudo descargar el Excel del pedido.'), type: 'error' });
     }
@@ -175,11 +193,19 @@ export default function RecomendacionCompras() {
     setEnviandoPedido(true);
     try {
       const resultado = await generarPedido(rec.id);
-      setPedido(resultado);
+      const nuevos = pedidosDeRespuesta(resultado);
+      setPedidos(nuevos);
       setRec((r) => ({ ...r, estado: 'PEDIDO_GENERADO', pedidoProveedorId: resultado.pedidoId }));
       setModalAbierto(false);
-      setToast({ show: true, msg: 'Pedido generado en estado Pendiente.', type: 'success' });
-      if (resultado.exportUrl) descargarExcel(resultado);
+      setToast({
+        show: true,
+        msg: nuevos.length > 1
+          ? `Se generaron ${nuevos.length} pedidos, uno por proveedor, en estado Pendiente.`
+          : 'Pedido generado en estado Pendiente.',
+        type: 'success',
+      });
+      // Con varios proveedores cada archivo se descarga con su botón.
+      if (nuevos.length === 1) descargarExcel(nuevos[0]);
     } catch (err) {
       setModalAbierto(false);
       setToast({ show: true, msg: mensajeError(err, 'No se pudo generar el pedido.'), type: 'error' });
@@ -216,24 +242,45 @@ export default function RecomendacionCompras() {
     </div>
   );
 
-  const avisoPedido = pedidoGenerado && pedido && (
-    <div className="bg-[#f0fdf4] border border-[#86efac] rounded-[12px] px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+  const avisoPedido = pedidoGenerado && pedidos.length > 0 && (
+    <div className="bg-[#f0fdf4] border border-[#86efac] rounded-[12px] px-5 py-4 flex flex-col gap-3">
       <div className="font-['Inter']">
-        <p className="font-semibold text-[15px] text-[#166534]">Pedido a proveedor generado</p>
+        <p className="font-semibold text-[15px] text-[#166534]">
+          {pedidos.length > 1 ? `${pedidos.length} pedidos a proveedores generados` : 'Pedido a proveedor generado'}
+        </p>
         <p className="text-[13px] text-[#15803d]">
           Las decisiones de esta recomendación ya no se pueden cambiar.
         </p>
       </div>
-      <div className="flex gap-2 flex-wrap">
-        <Link to={`/inventarios/pedidos/${pedido.pedidoId}`}
-          className="px-4 py-2 rounded-[10px] bg-white border border-[#86efac] font-['Inter'] font-semibold text-[13px] text-[#166534] hover:bg-[#dcfce7] transition-colors">
-          Ver pedido
-        </Link>
-        <button type="button" onClick={() => descargarExcel(pedido)}
-          className="px-4 py-2 rounded-[10px] bg-[#16a34a] font-['Inter'] font-semibold text-[13px] text-white hover:bg-[#15803d] transition-colors">
-          Descargar Excel
-        </button>
-      </div>
+      <ul className="flex flex-col gap-2">
+        {pedidos.map((p) => (
+          <li key={p.pedidoId} className="bg-white border border-[#86efac] rounded-[10px] px-4 py-3 flex flex-col gap-2">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <p className="font-['Inter'] text-[13px] text-[#57534e]">
+                <span className="font-semibold text-[14px] text-[#1b1b1c]">{p.proveedorNombre ?? 'Proveedor'}</span>
+                {' '}· Pedido #{p.pedidoId.slice(0, 8).toUpperCase()}
+                {p.total != null && ` · ${formatoCOP(p.total)}`}
+              </p>
+              <div className="flex gap-2 flex-wrap">
+                <Link to={`/inventarios/pedidos/${p.pedidoId}`}
+                  className="px-4 py-2 rounded-[10px] bg-white border border-[#86efac] font-['Inter'] font-semibold text-[13px] text-[#166534] hover:bg-[#dcfce7] transition-colors">
+                  Ver pedido
+                </Link>
+                <button type="button" onClick={() => descargarExcel(p)}
+                  className="px-4 py-2 rounded-[10px] bg-[#16a34a] font-['Inter'] font-semibold text-[13px] text-white hover:bg-[#15803d] transition-colors">
+                  Descargar Excel
+                </button>
+              </div>
+            </div>
+            {p.advertenciaMontoMinimo && (
+              <p className="rounded-[8px] bg-[#fffbeb] border border-[#fcd34d] px-3 py-2 font-['Inter'] text-[13px] text-[#92400e]">
+                {p.advertenciaMontoMinimo}
+              </p>
+            )}
+            <AvisosPedido avisos={avisosPorPedido[p.pedidoId]} />
+          </li>
+        ))}
+      </ul>
     </div>
   );
 

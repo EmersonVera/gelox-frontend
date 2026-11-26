@@ -3,6 +3,7 @@ import { useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useAuth } from '../../context/AuthContext';
 import CustomSelect from '../ui/CustomSelect';
+import { errorDeRespuesta, mensajeErrorApi } from '../../utils/errores';
 
 const MUNICIPIOS = ['Ocaña', 'Cúcuta', 'Villa del Rosario', 'Los Patios', 'El Zulia', 'Tibú', 'Otro'];
 const TALLAS = ['S', 'M', 'L', 'XL'];
@@ -77,12 +78,13 @@ export default function NuevoComerciante({ onClose, onSuccess }) {
         body: fd,
       });
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.message ?? 'Error al guardar el comerciante.');
+        throw await errorDeRespuesta(res, 'Error al guardar el comerciante.');
       }
       onSuccess('¡Comerciante creado exitosamente!');
     } catch (err) {
-      setError(err.message);
+      // fetch sin respuesta (red caída) no trae response: se muestra su propio mensaje.
+      // Un 409 de cuota (RF70) muestra «Cuota del plan alcanzada».
+      setError(err?.response ? mensajeErrorApi(err, 'Error al guardar el comerciante.', 'comerciantes') : err.message);
     } finally {
       setGuardando(false);
     }

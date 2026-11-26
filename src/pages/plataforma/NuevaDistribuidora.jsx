@@ -9,9 +9,9 @@ import SuccessToast from '../../components/SuccessToast';
 import ModalConfirmacion from '../../components/plataforma/ModalConfirmacion';
 import ContenidoCarga from '../../components/ui/ContenidoCarga';
 import {
-  PLANES, SUBDOMINIO_REGEX, mensajeError, sugerirSubdominio, urlTienda,
+  SUBDOMINIO_REGEX, formatoPesos, mensajeError, sugerirSubdominio, textoCuota, urlTienda,
 } from '../../components/plataforma/plataformaUtils';
-import { crearDistribuidora, listarDistribuidoras, reenviarAcceso } from '../../services/plataformaService';
+import { crearDistribuidora, listarDistribuidoras, listarPlanes, reenviarAcceso } from '../../services/plataformaService';
 
 const schema = yup.object({
   razonSocial: yup.string().trim()
@@ -40,9 +40,8 @@ const schema = yup.object({
   direccion: yup.string().trim()
     .required('La dirección es obligatoria.')
     .max(200, 'Máximo 200 caracteres.'),
-  plan: yup.string()
-    .required('Selecciona un plan.')
-    .oneOf(PLANES.map((p) => p.value), 'Selecciona un plan.'),
+  // RF70 (T191): el plan se envía por id; los planes salen de /api/plataforma/planes.
+  planId: yup.string().required('Selecciona un plan.'),
 });
 
 /** Campo del formulario que corresponde a un 409 del backend (NIT, subdominio o correo repetido). */
@@ -52,6 +51,7 @@ function campoDuplicado(data) {
   if (msg.includes('nit')) return 'nit';
   if (msg.includes('subdominio')) return 'subdominio';
   if (msg.includes('correo') || msg.includes('email')) return 'correoGerente';
+  if (msg.includes('plan')) return 'planId';
   return null;
 }
 
@@ -124,6 +124,7 @@ export default function NuevaDistribuidora() {
   const [existentes, setExistentes] = useState(null); // subdominios ya registrados, para la vista previa
   const [creada, setCreada] = useState(null);         // distribuidora creada con correoEnviado = false
   const [toast, setToast] = useState({ show: false, msg: '', type: 'error' });
+  const [planes, setPlanes] = useState(null);          // { lista, error } — null mientras cargan
   const subdominioEditado = useRef(false);
   const accesoReenviado = useRef(false);
 
@@ -135,7 +136,7 @@ export default function NuevaDistribuidora() {
     mode: 'onTouched',
     defaultValues: {
       razonSocial: '', nit: '', nombreComercial: '', subdominio: '',
-      nombreGerente: '', correoGerente: '', telefono: '', direccion: '', plan: 'BASICO',
+      nombreGerente: '', correoGerente: '', telefono: '', direccion: '', planId: '',
     },
   });
 
@@ -148,8 +149,22 @@ export default function NuevaDistribuidora() {
     return () => { vivo = false; };
   }, []);
 
+  // Planes configurados en /plataforma/planes; se preselecciona el de menor precio (el de entrada).
+  useEffect(() => {
+    let vivo = true;
+    listarPlanes()
+      .then((lista) => {
+        if (!vivo) return;
+        const ordenados = [...lista].sort((a, b) => Number(a.precioMensual) - Number(b.precioMensual));
+        setPlanes({ lista: ordenados, error: '' });
+        if (ordenados.length) setValue('planId', ordenados[0].id);
+      })
+      .catch((err) => { if (vivo) setPlanes({ lista: [], error: mensajeError(err, 'No se pudieron cargar los planes.') }); });
+    return () => { vivo = false; };
+  }, [setValue]);
+
   const subdominio = useWatch({ control, name: 'subdominio' });
-  const plan = useWatch({ control, name: 'plan' });
+  const planId = useWatch({ control, name: 'planId' });
   const formatoValido = SUBDOMINIO_REGEX.test(subdominio ?? '');
   const enUso = formatoValido && existentes?.has(subdominio);
 
@@ -359,29 +374,56 @@ export default function NuevaDistribuidora() {
           <fieldset className={card}>
             <legend className="sr-only">Plan de suscripción</legend>
             <SectionTitle>Plan de suscripción</SectionTitle>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {PLANES.map((p) => {
-                const activo = plan === p.value;
-                return (
-                  <label
-                    key={p.value}
-                    className={`flex items-center justify-between gap-3 px-4 py-3.5 rounded-xl border-2 cursor-pointer transition duration-200 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary/20 ${
-                      activo ? 'border-primary bg-primary/5' : 'border-border bg-white hover:border-divider hover:bg-surface'
-                    }`}
-                  >
-                    <input type="radio" value={p.value} className="sr-only" {...register('plan')} />
-                    <div>
-                      <p className={`text-sm font-semibold ${activo ? 'text-primary' : 'text-ink'}`}>{p.label}</p>
-                      <p className="text-xs text-muted mt-0.5">{p.descripcion}</p>
-                    </div>
-                    <span className={`w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center ${activo ? 'border-primary' : 'border-divider'}`}>
-                      {activo && <span className="w-2 h-2 rounded-full bg-primary block" />}
-                    </span>
-                  </label>
-                );
-              })}
-            </div>
-            {errors.plan && <p className={`${errMsg} mt-2`}>{errors.plan.message}</p>}
+            {!planes ? (
+              <div className="flex items-center gap-3 py-4 text-muted text-sm">
+                <span className="w-4 h-4 rounded-full border-2 border-muted/30 border-t-muted animate-spin" />
+                Cargando planes...
+              </div>
+            ) : planes.error ? (
+              <div className="px-4 py-3 rounded-xl bg-error-bg border border-[#ffb4a9] text-error-fg text-sm">{planes.error}</div>
+            ) : planes.lista.length === 0 ? (
+              <p className="text-sm text-muted">
+                No hay planes configurados. Crea uno en{' '}
+                <Link to="/plataforma/planes" className="text-primary font-semibold hover:underline">Planes</Link> antes de registrar la distribuidora.
+              </p>
+            ) : (
+              <div className={`grid grid-cols-1 gap-3 ${planes.lista.length === 2 ? 'sm:grid-cols-2' : 'sm:grid-cols-3'}`}>
+                {planes.lista.map((p) => {
+                  const activo = planId === p.id;
+                  return (
+                    <label
+                      key={p.id}
+                      className={`flex items-start justify-between gap-3 px-4 py-3.5 rounded-xl border-2 cursor-pointer transition duration-200 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary/20 ${
+                        activo ? 'border-primary bg-primary/5' : 'border-border bg-white hover:border-divider hover:bg-surface'
+                      }`}
+                    >
+                      <input type="radio" value={p.id} className="sr-only" {...register('planId')} />
+                      <div className="min-w-0">
+                        <p className={`text-sm font-semibold ${activo ? 'text-primary' : 'text-ink'}`}>{p.nombre}</p>
+                        <p className="text-xs text-muted mt-0.5">
+                          <span className="font-semibold text-ink">{formatoPesos(p.precioMensual)}</span> /mes
+                          {p.descripcion && <> · {p.descripcion}</>}
+                        </p>
+                        <p className="text-[11px] text-muted mt-1.5 leading-relaxed">
+                          {textoCuota(p.maxUsuarios)} usuarios · {textoCuota(p.maxProductos)} productos · {textoCuota(p.maxComerciantes)} comerciantes
+                        </p>
+                      </div>
+                      <span className={`w-4 h-4 mt-0.5 rounded-full border-2 shrink-0 flex items-center justify-center ${activo ? 'border-primary' : 'border-divider'}`}>
+                        {activo && <span className="w-2 h-2 rounded-full bg-primary block" />}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            )}
+            {errors.planId ? (
+              <p className={`${errMsg} mt-2`}>{errors.planId.message}</p>
+            ) : planes?.lista.length > 0 && (
+              <p className="text-xs text-muted mt-2">
+                Los planes y sus cuotas se configuran en{' '}
+                <Link to="/plataforma/planes" className="text-primary font-semibold hover:underline">Planes</Link>.
+              </p>
+            )}
           </fieldset>
 
           {/* Aviso */}

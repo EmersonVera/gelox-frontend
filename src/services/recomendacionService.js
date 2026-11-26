@@ -23,10 +23,25 @@ export async function decidirItem(id, itemId, { decision, cajas, motivo }) {
   return data;
 }
 
-/** Devuelve { pedidoId, exportUrl }. */
+/**
+ * Genera un pedido por proveedor (RF56, RF63). Devuelve { pedidoId, exportUrl, pedidos } donde
+ * pedidoId y exportUrl son los del primero y pedidos es
+ * [{ pedidoId, proveedorId, proveedorNombre, total, exportUrl, advertenciaMontoMinimo }].
+ */
 export async function generarPedido(id) {
   const { data } = await api.post(`/api/recomendaciones/${id}/pedido`);
   return data;
+}
+
+/**
+ * Pedidos ya generados desde una recomendación (al abrirla desde el historial): el backend les pone
+ * a todos la misma nota «Generado desde recomendación #xxxxxxxx», uno por proveedor.
+ */
+export async function listarPedidosDeRecomendacion(id) {
+  const { data } = await api.get('/api/inventario/pedidos', {
+    params: { q: `recomendación #${id.slice(0, 8)}`, limit: 50 },
+  });
+  return data?.content ?? [];
 }
 
 /** filtros: { desde, hasta, estado, page, size } — fechas YYYY-MM-DD, página desde 0. */

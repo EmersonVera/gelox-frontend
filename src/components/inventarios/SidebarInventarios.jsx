@@ -82,6 +82,25 @@ function HistoryIcon() {
     </svg>
   );
 }
+function TruckIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="1" y="3" width="15" height="13" />
+      <polygon points="16 8 20 8 23 11 23 16 16 16 16 8" />
+      <circle cx="5.5" cy="18.5" r="2.5" />
+      <circle cx="18.5" cy="18.5" r="2.5" />
+    </svg>
+  );
+}
+function SheetIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <line x1="3" y1="9" x2="21" y2="9" /><line x1="3" y1="15" x2="21" y2="15" />
+      <line x1="9" y1="3" x2="9" y2="21" />
+    </svg>
+  );
+}
 function SettingsIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -121,6 +140,11 @@ const LINKS = [
   { icon: <FileTextIcon />,     label: 'Reporte Pedido',         to: '/inventarios/reporte-pedido', pronto: false },
   { icon: <SparkleIcon />,      label: 'Recomendación de Compra', to: '/inventarios/recomendaciones', pronto: false, end: true },
   { icon: <HistoryIcon />,      label: 'Historial de Recomendaciones', to: '/inventarios/recomendaciones/historial', pronto: false },
+];
+
+const LINKS_PROVEEDORES = [
+  { icon: <TruckIcon />,        label: 'Proveedores',            to: '/inventarios/proveedores',    pronto: false },
+  { icon: <SheetIcon />,        label: 'Plantillas de exportación', to: '/inventarios/plantillas',  pronto: false },
 ];
 
 const navItemBase =
@@ -218,8 +242,19 @@ export default function SidebarInventarios({ open, onClose }) {
 
       {/* ── Navigation ── */}
       <nav className="flex-1 px-4 py-3 flex flex-col gap-1 overflow-y-auto">
-        {LINKS.map(({ icon, label, to, pronto, end }) =>
-          pronto ? (
+        {[
+          ...LINKS,
+          { seccion: 'Proveedores' },
+          ...LINKS_PROVEEDORES,
+        ].map(({ icon, label, to, pronto, end, seccion }) =>
+          seccion ? (
+            <span
+              key={`seccion-${seccion}`}
+              className="px-2 pt-4 pb-1 text-[10px] uppercase tracking-widest font-bold text-primary/60 font-inter"
+            >
+              {seccion}
+            </span>
+          ) : pronto ? (
             /* Ítem no disponible: no navega, muestra badge "Pronto" */
             <div
               key={to}

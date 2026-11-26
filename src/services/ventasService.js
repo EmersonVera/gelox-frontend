@@ -33,8 +33,12 @@ export async function registrarDespacho(payload) {
   return data;
 }
 
-export async function liquidarPlanilla(planillaId, items) {
-  const { data } = await api.post(`/api/planillas/${planillaId}/liquidar`, { devoluciones: items });
+// RF66 — efectivoRecibido es opcional: sin él, el backend toma el monto cobrado completo.
+// La diferencia (monto cobrado − efectivo) queda como saldo a crédito del comerciante.
+export async function liquidarPlanilla(planillaId, items, { efectivoRecibido } = {}) {
+  const body = { devoluciones: items };
+  if (efectivoRecibido != null) body.efectivoRecibido = efectivoRecibido;
+  const { data } = await api.post(`/api/planillas/${planillaId}/liquidar`, body);
   return data;
 }
 

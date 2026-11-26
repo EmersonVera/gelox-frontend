@@ -1,19 +1,9 @@
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../api/axiosConfig';
+import { BuildingIcon, ChartIcon, LayersIcon, ShieldIcon } from './IconosPlataforma';
 
 /* ── Icons ── */
-function BuildingIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M3 21h18" />
-      <path d="M5 21V7l7-4 7 4v14" />
-      <path d="M9 21v-6h6v6" />
-      <path d="M9 10h.01M15 10h.01" />
-    </svg>
-  );
-}
-
 function PlusCircleIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -54,13 +44,17 @@ function CloseIcon() {
 
 const NUEVA = '/plataforma/distribuidoras/nueva';
 
-/* "Distribuidoras" queda activo en la lista y en el detalle, pero no en el formulario de registro. */
+/* "Distribuidoras" queda activo en la lista y en el detalle, pero no en el formulario de registro.
+   El orden es el de los mockups RF69–RF71: Panel, Distribuidoras, Nueva distribuidora, Planes, Auditoría. */
 const LINKS = [
+  { icon: <ChartIcon />, label: 'Panel', to: '/plataforma/panel', activo: (path) => path === '/plataforma/panel' },
   {
     icon: <BuildingIcon />, label: 'Distribuidoras', to: '/plataforma/distribuidoras',
     activo: (path) => path.startsWith('/plataforma/distribuidoras') && path !== NUEVA,
   },
   { icon: <PlusCircleIcon />, label: 'Nueva distribuidora', to: NUEVA, activo: (path) => path === NUEVA },
+  { icon: <LayersIcon />, label: 'Planes', to: '/plataforma/planes', activo: (path) => path.startsWith('/plataforma/planes') },
+  { icon: <ShieldIcon />, label: 'Auditoría', to: '/plataforma/auditoria', activo: (path) => path.startsWith('/plataforma/auditoria') },
 ];
 
 const navItemBase =

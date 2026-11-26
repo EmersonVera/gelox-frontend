@@ -5,7 +5,7 @@ import AppLayout from '../../components/AppLayout';
 import Pagination from '../../components/ui/Pagination';
 import EstadoBadge from '../../components/plataforma/EstadoBadge';
 import {
-  ESTADOS_DISTRIBUIDORA, ORDEN_ESTADOS, etiquetaPlan, formatoFecha, iniciales, mensajeError,
+  ESTADOS_DISTRIBUIDORA, ORDEN_ESTADOS, formatoFecha, iniciales, mensajeError, nombrePlan,
 } from '../../components/plataforma/plataformaUtils';
 import { USAR_MOCK, listarDistribuidoras } from '../../services/plataformaService';
 
@@ -238,7 +238,7 @@ export default function Distribuidoras() {
                       </td>
                       <td className="px-4 py-4 text-sm text-ink whitespace-nowrap">{d.nit}</td>
                       <td className="px-4 py-4 text-sm text-faint font-mono whitespace-nowrap">{d.subdominio}</td>
-                      <td className="px-4 py-4 text-sm text-ink">{etiquetaPlan(d.plan)}</td>
+                      <td className="px-4 py-4 text-sm text-ink">{nombrePlan(d)}</td>
                       <td className="px-4 py-4"><EstadoBadge estado={d.estado} /></td>
                       <td className="px-4 py-4 text-sm text-muted whitespace-nowrap">{formatoFecha(d.createdAt)}</td>
                       <td className="px-4 py-4 text-right">
