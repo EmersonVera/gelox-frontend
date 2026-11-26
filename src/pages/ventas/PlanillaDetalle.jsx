@@ -5,7 +5,7 @@ import EncabezadoDocumento from '../../components/EncabezadoDocumento';
 import ContenidoCarga from '../../components/ui/ContenidoCarga';
 import { useIdentidad } from '../../context/IdentidadContext';
 import { useAuth } from '../../context/AuthContext';
-import { imprimirPlanilla, liquidarPlanilla } from '../../services/ventasService';
+import { imprimirPlanilla } from '../../services/ventasService';
 import ModalProrroga from '../../components/ventas/ModalProrroga';
 import { etiquetaEsquema, formatoFecha, estadoPlanilla } from '../../components/ventas/creditoUtils';
 
@@ -41,7 +41,7 @@ function formatCOP(n) {
 export default function PlanillaDetalle() {
   const navigate                       = useNavigate();
   const location                       = useLocation();
-  const { comercianteId, planillaId, liquidacion: liquidacionRecienCerrada } = location.state ?? {};
+  const { comercianteId, comerciante, planillaId, liquidacion: liquidacionRecienCerrada } = location.state ?? {};
   const { identidad }                  = useIdentidad();
   const { rol }                        = useAuth();
   const esGerente                      = rol === 'ADMINISTRADOR';
@@ -53,9 +53,6 @@ export default function PlanillaDetalle() {
   const [cargando,     setCargando]     = useState(true);
   const [error,        setError]        = useState('');
   const [imprimiendo,  setImprimiendo]  = useState(false);
-  const [entradas,     setEntradas]     = useState({});   // { itemId → valor }
-  const [cerrando,     setCerrando]     = useState(false);
-  const [errorCierre,  setErrorCierre]  = useState('');
 
   const estaAbierta = datos && !datos.cerrada;
 
@@ -68,37 +65,18 @@ export default function PlanillaDetalle() {
     let vivo = true;
     setCargando(true);
     imprimirPlanilla(planillaId)
-      .then((data) => {
-        if (!vivo) return;
-        setDatos(data);
-        // Inicializar entradas en 0 para cada ítem (para cierre diario de planillas abiertas)
-        if (data?.items) {
-          const init = {};
-          data.items.forEach(it => { init[it.id] = 0; });
-          setEntradas(init);
-        }
-      })
+      .then((data) => { if (vivo) setDatos(data); })
       .catch(() => { if (vivo) setError('No existe una planilla en esta fecha'); })
       .finally(() => { if (vivo) setCargando(false); });
     return () => { vivo = false; };
   }, [planillaId]);
 
-  async function handleCierreDiario() {
-    setCerrando(true);
-    setErrorCierre('');
-    try {
-      const devoluciones = (datos?.items ?? []).map(it => ({
-        detalleId:         it.id,
-        unidadesDevueltas: Math.min(Number(entradas[it.id]) || 0, it.unidadesDespachadas ?? 0),
-      }));
-      await liquidarPlanilla(planillaId, devoluciones);
-      navigate(-1);
-    } catch (e) {
-      const msg = e?.response?.data?.mensaje ?? e?.response?.data?.message ?? '';
-      setErrorCierre(msg || 'No se pudo realizar el cierre. Intenta de nuevo.');
-    } finally {
-      setCerrando(false);
-    }
+  // El cierre se hace en una sola pantalla (devoluciones, resumen y efectivo recibido).
+  function irACierreDiario() {
+    navigate(`/ventas/comerciantes/${comerciante.id}/planilla-hoy`, {
+      replace: true,
+      state: { comerciante, planillaId },
+    });
   }
 
   async function handleImprimir() {
@@ -260,14 +238,8 @@ export default function PlanillaDetalle() {
                   </thead>
                   <tbody>
                     {items.map((it, idx) => {
-                      const devActual = estaAbierta
-                        ? (Number(entradas[it.id]) || 0)
-                        : (it.unidadesDevueltas ?? 0);
-                      const vendidas  = (it.unidadesDespachadas ?? 0) - devActual;
-                      const total     = estaAbierta
-                        ? Math.max(0, vendidas) * Number(it.precioVenta ?? 0)
-                        : (it.ganancia ?? vendidas * Number(it.precioVenta ?? 0));
-                      const errFila   = estaAbierta && devActual > (it.unidadesDespachadas ?? 0);
+                      const vendidas = (it.unidadesDespachadas ?? 0) - (it.unidadesDevueltas ?? 0);
+                      const total    = it.ganancia ?? vendidas * Number(it.precioVenta ?? 0);
                       return (
                         <tr key={it.id ?? it.productoId ?? idx} className="border-b border-[#f5f5f4] last:border-b-0">
                           <td className="px-5 py-4 font-['Inter'] text-[14px] text-[#1b1b1c]">
@@ -276,38 +248,17 @@ export default function PlanillaDetalle() {
                           <td className="px-5 py-4 text-center font-['Manrope'] font-bold text-[14px] text-[#1b1b1c]">
                             {it.unidadesDespachadas ?? 0}
                           </td>
-                          <td className="px-5 py-4 text-center">
-                            {estaAbierta ? (
-                              <div className="flex flex-col items-center gap-1">
-                                <input
-                                  type="number" min="0"
-                                  value={entradas[it.id] ?? 0}
-                                  onChange={e => setEntradas(prev => ({
-                                    ...prev,
-                                    [it.id]: Math.max(0, Number(e.target.value) || 0),
-                                  }))}
-                                  className={`w-20 rounded-[8px] px-2 py-1.5 text-center font-['Inter'] text-[14px] text-[#1b1b1c] outline-none transition-all ${
-                                    errFila
-                                      ? 'border border-primary bg-[#fff1f0]'
-                                      : 'border border-transparent bg-[#f6f3f3] focus:border-primary'
-                                  }`}
-                                />
-                                {errFila && <p className="font-['Inter'] text-[10px] text-primary">Supera lo despachado</p>}
-                              </div>
-                            ) : (
-                              <span className="font-['Manrope'] font-bold text-[14px] text-[#1b1b1c]">
-                                {it.unidadesDevueltas ?? 0}
-                              </span>
-                            )}
+                          <td className="px-5 py-4 text-center font-['Manrope'] font-bold text-[14px] text-[#1b1b1c]">
+                            {estaAbierta ? '—' : (it.unidadesDevueltas ?? 0)}
                           </td>
                           <td className="px-5 py-4 text-center font-['Inter'] text-[14px] text-[#a8a29e]">
-                            {Math.max(0, vendidas)}
+                            {estaAbierta ? '—' : Math.max(0, vendidas)}
                           </td>
                           <td className="px-5 py-4 text-center font-['Inter'] text-[14px] text-[#1b1b1c]">
                             {formatCOP(it.precioVenta)}
                           </td>
                           <td className="px-5 py-4 text-right font-['Manrope'] font-bold text-[14px] text-[#1b1b1c]">
-                            {formatCOP(total)}
+                            {estaAbierta ? '—' : formatCOP(total)}
                           </td>
                         </tr>
                       );
@@ -337,12 +288,12 @@ export default function PlanillaDetalle() {
                       <div className="flex justify-between">
                         <span className="font-['Inter'] text-[12px] text-[#a8a29e]">Entrada</span>
                         <span className="font-['Manrope'] font-bold text-[13px] text-[#1b1b1c]">
-                          {it.unidadesDevueltas ?? 0}
+                          {estaAbierta ? '—' : (it.unidadesDevueltas ?? 0)}
                         </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="font-['Inter'] text-[12px] text-[#a8a29e]">Vendidas</span>
-                        <span className="font-['Inter'] text-[13px] text-[#a8a29e]">{vendidas}</span>
+                        <span className="font-['Inter'] text-[13px] text-[#a8a29e]">{estaAbierta ? '—' : vendidas}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="font-['Inter'] text-[12px] text-[#a8a29e]">Precio</span>
@@ -356,7 +307,7 @@ export default function PlanillaDetalle() {
                         Total
                       </span>
                       <span className="font-['Manrope'] font-bold text-[15px] text-[#1b1b1c]">
-                        {formatCOP(total)}
+                        {estaAbierta ? '—' : formatCOP(total)}
                       </span>
                     </div>
                   </div>
@@ -415,7 +366,7 @@ export default function PlanillaDetalle() {
                 </dl>
                 {liq.ganancia == null && (
                   <p className="px-5 pb-3 font-['Inter'] text-[11px] text-[#a8a29e]">
-                    Planilla anterior al esquema de liquidación: no tiene la ganancia del comerciante registrada.
+                    Sin ganancia del comerciante registrada: la planilla no tiene precios al público o es anterior al esquema de liquidación.
                   </p>
                 )}
                 {avisoProrroga && (
@@ -469,18 +420,13 @@ export default function PlanillaDetalle() {
             </svg>
             <div className="flex flex-col">
               <span className="font-['Inter'] font-bold text-[10px] uppercase tracking-[0.6px] text-[#a8a29e]">
-                {cerrada ? 'Monto cobrado' : 'Total Liquidación'}
+                {cerrada ? 'Monto cobrado' : 'Despachado (precio comerciante)'}
               </span>
               <span className="font-['Manrope'] font-extrabold text-[22px] sm:text-[26px] leading-tight text-[#16a34a]">
                 {formatCOP(cerrada ? liq.montoCobrado : totalLiquidacion)}
               </span>
             </div>
           </div>
-
-          {/* Error cierre */}
-          {errorCierre && (
-            <p className="font-['Inter'] text-[12px] text-primary text-center sm:text-left flex-1">{errorCierre}</p>
-          )}
 
           {/* Botones */}
           <div className="flex gap-3 w-full sm:w-auto">
@@ -490,18 +436,12 @@ export default function PlanillaDetalle() {
             >
               Volver
             </button>
-            {estaAbierta && (
+            {estaAbierta && comerciante && (
               <button
-                onClick={handleCierreDiario}
-                disabled={cerrando || Object.values(entradas).some((v, i) => {
-                  const it = items[i];
-                  return Number(v) > (it?.unidadesDespachadas ?? 0);
-                })}
-                className="flex-1 sm:flex-none bg-primary hover:bg-primary-dark disabled:opacity-60 disabled:cursor-not-allowed text-white font-['Manrope'] font-bold text-[13px] sm:text-[14px] rounded-[10px] px-5 py-2.5 sm:py-3 transition-colors cursor-pointer shadow-sm text-center flex items-center justify-center gap-2"
+                onClick={irACierreDiario}
+                className="flex-1 sm:flex-none bg-primary hover:bg-primary-dark text-white font-['Manrope'] font-bold text-[13px] sm:text-[14px] rounded-[10px] px-5 py-2.5 sm:py-3 transition-colors cursor-pointer shadow-sm text-center flex items-center justify-center gap-2"
               >
-                <ContenidoCarga cargando={cerrando} textoCargando="Cerrando..." spinner={<SpinnerSvg />}>
-                  Hacer Cierre Diario ✓
-                </ContenidoCarga>
+                Hacer Cierre Diario ✓
               </button>
             )}
           </div>
