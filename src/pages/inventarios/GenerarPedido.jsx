@@ -7,7 +7,10 @@ import AppLayout from '../../components/AppLayout';
 import SuccessToast from '../../components/SuccessToast';
 import Pagination from '../../components/ui/Pagination';
 import useDatosVoz from '../../hooks/useDatosVoz';
-import { listarProveedoresActivos } from '../../services/proveedoresService';
+import { listarProveedoresParaPedido } from '../../services/proveedoresPedidoService';
+import { avisosDePedido } from '../../services/avisosPedido';
+import { nombreDeContentDisposition } from '../../services/exportacionService';
+import AvisosPedido from '../../components/inventarios/AvisosPedido';
 import {
   formatoCOP, iniciales, sumarDiasHabiles, formatoFechaCorta, formatoDias, mensajeError, productosDeProveedor,
 } from '../../components/inventarios/proveedoresUtils';
@@ -85,6 +88,7 @@ export default function GenerarPedido() {
   const [error, setError]             = useState('');
   const [preseleccionados, setPreseleccionados] = useState(0);
   const [toast, setToast]             = useState({ show: false, msg: '', type: 'success' });
+  const [avisos, setAvisos]           = useState(null); // advertencias del último pedido generado
 
   const mostrarToast = (msg, type = 'success') => setToast({ show: true, msg, type });
 
@@ -100,7 +104,7 @@ export default function GenerarPedido() {
       return Array.isArray(list) ? list : [];
     });
 
-    Promise.all([listarProveedoresActivos(), catalogo])
+    Promise.all([listarProveedoresParaPedido(), catalogo])
       .then(([provs, prods]) => {
         if (!vivo) return;
         setProveedores(provs);
@@ -224,6 +228,7 @@ export default function GenerarPedido() {
   const generar = async (debajoMinimo = false) => {
     if (!proveedor || lineas.length === 0) return;
     setGenerando(true);
+    setAvisos(null);
     try {
       const res = await fetch(`${base}/api/inventario/pedidos`, {
         method: 'POST',
@@ -251,16 +256,22 @@ export default function GenerarPedido() {
         throw new Error(msg || 'No se pudo generar el pedido.');
       }
       const blob = await res.blob();
+      // El backend crea un pedido por proveedor: con uno responde el .xlsx y con varios, un .zip.
+      const creados = (res.headers.get('x-pedidos-ids') ?? '').split(',').filter(Boolean).length;
+      const extension = (res.headers.get('content-type') ?? '').includes('zip') ? 'zip' : 'xlsx';
       const url  = URL.createObjectURL(blob);
       const a    = document.createElement('a');
-      const slug = proveedor.nombreComercial.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-');
       a.href     = url;
-      a.download = `pedido-${slug}-${new Date().toISOString().split('T')[0]}.xlsx`;
+      a.download = nombreDeContentDisposition(res.headers.get('content-disposition'))
+        ?? `pedido-${new Date().toISOString().split('T')[0]}.${extension}`;
       a.click();
       URL.revokeObjectURL(url);
+      setAvisos(avisosDePedido((encabezado) => res.headers.get(encabezado)));
       setCantidades({});
       setPreseleccionados(0);
-      mostrarToast(`Pedido a ${proveedor.nombreComercial} generado y descargado.`);
+      mostrarToast(creados > 1
+        ? `Se generaron ${creados} pedidos (uno por proveedor) y se descargaron en un .zip.`
+        : `Pedido a ${proveedor.nombreComercial} generado y descargado.`);
     } catch (e) {
       mostrarToast(e.message || 'No se pudo generar el pedido. Intenta de nuevo.', 'error');
     } finally {
@@ -296,6 +307,8 @@ export default function GenerarPedido() {
         {error && (
           <div className="px-4 py-3 rounded-xl bg-error-bg border border-[#ffb4a9] text-error-fg text-sm">{error}</div>
         )}
+
+        <AvisosPedido avisos={avisos} />
 
         {/* 1. Proveedor */}
         <section className="bg-white rounded-2xl border border-border p-6">

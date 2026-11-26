@@ -1,12 +1,13 @@
 // src/pages/inventarios/PlantillasExportacion.jsx — plantilla de exportación de pedidos por proveedor
-// (HU-19, RF67, FP-15 §2.18.1). Sigue el mockup «08 Inventarios - Plantilla Exportacion».
+// (HU-19, RF67, FP-15 §2.18.1). Sigue el mockup «08 Inventarios - Plantilla Exportacion» en lo que
+// el FP-15 y el plan de la Iteración 3 permiten (ver «Mockup vs FP-15» en la descripción del PR).
 // La diseña el Encargado de Inventarios; el Gerente también entra.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import AppLayout from '../../components/AppLayout';
 import SuccessToast from '../../components/SuccessToast';
 import { useIdentidad } from '../../context/IdentidadContext';
 import { iniciales, mensajeError } from '../../components/inventarios/proveedoresUtils';
-import { listarProveedoresActivos } from '../../services/proveedoresService';
+import { listarProveedoresParaPedido } from '../../services/proveedoresPedidoService';
 import {
   USAR_MOCK, CAMPOS_PLANTILLA,
   obtenerPlantilla, guardarPlantilla, vistaPreviaPlantilla,
@@ -28,7 +29,7 @@ const ETIQUETA_CAMPO = {
   PRECIO_UNITARIO:   'Costo unitario',
   SUBTOTAL:          'Subtotal',
   FECHA_PEDIDO:      'Fecha del pedido',
-  TEXTO_FIJO:        'Valor fijo',
+  TEXTO_FIJO:        'Valor fijo (texto)',
 };
 
 const AYUDA_CAMPO = {
@@ -73,10 +74,6 @@ const fechaCorta = (iso) => (iso
 function aFormulario(plantilla) {
   return {
     modo: plantilla.modo ?? 'GENERAR_FILAS',
-    formato: plantilla.formato ?? 'XLSX',
-    nombreArchivo: plantilla.nombreArchivo ?? '',
-    nombreHoja: plantilla.nombreHoja ?? '',
-    titulo: plantilla.titulo ?? '',
     archivoBaseUrl: plantilla.archivoBaseUrl ?? '',
     filaEncabezado: plantilla.filaEncabezado ?? 1,
     encabezadoCodigo: plantilla.encabezadoCodigo ?? '',
@@ -93,37 +90,27 @@ const aHomologaciones = (plantilla) =>
   (plantilla.homologaciones ?? []).map((h) => ({ ...h, codigo: h.codigo ?? '' }));
 
 /** Cuerpo que se envía al backend (PUT y vista previa). */
-function aCuerpo(form, homologaciones, estado) {
-  const base = {
-    estado,
+function aCuerpo(form, homologaciones) {
+  const catalogo = form.modo === 'RELLENAR_CATALOGO';
+  return {
     modo: form.modo,
-    formato: form.formato,
-    nombreArchivo: form.nombreArchivo.trim(),
-    nombreHoja: form.nombreHoja.trim(),
-    titulo: form.titulo.trim(),
-    archivoBaseUrl: form.archivoBaseUrl.trim() || null,
-    filaEncabezado: Number(form.filaEncabezado) || 1,
-    encabezadoCodigo: form.encabezadoCodigo.trim(),
-    encabezadoCantidad: form.encabezadoCantidad.trim(),
-    encabezadoUnidad: form.encabezadoUnidad.trim(),
-    columnas: [],
-    homologaciones: homologaciones.map(({ productoId, codigo }) => ({ productoId, codigo: codigo.trim() })),
-  };
-  if (form.modo === 'GENERAR_FILAS') {
-    base.columnas = form.columnas.map((c, i) => ({
+    archivoBaseUrl: catalogo ? (form.archivoBaseUrl.trim() || null) : null,
+    filaEncabezado: catalogo ? Number(form.filaEncabezado) || 1 : 1,
+    encabezadoCodigo: catalogo ? form.encabezadoCodigo.trim() : null,
+    encabezadoCantidad: catalogo ? form.encabezadoCantidad.trim() : null,
+    encabezadoUnidad: catalogo ? form.encabezadoUnidad.trim() || null : null,
+    columnas: catalogo ? [] : form.columnas.map((c, i) => ({
       orden: i + 1,
       campo: c.campo,
       encabezado: c.encabezado.trim(),
       valorFijo: c.campo === 'TEXTO_FIJO' ? c.valorFijo.trim() : null,
-    }));
-  }
-  return base;
+    })),
+    homologaciones: homologaciones.map(({ productoId, codigo }) => ({ productoId, codigo: codigo.trim() })),
+  };
 }
 
 /** Texto que explica por qué no se puede guardar, o '' si la plantilla está completa. */
 function problemaDeValidacion(form) {
-  if (!form.nombreArchivo.trim()) return 'Indica el nombre del archivo.';
-  if (!(Number(form.filaEncabezado) >= 1)) return 'La fila de encabezados debe ser 1 o mayor.';
   if (form.modo === 'GENERAR_FILAS') {
     if (form.columnas.length === 0) return 'Agrega al menos una columna para poder guardar.';
     if (form.columnas.some((c) => !c.encabezado.trim())) return 'Cada columna necesita un encabezado.';
@@ -132,20 +119,11 @@ function problemaDeValidacion(form) {
     }
     return '';
   }
+  if (!(Number(form.filaEncabezado) >= 1)) return 'La fila de encabezados debe ser 1 o mayor.';
   if (!form.encabezadoCodigo.trim() || !form.encabezadoCantidad.trim()) {
     return 'Indica los encabezados de código y de cantidad del archivo base.';
   }
   return '';
-}
-
-/** Estado visible de un proveedor en la lista: lo guardado en esta sesión o lo que trae el proveedor. */
-function estadoDeProveedor(proveedor, locales) {
-  const local = locales[proveedor.id];
-  if (local) return local;
-  const texto = String(proveedor.plantilla ?? '').trim();
-  if (!texto) return { estado: null };
-  if (/borrador/i.test(texto)) return { estado: 'BORRADOR' };
-  return { estado: 'ACTIVA', etiqueta: texto };
 }
 
 /* ── Icons ── */
@@ -201,14 +179,14 @@ function Tarjeta({ titulo, detalle, derecha, children }) {
   );
 }
 
-function InsigniaEstado({ estado }) {
-  if (estado === 'ACTIVA') {
-    return <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-success-bg text-success-fg shrink-0">Activa</span>;
+function InsigniaEstado({ personalizada }) {
+  if (personalizada === true) {
+    return <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-success-bg text-success-fg shrink-0">Propia</span>;
   }
-  if (estado === 'BORRADOR') {
-    return <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-800 shrink-0">Borrador</span>;
+  if (personalizada === false) {
+    return <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-surface text-muted shrink-0">Por defecto</span>;
   }
-  return <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-surface text-muted shrink-0">Por defecto</span>;
+  return null;
 }
 
 export default function PlantillasExportacion() {
@@ -220,16 +198,16 @@ export default function PlantillasExportacion() {
   const [cargandoProveedores, setCargandoProveedores] = useState(true);
   // `cargadoId`: proveedor cuya plantilla ya llegó. Mientras difiera del elegido, se está cargando.
   const [cargadoId, setCargadoId] = useState('');
-  const [guardando, setGuardando] = useState('');           // '' | 'BORRADOR' | 'ACTIVA'
+  const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState('');
   const [errorPrevia, setErrorPrevia] = useState('');
   const [form, setForm] = useState(null);
-  const [meta, setMeta] = useState(null);                   // { version, actualizadoEn, actualizadoPor }
+  const [actualizadoEn, setActualizadoEn] = useState(null);
   const [homologaciones, setHomologaciones] = useState([]);
   const [busquedaProducto, setBusquedaProducto] = useState('');
   const [previa, setPrevia] = useState(null);
   const [cargandoPrevia, setCargandoPrevia] = useState(false);
-  const [estadosLocales, setEstadosLocales] = useState({}); // proveedorId → { estado, etiqueta }
+  const [personalizadas, setPersonalizadas] = useState({}); // proveedorId → true (propia) | false (por defecto)
   const [toast, setToast] = useState({ show: false, msg: '', type: 'success' });
   const [arrastrando, setArrastrando] = useState(null);
   const peticionPrevia = useRef(0);
@@ -238,7 +216,7 @@ export default function PlantillasExportacion() {
 
   useEffect(() => {
     let vivo = true;
-    listarProveedoresActivos()
+    listarProveedoresParaPedido()
       .then((data) => {
         if (!vivo) return;
         setProveedores(data);
@@ -256,13 +234,14 @@ export default function PlantillasExportacion() {
       .then((data) => {
         if (!vivo) return;
         setForm(aFormulario(data));
-        setMeta({ version: data.version ?? 0, actualizadoEn: data.actualizadoEn, actualizadoPor: data.actualizadoPor });
+        setActualizadoEn(data.actualizadoEn ?? null);
+        setPersonalizadas((p) => ({ ...p, [proveedorId]: !!data.personalizada }));
         setHomologaciones(aHomologaciones(data));
       })
       .catch((err) => {
         if (!vivo) return;
         setForm(null);
-        setMeta(null);
+        setActualizadoEn(null);
         setHomologaciones([]);
         setError(mensajeError(err, 'No se pudo cargar la plantilla de este proveedor.'));
       })
@@ -308,7 +287,7 @@ export default function PlantillasExportacion() {
 
   const pendientes = homologaciones.filter((h) => !h.codigo.trim()).length;
   const problema = form ? problemaDeValidacion(form) : '';
-  const ocupado = !!guardando || cargando;
+  const ocupado = guardando || cargando;
 
   /* ── Acciones ── */
   const probar = async () => {
@@ -317,7 +296,7 @@ export default function PlantillasExportacion() {
     setCargandoPrevia(true);
     setErrorPrevia('');
     try {
-      const data = await vistaPreviaPlantilla(proveedorId, aCuerpo(form, homologaciones, null));
+      const data = await vistaPreviaPlantilla(proveedorId, aCuerpo(form, homologaciones));
       if (id === peticionPrevia.current) setPrevia(data);
     } catch (err) {
       if (id === peticionPrevia.current) {
@@ -329,37 +308,28 @@ export default function PlantillasExportacion() {
     }
   };
 
-  const guardar = async (estado) => {
+  const guardar = async () => {
     if (!form || problema) return;
-    setGuardando(estado);
+    setGuardando(true);
     setError('');
     try {
-      const data = await guardarPlantilla(proveedorId, aCuerpo(form, homologaciones, estado));
+      const data = await guardarPlantilla(proveedorId, aCuerpo(form, homologaciones));
       setForm(aFormulario(data));
-      setMeta({ version: data.version ?? 0, actualizadoEn: data.actualizadoEn, actualizadoPor: data.actualizadoPor });
+      setActualizadoEn(data.actualizadoEn ?? null);
+      setPersonalizadas((p) => ({ ...p, [proveedorId]: true }));
       setHomologaciones(aHomologaciones(data));
-      setEstadosLocales((e) => ({
-        ...e,
-        [proveedorId]: { estado: data.estado, etiqueta: `Plantilla v${data.version}` },
-      }));
-      setToast({
-        show: true,
-        msg: estado === 'ACTIVA' ? 'Plantilla activada.' : 'Borrador guardado.',
-        type: 'success',
-      });
+      setToast({ show: true, msg: 'Plantilla guardada.', type: 'success' });
     } catch (err) {
       setError(mensajeError(err, 'No se pudo guardar la plantilla.'));
     } finally {
-      setGuardando('');
+      setGuardando(false);
     }
   };
 
   const proveedor = proveedores.find((p) => p.id === proveedorId);
-  const ultimaColumna = letraColumna(Math.max((form?.modo === 'GENERAR_FILAS' ? form.columnas.length : 4) - 1, 0));
-  const filasTitulo = form ? Math.max(Number(form.filaEncabezado) - 1, 0) : 0;
-  const sustituir = (texto) => String(texto ?? '')
-    .replaceAll('{nombreComercial}', nombreComercial)
-    .replaceAll('{fecha}', new Date().toISOString().slice(0, 10));
+  const filaEncabezadoPrevia = form?.modo === 'RELLENAR_CATALOGO' ? Number(form.filaEncabezado) || 1 : 1;
+  const filasTitulo = form?.modo === 'RELLENAR_CATALOGO' ? Math.max((Number(form.filaEncabezado) || 1) - 1, 0) : 0;
+  const nombreArchivo = `Pedido_${(proveedor?.nombreComercial ?? proveedor?.nombre ?? 'proveedor').trim().replace(/[^\p{L}\p{N}]+/gu, '-')}_${new Date().toISOString().slice(0, 10)}.xlsx`;
 
   return (
     <AppLayout>
@@ -380,17 +350,8 @@ export default function PlantillasExportacion() {
             <button type="button" onClick={probar} disabled={!form || !!problema || cargandoPrevia || ocupado} className={botonSecundario}>
               <PlayIcon /> {cargandoPrevia ? 'Probando…' : 'Probar con un pedido'}
             </button>
-            <button type="button" onClick={() => guardar('BORRADOR')} disabled={!form || !!problema || ocupado} className={botonSecundario}>
-              {guardando === 'BORRADOR' ? 'Guardando…' : 'Guardar borrador'}
-            </button>
-            <button
-              type="button"
-              onClick={() => guardar('ACTIVA')}
-              disabled={!form || !!problema || ocupado}
-              title={pendientes > 0 ? `Se activará con ${pendientes} productos pendientes de homologar (FP-15 §2.18.1)` : undefined}
-              className={botonPrimario}
-            >
-              <CheckIcon /> {guardando === 'ACTIVA' ? 'Activando…' : 'Activar plantilla'}
+            <button type="button" onClick={guardar} disabled={!form || !!problema || ocupado} className={botonPrimario}>
+              <CheckIcon /> {guardando ? 'Guardando…' : 'Guardar plantilla'}
             </button>
           </div>
         </div>
@@ -423,11 +384,11 @@ export default function PlantillasExportacion() {
                 <p className="px-2 pt-1 pb-2 text-[10px] uppercase tracking-widest font-bold text-muted">Proveedores</p>
                 <ul className="flex flex-col gap-1">
                   {proveedores.map((p) => {
-                    const { estado, etiqueta } = estadoDeProveedor(p, estadosLocales);
+                    const personalizada = personalizadas[p.id];
                     const seleccionado = p.id === proveedorId;
-                    const subtitulo = estado === 'ACTIVA' ? `${etiqueta} · activa`
-                      : estado === 'BORRADOR' ? 'Borrador'
-                        : 'Sin plantilla';
+                    const nombre = p.nombreComercial ?? p.nombre;
+                    const subtitulo = personalizada === true ? 'Plantilla propia'
+                      : personalizada === false ? 'Sin plantilla' : ' ';
                     return (
                       <li key={p.id}>
                         <button
@@ -439,15 +400,15 @@ export default function PlantillasExportacion() {
                           }`}
                         >
                           <span className="w-9 h-9 rounded-full bg-surface text-xs font-bold text-muted flex items-center justify-center shrink-0">
-                            {iniciales(p.nombreComercial)}
+                            {iniciales(nombre)}
                           </span>
                           <span className="min-w-0 flex-1">
                             <span className={`block text-sm font-semibold truncate ${seleccionado ? 'text-primary' : 'text-ink'}`}>
-                              {p.nombreComercial}
+                              {nombre}
                             </span>
                             <span className="block text-xs text-muted truncate">{subtitulo}</span>
                           </span>
-                          <InsigniaEstado estado={estado} />
+                          <InsigniaEstado personalizada={personalizada} />
                         </button>
                       </li>
                     );
@@ -466,16 +427,13 @@ export default function PlantillasExportacion() {
               {form && !cargando && (
                 <>
                   <Tarjeta
-                    titulo={`Archivo · ${proveedor?.nombreComercial ?? ''}`}
-                    derecha={meta?.version > 0 && (
-                      <p className="text-xs text-muted sm:text-right">
-                        Última versión · v{meta.version} · {fechaCorta(meta.actualizadoEn)}
-                        {meta.actualizadoPor ? ` por ${meta.actualizadoPor}` : ''}
-                      </p>
+                    titulo={`Archivo · ${proveedor?.nombreComercial ?? proveedor?.nombre ?? ''}`}
+                    derecha={actualizadoEn && (
+                      <p className="text-xs text-muted sm:text-right">Última modificación · {fechaCorta(actualizadoEn)}</p>
                     )}
                   >
-                    <div className="px-6 pb-6 grid grid-cols-1 md:grid-cols-[auto_minmax(0,1fr)_14rem] gap-x-5 gap-y-4">
-                      <fieldset className="md:col-span-3" disabled={ocupado}>
+                    <div className="px-6 pb-6 flex flex-col gap-4">
+                      <fieldset disabled={ocupado}>
                         <legend className={labelClass}>Modo de exportación</legend>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           {MODOS.map((m) => {
@@ -503,73 +461,27 @@ export default function PlantillasExportacion() {
                         </div>
                       </fieldset>
 
-                      <div>
-                        <span className={labelClass} id="etiqueta-formato">Formato</span>
-                        <div role="group" aria-labelledby="etiqueta-formato" className="inline-flex gap-1 bg-surface rounded-xl p-1">
-                          {['XLSX', 'CSV'].map((f) => (
-                            <button
-                              key={f}
-                              type="button"
-                              aria-pressed={form.formato === f}
-                              onClick={() => cambiar({ formato: f })}
-                              className={`px-4 py-1.5 rounded-lg text-sm font-medium transition ${
-                                form.formato === f ? 'bg-white text-primary font-bold shadow-sm' : 'text-muted hover:text-ink'
-                              }`}
-                            >
-                              {f}
-                            </button>
-                          ))}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-4">
+                        <div>
+                          <span className={labelClass}>Nombre del archivo</span>
+                          <p className="rounded-xl bg-surface px-3 py-2.5 text-sm font-mono text-ink truncate" title={nombreArchivo}>
+                            {nombreArchivo}
+                          </p>
+                          <p className="text-xs text-muted mt-1.5">Lo pone el sistema: Pedido_&lt;proveedor&gt;_&lt;fecha&gt;.xlsx.</p>
                         </div>
-                      </div>
-                      <div>
-                        <label htmlFor="nombre-archivo" className={labelClass}>Nombre del archivo</label>
-                        <input
-                          id="nombre-archivo"
-                          value={form.nombreArchivo}
-                          onChange={(e) => cambiar({ nombreArchivo: e.target.value })}
-                          placeholder="Pedido_{nombreComercial}_{fecha}"
-                          className={`${inputClass} font-mono`}
-                        />
-                      </div>
-                      <div>
-                        <label htmlFor="nombre-hoja" className={labelClass}>Nombre de la hoja</label>
-                        <input
-                          id="nombre-hoja"
-                          value={form.nombreHoja}
-                          onChange={(e) => cambiar({ nombreHoja: e.target.value })}
-                          disabled={form.formato === 'CSV'}
-                          placeholder="Pedido"
-                          className={inputClass}
-                        />
-                      </div>
-
-                      <div className="md:col-span-2">
-                        <label htmlFor="titulo-archivo" className={labelClass}>Título (celdas combinadas)</label>
-                        <input
-                          id="titulo-archivo"
-                          value={form.titulo}
-                          onChange={(e) => cambiar({ titulo: e.target.value })}
-                          placeholder="Formato de pedido masivo — {nombreComercial}"
-                          className={inputClass}
-                        />
-                        <p className="text-xs text-primary mt-1.5">
-                          {filasTitulo > 0 ? `Rango A1:${ultimaColumna}${filasTitulo} · ` : 'Sin filas de título · '}
-                          usa {'{nombreComercial}'} y {'{fecha}'} como variables
-                        </p>
-                      </div>
-                      <div>
-                        <label htmlFor="fila-encabezado" className={labelClass}>Fila de encabezados</label>
-                        <input
-                          id="fila-encabezado"
-                          type="number"
-                          min={1}
-                          value={form.filaEncabezado}
-                          onChange={(e) => cambiar({ filaEncabezado: e.target.value })}
-                          className={inputClass}
-                        />
-                        <p className="text-xs text-primary mt-1.5">
-                          Los datos inician en la fila {(Number(form.filaEncabezado) || 1) + 1}
-                        </p>
+                        <div>
+                          <span className={labelClass}>Título del archivo</span>
+                          <p className="rounded-xl bg-surface px-3 py-2.5 text-sm text-ink truncate">
+                            {form.modo === 'RELLENAR_CATALOGO'
+                              ? `Formato de pedido masivo — ${nombreComercial}`
+                              : 'Sin título: la fila 1 son los encabezados'}
+                          </p>
+                          <p className="text-xs text-muted mt-1.5">
+                            {form.modo === 'RELLENAR_CATALOGO'
+                              ? 'Con el nombre comercial de tu distribuidora (celda A1 del archivo base).'
+                              : 'Los datos empiezan en la fila 2, una por cada producto del pedido.'}
+                          </p>
+                        </div>
                       </div>
                     </div>
                   </Tarjeta>
@@ -589,6 +501,20 @@ export default function PlantillasExportacion() {
                             placeholder="Vacío = catálogo estándar de Nutresa (templates/catalogo.xlsx)"
                             className={inputClass}
                           />
+                        </div>
+                        <div>
+                          <label htmlFor="fila-encabezado" className={labelClass}>Fila de encabezados</label>
+                          <input
+                            id="fila-encabezado"
+                            type="number"
+                            min={1}
+                            value={form.filaEncabezado}
+                            onChange={(e) => cambiar({ filaEncabezado: e.target.value })}
+                            className={inputClass}
+                          />
+                          <p className="text-xs text-primary mt-1.5">
+                            Los datos inician en la fila {(Number(form.filaEncabezado) || 1) + 1}
+                          </p>
                         </div>
                         <div>
                           <label htmlFor="enc-codigo" className={labelClass}>Encabezado del código</label>
@@ -741,25 +667,25 @@ export default function PlantillasExportacion() {
                               </tr>
                             </thead>
                             <tbody>
-                              {previa.filaEncabezado > 1 && (
+                              {filasTitulo > 0 && (
                                 <tr>
                                   <td className="border border-border bg-surface text-center text-muted px-2 py-2">
-                                    {previa.filaEncabezado > 2 ? `1–${previa.filaEncabezado - 1}` : '1'}
+                                    {filasTitulo > 1 ? `1–${filasTitulo}` : '1'}
                                   </td>
                                   <td colSpan={previa.encabezados.length} className="border border-border text-center font-bold text-ink px-2 py-3 text-sm">
-                                    {sustituir(previa.titulo)}
+                                    Formato de pedido masivo — {nombreComercial}
                                   </td>
                                 </tr>
                               )}
                               <tr>
-                                <td className="border border-border bg-surface text-center text-muted px-2 py-2">{previa.filaEncabezado}</td>
+                                <td className="border border-border bg-surface text-center text-muted px-2 py-2">{filaEncabezadoPrevia}</td>
                                 {previa.encabezados.map((e, i) => (
                                   <td key={i} className="border border-border font-bold text-ink px-2 py-2 whitespace-nowrap">{e}</td>
                                 ))}
                               </tr>
                               {previa.filas.map((fila, i) => (
                                 <tr key={i}>
-                                  <td className="border border-border bg-surface text-center text-muted px-2 py-2">{previa.filaEncabezado + 1 + i}</td>
+                                  <td className="border border-border bg-surface text-center text-muted px-2 py-2">{filaEncabezadoPrevia + 1 + i}</td>
                                   {fila.map((valor, j) => {
                                     const esCantidad = form.modo === 'GENERAR_FILAS'
                                       ? form.columnas[j]?.campo?.startsWith('CANTIDAD')
@@ -782,7 +708,7 @@ export default function PlantillasExportacion() {
                   {/* Homologación */}
                   <Tarjeta
                     titulo="Códigos de homologación"
-                    detalle="SKU de GELOX → código del proveedor"
+                    detalle="SKU de GELOX → código del proveedor. Un producto sin código se exporta igual, pero queda avisado."
                     derecha={(
                       <div className="flex items-center gap-3 flex-wrap">
                         <input
@@ -794,7 +720,7 @@ export default function PlantillasExportacion() {
                           className={`${inputClass} sm:w-56`}
                         />
                         {pendientes > 0 && (
-                          <span className="px-3 py-1 rounded-full text-xs font-semibold bg-error-bg text-error-fg whitespace-nowrap">
+                          <span className="px-3 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 whitespace-nowrap">
                             {pendientes} {pendientes === 1 ? 'pendiente' : 'pendientes'}
                           </span>
                         )}
@@ -826,12 +752,12 @@ export default function PlantillasExportacion() {
                                     onChange={(e) => cambiarCodigo(h.productoId, e.target.value)}
                                     aria-label={`Código de ${h.nombreProducto}`}
                                     placeholder="Sin código"
-                                    className={`${inputClass} ${pendiente ? 'border-danger/60 ring-1 ring-danger/20' : ''}`}
+                                    className={`${inputClass} ${pendiente ? 'border-amber-400' : ''}`}
                                   />
                                 </td>
                                 <td className="pl-2 pr-6 py-3">
                                   {pendiente ? (
-                                    <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-error-bg text-error-fg">Pendiente</span>
+                                    <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">Pendiente</span>
                                   ) : (
                                     <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-success-bg text-success-fg">Homologado</span>
                                   )}
@@ -843,9 +769,10 @@ export default function PlantillasExportacion() {
                       </table>
                     </div>
                     {pendientes > 0 && (
-                      <p className="mx-6 mb-6 mt-2 flex items-center gap-2 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-sm px-4 py-3">
+                      <p className="mx-6 mb-6 mt-2 flex items-center gap-2 rounded-xl bg-amber-50 text-amber-800 text-sm px-4 py-3">
                         <AlertIcon />
-                        Hay {pendientes} {pendientes === 1 ? 'producto' : 'productos'} sin código de homologación. La plantilla se puede activar; al exportar un pedido con estos productos se generará una advertencia para completarlos (FP-15 §2.18.1).
+                        Hay productos sin código. Puedes guardar la plantilla; al exportar un pedido esos productos
+                        salen igual y se te avisa cuáles faltan.
                       </p>
                     )}
                   </Tarjeta>
