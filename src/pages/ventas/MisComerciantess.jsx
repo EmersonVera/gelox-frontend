@@ -114,7 +114,7 @@ export default function MisComerciantess() {
         {cargando ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
             {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="bg-white rounded-[16px] h-[200px] animate-pulse border border-[#f5f5f4]" />
+              <div key={i} className="bg-white rounded-[16px] h-[260px] animate-pulse border border-[#f5f5f4]" />
             ))}
           </div>
         ) : (
@@ -122,8 +122,7 @@ export default function MisComerciantess() {
             {comerciantes.map(c => (
               <div
                 key={c.id}
-                onClick={() => navigate(`/ventas/comerciantes/${c.id}/informacion`, { state: { comerciante: c } })}
-                className="bg-white rounded-[16px] border border-[#f5f5f4] p-5 flex flex-col cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+                className="bg-white rounded-[16px] border border-[#f5f5f4] p-5 flex flex-col hover:shadow-md transition-all duration-200"
               >
                 {/* Badge estado */}
                 <div className="flex justify-end mb-2">
@@ -170,6 +169,26 @@ export default function MisComerciantess() {
                     Estado Diario
                   </span>
                   <span className={`w-2.5 h-2.5 rounded-full ${c.activo ? 'bg-[#16a34a]' : 'bg-[#d6d3d1]'}`} />
+                </div>
+
+                {/* Accesos: planillas y crédito (se apilan si la card es angosta) */}
+                <div className="flex flex-wrap gap-2 mt-auto pt-3">
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/ventas/comerciantes/${c.id}/informacion`, { state: { comerciante: c } })}
+                    aria-label={`Ver planillas de ${c.nombre}`}
+                    className="flex-1 bg-[#9e2016] hover:bg-[#c0392b] text-white font-display font-bold text-[13px] rounded-[8px] px-3 py-2 cursor-pointer transition-colors"
+                  >
+                    Planillas
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/ventas/comerciantes/${c.id}/credito`, { state: { comerciante: c } })}
+                    aria-label={`Ver crédito de ${c.nombre}`}
+                    className="flex-1 border border-[#9e2016] text-[#9e2016] hover:bg-[#fef2f2] font-display font-bold text-[13px] rounded-[8px] px-3 py-2 cursor-pointer transition-colors"
+                  >
+                    Crédito
+                  </button>
                 </div>
               </div>
             ))}

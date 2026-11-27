@@ -13,6 +13,7 @@ import Ajustes           from '../pages/components/Ajustes';
 /* ── Módulo Ventas ── */
 import MisComerciantess        from '../pages/ventas/MisComerciantess';
 import InformacionComerciante  from '../pages/ventas/InformacionComerciante';
+import CreditoComerciante      from '../pages/ventas/CreditoComerciante';
 import PlanillaDetalle         from '../pages/ventas/PlanillaDetalle';
 import ReporteVentasDia  from '../pages/ventas/ReporteVentasDia';
 
@@ -125,6 +126,7 @@ export default function AppRouter() {
           <Route path="/ventas/reportes"         element={<ReporteVentasDia />} />
           <Route path="/ventas/comerciantes"     element={<MisComerciantess />} />
           <Route path="/ventas/comerciantes/:id/informacion" element={<InformacionComerciante />} />
+          <Route path="/ventas/comerciantes/:id/credito"    element={<CreditoComerciante />} />
           <Route path="/ventas/planilla/:id"                element={<PlanillaDetalle />} />
           <Route path="/ventas/comerciantes/:id/planilla-hoy" element={<PlanillaDiaria />} />
          
