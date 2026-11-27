@@ -113,6 +113,25 @@ export default function PlanillaDetalle() {
     saldo:        liquidacionRecienCerrada?.saldo ?? datos?.saldo ?? Math.max(0, montoCobrado - efectivoRecibido),
     fechaLimite:  fechaLimiteNueva ?? liquidacionRecienCerrada?.fechaLimitePago ?? datos?.fechaLimitePago ?? null,
   };
+  /* RF66 — avisos de la liquidación (no impiden cerrarla).
+     Recién liquidada: advertencias [{ tipo, codigo, mensaje }] de POST /liquidar.
+     Planilla guardada: con MARGEN, los productos vendidos sin precio al público (items[].precioPublico)
+     no generan ganancia para el comerciante; se arma el mismo mensaje que da el backend.
+     Las planillas anteriores al esquema traen la ganancia en null: tienen su propio aviso. */
+  const avisosLiquidacion = (() => {
+    if (Array.isArray(liquidacionRecienCerrada?.advertencias)) {
+      return liquidacionRecienCerrada.advertencias.map((a) => a.mensaje ?? a.codigo ?? a.tipo).filter(Boolean);
+    }
+    if (liq.esquema !== 'MARGEN' || liq.ganancia == null) return [];
+    const sinPrecio = items
+      .filter((it) => (it.unidadesVendidas ?? ((it.unidadesDespachadas ?? 0) - (it.unidadesDevueltas ?? 0))) > 0)
+      .filter((it) => !(Number(it.precioPublico) > 0))
+      .map((it) => it.productoNombre ?? it.nombre ?? 'un producto');
+    return sinPrecio.length
+      ? [`Sin precio al público, no generan ganancia para el comerciante: ${sinPrecio.join(', ')}.`]
+      : [];
+  })();
+
   const estadoSaldo = liq.saldo > 0 && liq.fechaLimite
     ? estadoPlanilla({ saldo: liq.saldo, fechaLimitePago: liq.fechaLimite })
     : null;
@@ -364,9 +383,12 @@ export default function PlanillaDetalle() {
                     </div>
                   )}
                 </dl>
+                {avisosLiquidacion.map((m) => (
+                  <p key={m} className="mx-5 mb-3 px-3 py-2 rounded-[10px] bg-[#fffbeb] text-[#92400e] font-['Inter'] text-[12px]">{m}</p>
+                ))}
                 {liq.ganancia == null && (
                   <p className="px-5 pb-3 font-['Inter'] text-[11px] text-[#a8a29e]">
-                    Sin ganancia del comerciante registrada: la planilla no tiene precios al público o es anterior al esquema de liquidación.
+                    Planilla anterior al esquema de liquidación: no tiene la ganancia del comerciante registrada.
                   </p>
                 )}
                 {avisoProrroga && (

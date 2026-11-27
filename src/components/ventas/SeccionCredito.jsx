@@ -190,7 +190,7 @@ export default function SeccionCredito({ comercianteId, nombre }) {
             />
           </div>
         </Kpi>
-        <Kpi titulo="Cupo disponible" valor={formatoCOP(r.cupoDisponible)} detalle="Para nuevos despachos a crédito" tono={r.cupoDisponible > 0 ? 'verde' : 'rojo'} />
+        <Kpi titulo="Cupo disponible" valor={formatoCOP(r.cupoDisponible)} detalle="Para nuevos despachos" tono={r.cupoDisponible > 0 ? 'verde' : 'rojo'} />
         <Kpi
           titulo="Planillas vencidas"
           valor={r.vencidas.length ? `${r.vencidas.length} · ${formatoCOP(r.totalVencido)}` : '0'}
@@ -210,7 +210,7 @@ export default function SeccionCredito({ comercianteId, nombre }) {
         <div className={card}>
           <div className="px-5 py-4 border-b border-[#f5f5f4]">
             <h3 className="font-['Manrope'] font-bold text-[15px] text-[#1b1b1c]">Condiciones de crédito</h3>
-            <p className="font-['Inter'] text-[12px] text-[#a8a29e]">Aplican a los despachos a crédito de este comerciante</p>
+            <p className="font-['Inter'] text-[12px] text-[#a8a29e]">Aplican a los despachos de este comerciante</p>
           </div>
           <div className="px-5 py-4 flex flex-col gap-4">
             <div className="grid grid-cols-2 bg-[#f6f3f3] rounded-[10px] p-1" role="radiogroup" aria-label="Origen de la política">

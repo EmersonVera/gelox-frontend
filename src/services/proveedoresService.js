@@ -12,15 +12,15 @@ const BASE_CATEGORIAS = '/api/categorias';
 
 /*
  * Proveedor en las pantallas:
- *   { id, nombreComercial, razonSocial, nit (solo dígitos, sin DV), contactoNombre,
- *     contactoTelefono, contactoCorreo, tiempoEntregaDias (días hábiles),
+ *   { id, nombreComercial, nit (solo dígitos, sin DV), contactoNombre,
+ *     contactoTelefono, contactoCorreo, tiempoEntregaDias (días hábiles, 0 permitido),
  *     montoMinimo (COP), plantilla, activo, productosAsociados, createdAt }
  *
  * Backend (ProveedorDTO / ProveedorRequest, RF63):
  *   { id, nombre, nit, contactoNombre, telefono, correo, tiempoEntregaDias, diasHabiles,
- *     montoMinimoPedido, activo }
- * desdeApi / haciaApi traducen entre las dos formas. razonSocial, plantilla,
- * productosAsociados y createdAt aún no existen en el backend.
+ *     montoMinimoPedido, activo, productosAsociados, plantilla (nombre o null), createdAt }
+ * tiempoEntregaDias y montoMinimoPedido son obligatorios en el request (se envían siempre).
+ * desdeApi / haciaApi traducen entre las dos formas. El FP-15 no tiene razón social de proveedor.
  */
 
 const lista = (data) => (Array.isArray(data) ? data : (data?.content ?? []));

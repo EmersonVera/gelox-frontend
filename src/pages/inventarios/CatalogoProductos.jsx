@@ -107,8 +107,10 @@ export default function CatalogoProductos() {
     setCargando(true);
     setErrorProductos('');
     try {
-      // GET /api/catalogo/productos solo filtra por categoría (categoriaId) y pagina.
-      // Búsqueda, proveedor o stock: se traen todos (size grande) y se filtra y pagina en pantalla.
+      // GET /api/catalogo/productos filtra por categoriaId y, desde la corrección de la IT3, también
+      // por q, proveedorId y stock (bajo | medio | sin), con máximo 500 por página y orden por nombre.
+      // Con búsqueda, proveedor o stock se piden hasta 500 ya filtrados y se vuelve a filtrar y
+      // paginar en pantalla: así funciona igual con el backend que aún no tiene esos parámetros.
       const hayBusqueda = busqueda.trim().length > 0;
       const filtroLocal = hayBusqueda || !!proveedorFiltro || !!filtroStock;
       const params = new URLSearchParams({
@@ -116,6 +118,9 @@ export default function CatalogoProductos() {
         size: filtroLocal ? 500 : PAGE_SIZE,
       });
       if (categoriaSel) params.set('categoriaId', categoriaSel.id);
+      if (hayBusqueda) params.set('q', busqueda.trim());
+      if (proveedorFiltro) params.set('proveedorId', proveedorFiltro);
+      if (filtroStock) params.set('stock', filtroStock);
       const base = import.meta.env.VITE_API_BASE_URL ?? '';
       const res = await fetch(`${base}/api/catalogo/productos?${params}`, {
         headers: { Authorization: `Bearer ${token}` },

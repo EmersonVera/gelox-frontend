@@ -105,8 +105,11 @@ export default function PedidoRural() {
       try {
         const { data } = await api.get('/api/catalogo/productos', { params: { page: 0, size: 300 } });
         // RF32 — solo productos disponibles para la venta: precio > 0 y stock > 0
+        // unidadesPorCaja 0 = no se vende por caja (el catálogo lo guarda así al dejar de comprarse por caja)
         setProductos(Array.isArray(data.content)
-          ? data.content.filter((p) => Number(p.precioVenta) > 0 && Number(p.stockActual) > 0)
+          ? data.content
+            .filter((p) => Number(p.precioVenta) > 0 && Number(p.stockActual) > 0)
+            .map((p) => ({ ...p, unidadesPorCaja: Number(p.unidadesPorCaja) > 0 ? Number(p.unidadesPorCaja) : null }))
           : []);
       } catch (err) {
         setProductos([]);

@@ -30,7 +30,7 @@ export function listar({ q, activo } = {}) {
   const busqueda = normalizar(q);
   const digitos = soloDigitos(q);
   const coincide = (p) =>
-    [p.nombreComercial, p.razonSocial].some((campo) => normalizar(campo).includes(busqueda))
+    normalizar(p.nombreComercial).includes(busqueda)
     || (digitos.length > 0 && p.nit.includes(digitos));
   const lista = [...proveedores.values()]
     .filter((p) => activo == null || p.activo === activo)

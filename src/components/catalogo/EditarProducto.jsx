@@ -92,7 +92,7 @@ export default function EditarProducto({ producto, onClose, onSuccess }) {
     try {
       const fd = new FormData();
       fd.append('nombre',        data.nombre);
-      agregarMultimarca(fd, data);
+      agregarMultimarca(fd, data, { edicion: true });
       fd.append('precioVenta',   data.precioVenta);
       fd.append('precioCosto', data.precioCosto ?? 0);
       if (data.descripcion)         fd.append('descripcion', data.descripcion);

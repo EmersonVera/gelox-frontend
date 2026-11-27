@@ -90,7 +90,6 @@ export default function Proveedores() {
       .filter((p) => (filtro === 'activos' ? p.activo : filtro === 'inactivos' ? !p.activo : true))
       .filter((p) => !q
         || p.nombreComercial?.toLowerCase().includes(q)
-        || p.razonSocial?.toLowerCase().includes(q)
         || (digitos && String(p.nit).includes(digitos)));
   }, [lista, busqueda, filtro]);
 

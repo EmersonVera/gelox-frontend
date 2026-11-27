@@ -57,7 +57,7 @@ export function valoresMultimarca(producto) {
  * sku, codigoTecnico, marca, proveedorId, categoriaId, unidadBaseId, unidadesPorCaja,
  * factores (JSON [{ unidadOrigenId, factor }]) y unidadMedida.
  */
-export function agregarMultimarca(fd, data) {
+export function agregarMultimarca(fd, data, { edicion = false } = {}) {
   const unidad = camposUnidad(data);
   fd.append('sku', data.sku.trim());
   // Al crear, el backend exige codigoTecnico: viaja el mismo SKU.
@@ -69,7 +69,9 @@ export function agregarMultimarca(fd, data) {
   if (data.categoria) fd.append('categoria', data.categoria.toUpperCase());
   fd.append('unidadMedida', unidad.unidadMedida);
   if (unidad.unidadBaseId) fd.append('unidadBaseId', unidad.unidadBaseId);
+  // Al editar, una compra que no es por caja envía 0: si se omite, el backend conserva el factor anterior.
   if (unidad.unidadesPorCaja != null) fd.append('unidadesPorCaja', unidad.unidadesPorCaja);
+  else if (edicion) fd.append('unidadesPorCaja', 0);
   if (unidad.factores) fd.append('factores', JSON.stringify(unidad.factores));
 }
 
