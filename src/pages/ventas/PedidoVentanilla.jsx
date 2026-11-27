@@ -137,7 +137,8 @@ export default function PedidoVentanilla() {
           precioVenta:   Number(p.precioUnitario),
           stockActual:   Number(p.stock),
           disponible:    p.disponible,
-          unidadesPorCaja: p.unidadesPorCaja ?? null,
+          // 0 = no se vende por caja (el catálogo lo guarda así al dejar de comprarse por caja)
+          unidadesPorCaja: Number(p.unidadesPorCaja) > 0 ? Number(p.unidadesPorCaja) : null,
         }));
         setProductos(lista);
       })

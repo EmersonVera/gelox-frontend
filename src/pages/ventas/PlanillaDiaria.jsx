@@ -499,7 +499,7 @@ export default function PlanillaDiaria() {
         const detalle = normalizarAdvertencias(data.advertencias ?? data.motivos).map(a => a.mensaje);
         setAvisoDespacho({
           tipo:     'BLOQUEADO',
-          titulo:   'Despacho a crédito bloqueado',
+          titulo:   'Despacho bloqueado',
           mensajes: [
             data.error ?? data.mensaje ?? `${comerciante.nombre} tiene el crédito bloqueado por su política ante vencimiento.`,
             ...detalle,
@@ -743,7 +743,7 @@ export default function PlanillaDiaria() {
               <>
                 {comerciante.nombre} tiene <strong>{creditoResumen.vencidas.length} planilla{creditoResumen.vencidas.length === 1 ? '' : 's'} vencida{creditoResumen.vencidas.length === 1 ? '' : 's'} por {formatCOP(creditoResumen.totalVencido)}</strong>.{' '}
                 {credito.politica === 'BLOQUEAR'
-                  ? 'Su política bloquea los despachos a crédito hasta que se ponga al día.'
+                  ? 'Su política no permite crear el despacho mientras tenga planillas vencidas.'
                   : 'Su política permite despachar con alerta; el saldo de esta planilla se sumará a su deuda.'}
               </>
             ) : (

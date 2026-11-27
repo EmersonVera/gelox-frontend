@@ -59,16 +59,30 @@ export function iniciales(nombre) {
     .join('') || '?';
 }
 
+/**
+ * El backend manda LocalDate («2026-11-19») y LocalDateTime («2026-11-19T10:30:00») sin zona.
+ * new Date('2026-11-19') se lee como UTC y en Colombia mostraría el 18: una fecha sola se arma en hora local.
+ */
+function aFecha(iso) {
+  if (iso instanceof Date) return iso;
+  const s = String(iso);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    const [y, m, d] = s.split('-').map(Number);
+    return new Date(y, m - 1, d);
+  }
+  return new Date(s);
+}
+
 export function formatoFecha(iso) {
   if (!iso) return '—';
-  return new Intl.DateTimeFormat('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(iso));
+  return new Intl.DateTimeFormat('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(aFecha(iso));
 }
 
 export function formatoFechaHora(iso) {
   if (!iso) return '—';
   return new Intl.DateTimeFormat('es-CO', {
     day: '2-digit', month: '2-digit', year: 'numeric', hour: 'numeric', minute: '2-digit',
-  }).format(new Date(iso));
+  }).format(aFecha(iso));
 }
 
 /* ══════════ Planes, cuotas y consumo (RF69, RF70) ══════════ */
@@ -84,6 +98,15 @@ export const CUOTAS = [
   { campo: 'maxAlmacenamientoMb', uso: 'almacenamientoMb', label: 'Almacenamiento',   columna: 'Almacenamiento', mb: true },
   { campo: 'maxLlamadasIaMes',    uso: 'llamadasIaMes',    label: 'Llamadas IA',      columna: 'Llamadas IA / mes' },
 ];
+
+/** TipoCuota del backend (409 y advertencias: { cuota: 'USUARIOS', … }) → clave de uso. */
+export const CLAVE_CUOTA = {
+  USUARIOS: 'usuarios',
+  PRODUCTOS: 'productos',
+  COMERCIANTES: 'comerciantes',
+  ALMACENAMIENTO_MB: 'almacenamientoMb',
+  LLAMADAS_IA_MES: 'llamadasIaMes',
+};
 
 /** A partir de este porcentaje de uso una cuota se marca como «cerca del límite». */
 export const UMBRAL_CUOTA = 80;
@@ -174,6 +197,7 @@ export const ACCIONES_AUDITORIA = {
   SESION_CERRAR:                 { label: 'Cierre de sesión',          tono: 'neu' },
   CONTRASENA_CAMBIAR:            { label: 'Cambio de contraseña',      tono: 'neu' },
   ACCESO_BLOQUEADO:              { label: 'Acceso bloqueado',          tono: 'sus' },
+  TOKEN_INVALIDO:                { label: 'Token inválido',            tono: 'sus' },
   PLANILLA_CAMBIAR_FECHA_LIMITE: { label: 'Prórroga de fecha límite',  tono: 'neu' },
 };
 

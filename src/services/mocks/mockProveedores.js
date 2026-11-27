@@ -30,7 +30,7 @@ export function listar({ q, activo } = {}) {
   const busqueda = normalizar(q);
   const digitos = soloDigitos(q);
   const coincide = (p) =>
-    [p.nombreComercial, p.razonSocial].some((campo) => normalizar(campo).includes(busqueda))
+    normalizar(p.nombreComercial).includes(busqueda)
     || (digitos.length > 0 && p.nit.includes(digitos));
   const lista = [...proveedores.values()]
     .filter((p) => activo == null || p.activo === activo)
@@ -81,6 +81,20 @@ export function cambiarEstado(id, activo) {
   if (!p) return Promise.reject(errorHttp(404, 'Proveedor no encontrado'));
   p.activo = !!activo;
   return esperar(p);
+}
+
+/* ── Unidades de medida (UnidadMedidaDTO) ── */
+
+const UNIDADES = [
+  { id: 'd0a1b2c3-0000-4000-8000-000000000001', codigo: 'UN',  nombre: 'Unidad' },
+  { id: 'd0a1b2c3-0000-4000-8000-000000000002', codigo: 'CJ',  nombre: 'Caja' },
+  { id: 'd0a1b2c3-0000-4000-8000-000000000003', codigo: 'BOL', nombre: 'Bolsa' },
+  { id: 'd0a1b2c3-0000-4000-8000-000000000004', codigo: 'PC',  nombre: 'Paquete' },
+  { id: 'd0a1b2c3-0000-4000-8000-000000000005', codigo: 'L',   nombre: 'Litro' },
+];
+
+export function listarUnidades() {
+  return esperar(UNIDADES);
 }
 
 /* ── Categorías propias ── */

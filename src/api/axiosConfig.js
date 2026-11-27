@@ -62,7 +62,7 @@ api.interceptors.response.use(
 
 // Solo desarrollo con mock: geloxSimularBloqueo('DISTRIBUIDORA_SUSPENDIDA') en la consola
 // fuerza un 403 que pasa por el interceptor de arriba (ver mocks/mockPlataforma.js).
-if (import.meta.env.DEV && import.meta.env.VITE_USAR_MOCK_IT2 !== 'false') {
+if (import.meta.env.DEV && import.meta.env.VITE_USAR_MOCK_IT2 === 'true') {
   import('../services/mocks/mockPlataforma').then(({ instalarSimuladorBloqueo }) => instalarSimuladorBloqueo(api));
 }
 

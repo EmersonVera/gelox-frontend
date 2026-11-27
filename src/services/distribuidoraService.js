@@ -3,8 +3,8 @@ import * as mock from './mocks/mockIdentidad';
 
 // El backend de identidad y landing por subdominio (T119) aún no está integrado:
 // por ahora las funciones responden con datos simulados (ver mocks/mockIdentidad.js).
-// Pasar al backend real es poner VITE_USAR_MOCK_IT2=false en el .env, sin tocar código.
-export const USAR_MOCK = import.meta.env.VITE_USAR_MOCK_IT2 !== 'false';
+// Los datos simulados se activan con VITE_USAR_MOCK_IT2=true; sin la variable se usa el backend.
+export const USAR_MOCK = import.meta.env.VITE_USAR_MOCK_IT2 === 'true';
 
 /* ── RF60 — Identidad visual de la distribuidora del usuario ── */
 

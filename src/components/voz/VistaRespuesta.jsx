@@ -51,9 +51,26 @@ function VistaNavegacion({ datos, textoRespuesta }) {
  * - MODIFICAR_PEDIDO (T48-FE6, RF53): VistaModificarPedido.
  * - CONSULTAR_RECOMENDACION / DECIDIR_RECOMENDACION (RF55): VistaRecomendacion.
  * - NAVEGACION: redirige dinámicamente a la pestaña solicitada por voz.
+ *
+ * respuesta.aviso (RF70, POST /api/voz/interpretar): texto o null, p. ej. la cuota de IA del plan
+ * agotada. Se muestra arriba de cualquier tipo de respuesta.
  */
-export default function VistaRespuesta({ respuesta, onConfirmar, onCancelar, onResponder }) {
-  if (!respuesta) return null;
+export default function VistaRespuesta(props) {
+  if (!props.respuesta) return null;
+  const { aviso } = props.respuesta;
+  if (!aviso) return <ContenidoRespuesta {...props} />;
+  return (
+    <div className="flex flex-col gap-2">
+      <div role="status" className="flex items-start gap-2 px-3 py-2 rounded-xl bg-[#fffbeb] border border-[#fcd34d] text-[12px] text-[#92400e] leading-snug">
+        <svg width="14" height="14" className="shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
+        <span>{aviso}</span>
+      </div>
+      <ContenidoRespuesta {...props} />
+    </div>
+  );
+}
+
+function ContenidoRespuesta({ respuesta, onConfirmar, onCancelar, onResponder }) {
 
   const { intencion, datos, textoRespuesta, requiereConfirmacion, expiraEnSegundos, ok } = respuesta;
 

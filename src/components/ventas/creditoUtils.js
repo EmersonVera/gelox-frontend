@@ -2,14 +2,14 @@
 
 export const POLITICAS_VENCIMIENTO = {
   BLOQUEAR: {
-    label: 'Bloquear nuevos despachos a crédito',
-    corto: 'Bloquear al vencer',
-    descripcion: 'El comerciante solo puede recibir mercancía de contado hasta ponerse al día.',
+    label: 'Bloquear nuevos despachos',
+    corto: 'Bloquear',
+    descripcion: 'Si el comerciante supera el cupo o tiene planillas vencidas, no se puede crear su despacho.',
   },
   SOLO_ALERTA: {
     label: 'Permitir despacho con alerta',
     corto: 'Solo alerta',
-    descripcion: 'El Encargado de Ventas ve una alerta al despachar; el Gerente recibe una notificación.',
+    descripcion: 'Si el comerciante supera el cupo o tiene planillas vencidas, el despacho se crea y el Encargado de Ventas ve una alerta.',
   },
 };
 
@@ -142,7 +142,8 @@ const aCentavos = (n) => Math.round((Number(n) || 0) * 100);
  *   Un precio público nulo o 0 significa "sin precio al público": se usa el precio comerciante.
  *   totalPublico  = Σ vendidas × precio público (lo que vendió el comerciante)
  *   MARGEN        montoCobrado = Σ vendidas × precio comerciante, siempre
- *                 ganancia = max(totalPublico − montoCobrado, 0); null si ninguna línea tiene precio público
+ *                 ganancia = max(totalPublico − montoCobrado, 0); un producto sin precio al público
+ *                 aporta 0 (FP-15 §2.17.2) y sinPrecioPublico avisa que la ganancia puede quedar corta
  *   COMISION      ganancia = totalPublico × valor %, a 2 decimales (HALF_UP), entre 0 y totalPublico
  *   TARIFA_FIJA   ganancia = min(valor, totalPublico) si se vendió al menos 1 unidad; si no, 0
  *   En COMISION y TARIFA_FIJA, montoCobrado = totalPublico − ganancia.
@@ -152,14 +153,12 @@ export function calcularLiquidacion(lineas, esquema) {
   let publico = 0;      // centavos
   let comerciante = 0;  // centavos
   let unidades = 0;
-  let hayPrecioPublico = false;
   let sinPrecioPublico = false;
   for (const l of lineas) {
     const vendidas = Math.max(0, Number(l.vendidas) || 0);
     const pc = aCentavos(l.precioComerciante);
     const pvp = aCentavos(l.precioPublico);
-    if (pvp > 0) hayPrecioPublico = true;
-    else if (vendidas > 0) sinPrecioPublico = true;
+    if (pvp <= 0 && vendidas > 0) sinPrecioPublico = true;
     unidades += vendidas;
     comerciante += vendidas * pc;
     publico += vendidas * (pvp > 0 ? pvp : pc);
@@ -175,7 +174,7 @@ export function calcularLiquidacion(lineas, esquema) {
     ganancia = unidades > 0 ? entreCeroYTotal(aCentavos(esquema?.valor)) : 0;
     cobrado = publico - ganancia;
   } else {
-    ganancia = hayPrecioPublico ? Math.max(0, publico - comerciante) : null;
+    ganancia = Math.max(0, publico - comerciante);
     cobrado = comerciante;
   }
   return {
@@ -183,7 +182,7 @@ export function calcularLiquidacion(lineas, esquema) {
     valor: esquema?.valor ?? null,
     unidades,
     totalPublico: publico / 100,
-    ganancia: ganancia == null ? null : ganancia / 100,
+    ganancia: ganancia / 100,
     montoCobrado: cobrado / 100,
     sinPrecioPublico,
   };

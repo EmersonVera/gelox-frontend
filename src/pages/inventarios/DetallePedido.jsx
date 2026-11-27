@@ -175,7 +175,7 @@ export default function DetallePedido() {
           ) : (
             pedido.items.map(item => {
               // cantidadRecibida ya está en unidades totales (backend convierte cajas×upC + unidades)
-              const upC        = item.unidadesPorCaja ?? 1;
+              const upC        = (Number(item.unidadesPorCaja) > 0 ? Number(item.unidadesPorCaja) : 1); // 0 = no se compra por caja
               const recibida   = item.cantidadRecibida ?? 0;
               const solicitada = (item.cantidadCajas ?? 0) * upC + (item.cantidadUnidades ?? 0);
               const dif        = recibida - solicitada;

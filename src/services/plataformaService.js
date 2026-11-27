@@ -4,8 +4,8 @@ import * as mock from './mocks/mockPlataforma';
 // Panel del Superadministrador (RF58, RF59, RF69, RF70, RF71). Mientras el backend de
 // plataforma (T117, T185, T191) no esté desplegado, las funciones responden con datos simulados
 // (ver mocks/mockPlataforma.js). Pasar al backend real es poner
-// VITE_USAR_MOCK_IT2=false en el .env, sin tocar código.
-export const USAR_MOCK = import.meta.env.VITE_USAR_MOCK_IT2 !== 'false';
+// VITE_USAR_MOCK_IT2=true activa los datos simulados; sin la variable se usa el backend.
+export const USAR_MOCK = import.meta.env.VITE_USAR_MOCK_IT2 === 'true';
 
 const BASE = '/api/plataforma/distribuidoras';
 

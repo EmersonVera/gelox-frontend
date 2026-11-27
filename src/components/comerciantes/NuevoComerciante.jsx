@@ -3,7 +3,8 @@ import { useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useAuth } from '../../context/AuthContext';
 import CustomSelect from '../ui/CustomSelect';
-import { errorDeRespuesta, mensajeErrorApi } from '../../utils/errores';
+import { errorDeRespuesta, esCuotaAlcanzada, mensajeErrorApi } from '../../utils/errores';
+import ModalCuotaAlcanzada from '../ui/ModalCuotaAlcanzada';
 
 const MUNICIPIOS = ['Ocaña', 'Cúcuta', 'Villa del Rosario', 'Los Patios', 'El Zulia', 'Tibú', 'Otro'];
 const TALLAS = ['S', 'M', 'L', 'XL'];
@@ -29,6 +30,7 @@ export default function NuevoComerciante({ onClose, onSuccess }) {
   const [guardando, setGuardando] = useState(false);
   const [error, setError]         = useState('');
   const [isClosing, setIsClosing] = useState(false);
+  const [cuota, setCuota]         = useState(null); // error del 409 de cuota del plan
   const inputFileRef = useRef();
 
   const handleClose = () => {
@@ -82,8 +84,9 @@ export default function NuevoComerciante({ onClose, onSuccess }) {
       }
       onSuccess('¡Comerciante creado exitosamente!');
     } catch (err) {
+      // RF70 — 409 de cuota: modal con { cuota, limite, usado }; el formulario se conserva.
+      if (esCuotaAlcanzada(err)) { setCuota(err); return; }
       // fetch sin respuesta (red caída) no trae response: se muestra su propio mensaje.
-      // Un 409 de cuota (RF70) muestra «Cuota del plan alcanzada».
       setError(err?.response ? mensajeErrorApi(err, 'Error al guardar el comerciante.', 'comerciantes') : err.message);
     } finally {
       setGuardando(false);
@@ -324,6 +327,9 @@ export default function NuevoComerciante({ onClose, onSuccess }) {
           </div>
         </form>
       </div>
+      {cuota && (
+        <ModalCuotaAlcanzada error={cuota} recurso="comerciantes" nombre={form.nombre} onClose={() => setCuota(null)} />
+      )}
     </div>,
     document.body
   );

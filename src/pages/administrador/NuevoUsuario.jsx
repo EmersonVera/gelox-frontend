@@ -10,7 +10,8 @@ import {
 } from '../../components/administrador/usuariosUtils';
 import { useIdentidad } from '../../context/IdentidadContext';
 import { crearUsuario } from '../../services/usuariosService';
-import { esCuotaAlcanzada, mensajeCuota } from '../../utils/errores';
+import { esCuotaAlcanzada } from '../../utils/errores';
+import ModalCuotaAlcanzada from '../../components/ui/ModalCuotaAlcanzada';
 
 /* ── Icons ── */
 function ChevronLeftIcon() {
@@ -83,6 +84,7 @@ export default function NuevoUsuario() {
   const [foto, setFoto] = useState(null);
   const [fotoPreview, setFotoPreview] = useState(null);
   const [toast, setToast] = useState({ show: false, msg: '', type: 'success' });
+  const [cuota, setCuota] = useState(null); // { error, nombre } — 409 de cuota del plan
   const fileRef = useRef(null);
 
   const {
@@ -127,7 +129,7 @@ export default function NuevoUsuario() {
     } catch (err) {
       // 409 de cuota (RF70): el plan no admite más usuarios; no es un error de un campo.
       if (esCuotaAlcanzada(err)) {
-        setToast({ show: true, msg: mensajeCuota('usuarios', err), type: 'error' });
+        setCuota({ error: err, nombre: data.nombre });
         return;
       }
       const msg = mensajeError(err, 'Error al crear el usuario. Intenta de nuevo.');
@@ -360,6 +362,16 @@ export default function NuevoUsuario() {
       </div>
 
       {/* La key monta un aviso nuevo por mensaje: SuccessToast conserva el onClose con el que se abrió. */}
+      {cuota && (
+        <ModalCuotaAlcanzada
+          error={cuota.error}
+          recurso="usuarios"
+          nombre={cuota.nombre}
+          accion={{ label: 'Deshabilitar un usuario', onClick: () => navigate('/usuarios') }}
+          onClose={() => setCuota(null)}
+        />
+      )}
+
       <SuccessToast
         key={`${toast.type}-${toast.msg}`}
         message={toast.msg}

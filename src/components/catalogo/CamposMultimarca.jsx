@@ -4,9 +4,11 @@
 import { useEffect, useState } from 'react';
 import { Controller } from 'react-hook-form';
 import CustomSelect from '../ui/CustomSelect';
-import { listarProveedoresActivos, listarCategorias, crearCategoria } from '../../services/proveedoresService';
+import {
+  listarProveedoresActivos, listarCategorias, crearCategoria, listarUnidades,
+} from '../../services/proveedoresService';
 import { mensajeError, formatoCOP } from '../inventarios/proveedoresUtils';
-import { UNIDADES_COMPRA, UNIDADES_VENTA } from './unidadesUtils';
+import { UNIDADES_COMPRA, UNIDADES_VENTA, infoCompra, infoVenta } from './unidadesUtils';
 
 const inputClass = "bg-[#f6f3f3] border-none rounded-[8px] px-4 py-3 font-['Inter'] text-[16px] text-[#1b1b1c] outline-none focus:ring-2 focus:ring-[#9e2016]/20 w-full";
 const labelClass = "font-['Inter'] font-semibold text-[11px] uppercase tracking-[0.55px] text-[#1b1b1c] mb-2 block";
@@ -18,6 +20,7 @@ const normalizar = (t) => String(t ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '
 export default function CamposMultimarca({ register, control, errors, watch, setValue }) {
   const [proveedores, setProveedores] = useState([]);
   const [categorias, setCategorias]   = useState([]);
+  const [unidades, setUnidades]       = useState([]);   // GET /api/unidades: { id, codigo, nombre }
   const [errorCarga, setErrorCarga]   = useState('');
   const [creando, setCreando]         = useState(false);
   const [nuevaCategoria, setNuevaCategoria] = useState('');
@@ -42,8 +45,27 @@ export default function CamposMultimarca({ register, control, errors, watch, set
         setCategorias(cats);
       })
       .catch((err) => { if (vivo) setErrorCarga(mensajeError(err, 'No se pudieron cargar los proveedores y categorías.')); });
+    listarUnidades()
+      .then((lista) => { if (vivo) setUnidades(lista); })
+      .catch(() => { /* sin unidades: se usan los códigos conocidos y la unidad base por defecto (UN) */ });
     return () => { vivo = false; };
   }, []);
+
+  // El backend recibe ids (unidadBaseId y factores[].unidadOrigenId): se toman del código elegido.
+  useEffect(() => {
+    if (unidades.length === 0) return;
+    const idDe = (codigo) => unidades.find((u) => String(u.codigo).toUpperCase() === String(codigo).toUpperCase())?.id ?? '';
+    setValue('unidadCompraId', idDe(unidadCompra));
+    setValue('unidadVentaId', idDe(unidadVenta));
+  }, [unidades, unidadCompra, unidadVenta, setValue]);
+
+  const opcionesCompra = unidades.length
+    ? unidades.map((u) => ({ value: String(u.codigo).toUpperCase(), label: infoCompra(u.codigo, u.nombre).label }))
+    : UNIDADES_COMPRA.map(({ value, label }) => ({ value, label }));
+  const opcionesVenta = unidades.length
+    ? unidades.filter((u) => String(u.codigo).toUpperCase() !== 'CJ')
+      .map((u) => ({ value: String(u.codigo).toUpperCase(), label: infoVenta(u.codigo, u.nombre).label }))
+    : UNIDADES_VENTA.map(({ value, label }) => ({ value, label }));
 
   // Productos anteriores solo traen el nombre de la categoría: se enlaza con la categoría propia.
   useEffect(() => {
@@ -79,9 +101,9 @@ export default function CamposMultimarca({ register, control, errors, watch, set
     }
   };
 
-  const compra = UNIDADES_COMPRA.find((u) => u.value === unidadCompra) ?? UNIDADES_COMPRA[0];
-  const venta  = UNIDADES_VENTA.find((u) => u.value === unidadVenta) ?? UNIDADES_VENTA[0];
-  const agrupa = unidadCompra !== 'UN';
+  const compra = infoCompra(unidadCompra, unidades.find((u) => u.codigo === unidadCompra)?.nombre);
+  const venta  = infoVenta(unidadVenta, unidades.find((u) => u.codigo === unidadVenta)?.nombre);
+  const agrupa = unidadCompra !== 'UN' && unidadCompra !== unidadVenta;
   const factorEfectivo = agrupa ? factor : 1;
 
   // Margen: lo que se vende con una presentación frente a lo que cuesta.
@@ -111,7 +133,7 @@ export default function CamposMultimarca({ register, control, errors, watch, set
           <input {...register('codigoProveedor')} placeholder="1047212" className={`${inputClass} font-mono`} />
           {errors.codigoProveedor
             ? <p className={errorClass}>{errors.codigoProveedor.message}</p>
-            : <p className={ayudaClass}>Se usa en la plantilla de exportación.</p>}
+            : <p className={ayudaClass}>Se guarda como código de homologación del proveedor y sale en su plantilla de exportación.</p>}
         </div>
       </div>
 
@@ -229,7 +251,7 @@ export default function CamposMultimarca({ register, control, errors, watch, set
                     field.onChange(v);
                     if (v === 'UN') setValue('factorConversion', 1, { shouldValidate: true });
                   }}
-                  options={UNIDADES_COMPRA.map(({ value, label }) => ({ value, label }))}
+                  options={opcionesCompra}
                 />
               )}
             />
@@ -254,7 +276,7 @@ export default function CamposMultimarca({ register, control, errors, watch, set
                 <CustomSelect
                   value={field.value}
                   onChange={field.onChange}
-                  options={UNIDADES_VENTA.map(({ value, label }) => ({ value, label }))}
+                  options={opcionesVenta}
                 />
               )}
             />

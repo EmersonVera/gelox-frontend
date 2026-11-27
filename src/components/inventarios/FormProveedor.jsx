@@ -11,7 +11,6 @@ import { calcularDV, formatoNitSinDV, soloDigitos, mensajeError, formatoFechaLar
 
 const schema = yup.object({
   nombreComercial:  yup.string().trim().required('El nombre comercial es obligatorio'),
-  razonSocial:      yup.string().trim(),
   nit:              yup.string()
     .transform((v) => soloDigitos(v))
     .required('El NIT es obligatorio')
@@ -21,7 +20,7 @@ const schema = yup.object({
     .test('telefono', 'Teléfono no válido', (v) => !v || /^\d{7,10}$/.test(soloDigitos(v))),
   contactoCorreo:   yup.string().trim().email('Correo no válido'),
   tiempoEntregaDias: yup.number().typeError('Ingresa un número')
-    .integer('Debe ser un número entero').min(1, 'Mínimo 1 día').max(60, 'Máximo 60 días')
+    .integer('Debe ser un número entero').min(0, 'No puede ser negativo').max(60, 'Máximo 60 días')
     .required('El tiempo de entrega es obligatorio'),
   montoMinimo:      yup.number().typeError('Ingresa un número').min(0, 'No puede ser negativo')
     .required('El monto mínimo es obligatorio'),
@@ -29,18 +28,17 @@ const schema = yup.object({
 });
 
 const VACIO = {
-  nombreComercial: '', razonSocial: '', nit: '', contactoNombre: '', contactoTelefono: '',
+  nombreComercial: '', nit: '', contactoNombre: '', contactoTelefono: '',
   contactoCorreo: '', tiempoEntregaDias: 3, montoMinimo: 0, activo: true,
 };
 
 const valoresDe = (p) => (p ? {
   nombreComercial:   p.nombreComercial ?? '',
-  razonSocial:       p.razonSocial ?? '',
   nit:               formatoNitSinDV(p.nit),
   contactoNombre:    p.contactoNombre ?? '',
   contactoTelefono:  p.contactoTelefono ?? '',
   contactoCorreo:    p.contactoCorreo ?? '',
-  tiempoEntregaDias: p.tiempoEntregaDias ?? 1,
+  tiempoEntregaDias: p.tiempoEntregaDias ?? 0,
   montoMinimo:       p.montoMinimo ?? 0,
   activo:            p.activo !== false,
 } : VACIO);
@@ -147,10 +145,6 @@ export default function FormProveedor({ proveedor, onCancelar, onGuardado }) {
           {errors.nombreComercial && <p className={errorClass}>{errors.nombreComercial.message}</p>}
         </div>
         <div>
-          <label className={labelClass}>Razón social</label>
-          <input {...register('razonSocial')} placeholder="Ej. Colombina S.A." className={inputClass} />
-        </div>
-        <div>
           <label className={labelClass}>NIT *</label>
           <div className="relative">
             <input
@@ -199,7 +193,7 @@ export default function FormProveedor({ proveedor, onCancelar, onGuardado }) {
                 const n = Number(field.value) || 0;
                 return (
                   <div className={`flex items-center border rounded-xl bg-white ${errors.tiempoEntregaDias ? 'border-[#dc2626]' : 'border-border'}`}>
-                    <button type="button" onClick={() => field.onChange(Math.max(1, n - 1))} className="w-9 h-10 text-muted hover:text-ink" aria-label="Menos días">−</button>
+                    <button type="button" onClick={() => field.onChange(Math.max(0, n - 1))} className="w-9 h-10 text-muted hover:text-ink" aria-label="Menos días">−</button>
                     <input
                       value={field.value}
                       onChange={(e) => field.onChange(soloDigitos(e.target.value))}

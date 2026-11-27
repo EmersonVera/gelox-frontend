@@ -139,7 +139,7 @@ export default function ReportePedido() {
             // Desglose recibido: sumar cajas y unidades deducidas por ítem usando upC
             let totalCajasR = 0, totalUnidadesR = 0;
             items.forEach(item => {
-              const upC = item.unidadesPorCaja ?? 1;
+              const upC = (Number(item.unidadesPorCaja) > 0 ? Number(item.unidadesPorCaja) : 1); // 0 = no se compra por caja
               const rec = item.cantidadRecibida ?? 0;
               if (upC > 1) {
                 totalCajasR    += Math.floor(rec / upC);
@@ -151,12 +151,12 @@ export default function ReportePedido() {
 
             // Comparar en unidades reales: recibida vs cajas×upC + unidades
             const tieneFaltante = items.some(item => {
-              const upC = item.unidadesPorCaja ?? 1;
+              const upC = (Number(item.unidadesPorCaja) > 0 ? Number(item.unidadesPorCaja) : 1); // 0 = no se compra por caja
               const sol = (item.cantidadCajas ?? 0) * upC + (item.cantidadUnidades ?? 0);
               return (item.cantidadRecibida ?? 0) < sol;
             });
             const tieneSobrante = items.some(item => {
-              const upC = item.unidadesPorCaja ?? 1;
+              const upC = (Number(item.unidadesPorCaja) > 0 ? Number(item.unidadesPorCaja) : 1); // 0 = no se compra por caja
               const sol = (item.cantidadCajas ?? 0) * upC + (item.cantidadUnidades ?? 0);
               return (item.cantidadRecibida ?? 0) > sol;
             });

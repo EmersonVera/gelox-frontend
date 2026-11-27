@@ -22,11 +22,6 @@ export async function getComerciantes() {
   return data;
 }
 
-export async function getPlanillaActiva(comercianteId) {
-  const { data } = await api.get(`/api/planillas/activa?comercianteId=${comercianteId}`);
-  return data; // null si no existe planilla abierta hoy
-}
-
 export async function registrarDespacho(payload) {
   // body: { comercianteId, fecha, items: [{ productoId, cantidad, precioUnitario }] }
   const { data } = await api.post('/api/planillas/despacho', payload);
@@ -39,13 +34,6 @@ export async function liquidarPlanilla(planillaId, items, { efectivoRecibido } =
   const body = { devoluciones: items };
   if (efectivoRecibido != null) body.efectivoRecibido = efectivoRecibido;
   const { data } = await api.post(`/api/planillas/${planillaId}/liquidar`, body);
-  return data;
-}
-
-export async function getHistorialPlanillas(comercianteId, desde, hasta) {
-  const { data } = await api.get('/api/planillas/historial', {
-    params: { comercianteId, desde, hasta },
-  });
   return data;
 }
 
